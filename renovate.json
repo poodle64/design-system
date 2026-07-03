@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Australia/Brisbane",
+  "schedule": ["after 10pm every weekday", "before 5am every day"],
+  "prConcurrentLimit": 2,
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "non-major dependencies"
+    }
+  ]
+}

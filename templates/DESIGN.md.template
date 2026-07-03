@@ -1,0 +1,287 @@
+---
+# Per-app DESIGN.md — North Star format.
+# YAML front matter: normative token overrides and palette choices.
+# Markdown prose: intent the tokens cannot encode.
+# Agents and contributors read this file before generating or reviewing any UI.
+# When this file and shared-design-language.md diverge, the shared language wins
+# on structure; this file wins on per-app brand colour and prose direction.
+#
+# Fill in every REQUIRED field. Delete or comment out OPTIONAL fields that do
+# not apply. Keep this file under 20 KB; move long component contracts to docs/.
+#
+# Binding invariants (no per-app exception):
+#   corner radius base: 0.625rem (--ds-radius-lg)
+#   fonts: Fraunces (display), Hanken Grotesk (body), JetBrains Mono (code)
+#   status vocabulary: success / warning / error / info / neutral
+#   colour space: oklch
+#   CSS namespace: --ds-*
+#   token format: DTCG 2025.10, consumed by Style Dictionary v4
+
+name: YOUR_APP_NAME                          # REQUIRED — kebab-case preferred
+description: >-                             # REQUIRED — one sentence
+  One-sentence aesthetic direction.
+  E.g. "Calm, dense control plane on warm-paper surfaces with a eucalyptus-green
+  accent and a fixed vivid status palette. Light-first, dark available."
+
+version: 2026.6.0                           # CalVer; bump when tokens change
+mode: light-first                           # light-first | dark-first | equal
+
+# ---------------------------------------------------------------------------
+# Brand primary — the ONE action accent. Override --ds-color-primary in :root.
+# Everything else in the shared token sheet is used as-is.
+# Must meet WCAG AA (>=4.5:1) on its surface in both modes.
+# ---------------------------------------------------------------------------
+primary:
+  light: oklch(0.50 0.155 XXX)              # REQUIRED — pick a hue (XXX = 0-360)
+  dark: oklch(0.70 0.140 XXX)               # REQUIRED — lighter for dark mode
+  foreground-light: oklch(0.99 0.005 XXX)   # text on primary button (light)
+  foreground-dark: oklch(0.20 0.030 XXX)    # text on primary button (dark)
+
+# ---------------------------------------------------------------------------
+# Colour overrides (OPTIONAL).
+# Only list tokens that differ from the shared design-system defaults.
+# The shared defaults live in tokens/tokens.tokens.json.
+# Do NOT redefine the status palette; it is binding and fixed.
+# ---------------------------------------------------------------------------
+# colours:
+#   light:
+#     background: oklch(...)       # override shared default
+#   dark:
+#     background: oklch(...)
+
+# ---------------------------------------------------------------------------
+# Typography (OPTIONAL override notes only — families are binding).
+# Families: Fraunces (display), Hanken Grotesk (body), JetBrains Mono (code).
+# These cannot be changed per app. Notes here are for scale or usage intent.
+# ---------------------------------------------------------------------------
+typography:
+  notes: >-
+    Page titles use Fraunces display-l (1.75rem/600/-0.02em).
+    Body defaults to Hanken Grotesk body (0.9375rem/1.4).
+    Any machine-produced value (ID, timestamp, amount) uses JetBrains Mono.
+
+# ---------------------------------------------------------------------------
+# Radius (OPTIONAL — shared defaults apply; document if you use a tighter scale)
+# Binding base: --ds-radius-lg = 0.625rem. Derived: sm (chips), xl (dialogues).
+# ---------------------------------------------------------------------------
+# rounded:
+#   note: "tighter than default — security UI reads as more precise"
+#   lg: 0.5rem    # override base radius only if you have a documented reason
+
+# ---------------------------------------------------------------------------
+# Spacing (OPTIONAL)
+# ---------------------------------------------------------------------------
+# spacing:
+#   xs: 0.25rem
+#   sm: 0.5rem
+#   md: 1rem
+#   lg: 1.5rem
+#   xl: 2rem
+#   xxl: 3rem
+---
+
+# APP_NAME Design System
+
+> The single source of truth for how APP_NAME looks. Every screen is composed
+> from the tokens and component contracts below. If a token does not answer the
+> question, the prose does. Do not style screens ad hoc.
+>
+> Shared baseline: `docs/master/design/shared-design-language.md`.
+> Token source: `@poodle64/design-tokens` (poodle64/design-system, DTCG 2025.10).
+> Generated artefacts: the package's `dist/` (CSS, JS constants, Tailwind @theme).
+
+Australian English throughout.
+
+---
+
+## 1. The idea in one line
+
+REPLACE with one sentence describing the aesthetic direction, the density, and
+the primary emotional register. E.g.: "APP_NAME is an instrument, not a
+website: calm, dense, [light/dark]-first, where [the one thing] earns the
+primary accent colour."
+
+---
+
+## 2. Colour
+
+OKLCH, [light/dark]-first. Shared surface ladder and status vocabulary apply
+unchanged (see shared-design-language.md §2 and §3). The only brand choice here
+is the primary accent.
+
+### Primary accent
+
+The primary is the ONE brand accent. It appears on:
+- The primary action in any context (one per `PageHeader`)
+- The active nav item
+- Focus rings (`--ds-color-ring` aliases `--ds-color-primary`)
+- OPTIONALLY: [list any other deliberate use; keep it short]
+
+Nowhere decorative. No second accent.
+
+### Status palette (binding — do not redefine)
+
+| Token | Meaning |
+| --- | --- |
+| `--ds-color-status-success` | done, healthy, confirmed |
+| `--ds-color-status-warning` | needs attention, awaiting input, expiring |
+| `--ds-color-status-error` | failed, expired, revoked, destructive |
+| `--ds-color-status-info` | in-flight, processing, informational |
+| `--ds-color-status-neutral` | idle, queued, skipped, inactive |
+
+Applied as: a coloured dot or icon **plus a label** (WCAG 1.4.1 — never colour
+alone). Badge text at full chroma on a `~14%` same-hue tint. Never flood-fill a
+row. The single component for this is `StatusBadge`.
+
+---
+
+## 3. Typography
+
+Three faces, each with one job. Families are binding; do not substitute.
+
+| Role | Family | Used for |
+| --- | --- | --- |
+| **Display** | Fraunces | Page titles, wordmarks, empty-state headings, large readouts |
+| **Body / UI** | Hanken Grotesk | Everything textual: labels, descriptions, table cells, buttons, nav |
+| **Data / Mono** | JetBrains Mono | Machine-produced values only: IDs, hashes, ISO dates, amounts, counts |
+
+Scale (fill in the values the app actually uses; delete roles that do not apply):
+
+| Name | Size | Weight | Line-height | Use |
+| --- | --- | --- | --- | --- |
+| `display-l` | 1.75rem | 600 | 2.125rem | Page title |
+| `heading` | 1.125rem | 600 | 1.625rem | Card / section title |
+| `body` | 0.9375rem | 400 | 1.4 | Default UI text |
+| `small` | 0.8125rem | 400 | 1.25 | Secondary text, table cells |
+| `label` | 0.6875rem | 600 | 1 | Uppercase eyebrow, column heads |
+| `mono-data` | 0.875rem | 400 | 1.25 | IDs, timestamps, values (tabular) |
+
+Rules: any value a machine produced = `font-code` + tabular figures (`tnum`).
+Body copy caps at ~70ch. Never mono for prose.
+
+---
+
+## 4. Radius
+
+Binding scale from `--ds-*` tokens. Base is `--ds-radius-lg` (0.625rem).
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--ds-radius-sm` | 0.225rem | Chips, badges, inputs |
+| `--ds-radius-md` | 0.425rem | — |
+| `--ds-radius-lg` | 0.625rem | Cards, panels (base `--radius`) |
+| `--ds-radius-xl` | 0.825rem | Dialogues, modals |
+| `--ds-radius-full` | 9999px | Pills |
+
+---
+
+## 5. Layout and spacing
+
+REPLACE with the app's shell description:
+
+- **Shell:** [one sentence — e.g. "left nav rail + fluid content on a shared dot-grid floor"]
+- **Inner width discipline:** [e.g. "tables fluid; forms capped at max-w-2xl; reading copy capped at 70ch"]
+- **Right context column:** [present/absent and purpose]
+- **Content padding:** [e.g. `px-8 py-7`]
+
+---
+
+## 6. Components
+
+Built on shadcn-svelte primitives (mandatory). Shared primitives from
+`src/lib/components/` — see shared-design-language.md §4 for the full contract.
+Document APP_NAME-specific additions or deviations below.
+
+REPLACE or extend this list with the components actually used:
+
+- **`Button`** — shadcn `ui/button` only. One primary (`default`) per `PageHeader`. Never hand-roll.
+- **`StatusBadge`** — dot + label on a ~14% same-hue tint. The only state chip.
+- **`PageHeader`** — `{ title, subtitle?, eyebrow?, breadcrumbs?, actions? }`. One primary action.
+- **`DataTable`** — shadcn table primitives; `label` column heads; mono data cells.
+- **`StatList`** — route metrics as a vertical label→value list. Zero-aware.
+- **`DetailPanel`** — entity detail (header + scrollable body + sticky footer).
+- **`EmptyState`** — Fraunces heading, muted line, primary CTA.
+
+Icons: `@lucide/svelte`, deep imports, `size-4` inline / `size-5` standalone /
+`size-6` empty states. Every status glyph pairs with a label and a colour.
+
+---
+
+## 7. Do / Don't
+
+**Do:**
+- Compose from shared primitives; add to the shared library when a new one is needed
+- Use `StatusBadge` for every state chip (dot + label, never colour alone)
+- Use `--ds-color-primary` for the one action accent and the active nav item
+- Use mono + tabular figures for any machine-produced value
+- Let tables run full width; cap forms at `max-w-2xl`
+- Apply `--ds-radius-lg` to cards; `--ds-radius-xl` to dialogues
+- Use `--ds-font-display` (Fraunces) for page titles and empty-state headings
+
+**Don't:**
+- Centre a narrow column on a wide screen
+- Add a second accent colour
+- Flood-fill table rows with a status colour
+- Use colour as the only state signal (WCAG 1.4.1)
+- Use mono for prose or body copy
+- Hand-roll a `<button>` where a shadcn `Button` variant applies
+- Put two primary actions in one `PageHeader`
+- Write raw oklch / hex values in a component — every colour is a `--ds-*` var
+
+---
+
+## 8. Token consumption
+
+```css
+/* app.css — import order for a Tailwind v4 project */
+@import "tailwindcss";
+@import "@poodle64/design-tokens/tokens.tw.css"; /* @theme block */
+@import "@poodle64/design-tokens/tokens.css";    /* :root + .dark */
+
+/* Per-app primary override (only change from shared defaults) */
+:root {
+  --ds-color-primary: oklch(0.50 0.155 XXX);
+  --ds-color-primary-foreground: oklch(0.99 0.005 XXX);
+  --ds-color-ring: oklch(0.50 0.155 XXX);
+}
+.dark {
+  --ds-color-primary: oklch(0.70 0.140 XXX);
+  --ds-color-primary-foreground: oklch(0.20 0.030 XXX);
+  --ds-color-ring: oklch(0.70 0.140 XXX);
+}
+
+/* shadcn-svelte alias layer — map --ds-* onto --background, --primary, etc. */
+:root, .dark {
+  --background:         var(--ds-color-background);
+  --foreground:         var(--ds-color-foreground);
+  --card:               var(--ds-color-surface-2);
+  --card-foreground:    var(--ds-color-foreground);
+  --popover:            var(--ds-color-surface-3);
+  --popover-foreground: var(--ds-color-foreground);
+  --primary:            var(--ds-color-primary);
+  --primary-foreground: var(--ds-color-primary-foreground);
+  --secondary:          var(--ds-color-surface-1);
+  --secondary-foreground: var(--ds-color-foreground);
+  --muted:              var(--ds-color-surface-1);
+  --muted-foreground:   var(--ds-color-muted-foreground);
+  --accent:             var(--ds-color-surface-2);
+  --accent-foreground:  var(--ds-color-foreground);
+  --destructive:        var(--ds-color-destructive);
+  --border:             var(--ds-color-border);
+  --input:              var(--ds-color-border);
+  --ring:               var(--ds-color-ring);
+  --radius:             var(--ds-radius-lg);
+
+  /* Status convenience aliases */
+  --status-success: var(--ds-color-status-success);
+  --status-warning: var(--ds-color-status-warning);
+  --status-error:   var(--ds-color-status-error);
+  --status-info:    var(--ds-color-status-info);
+  --status-neutral: var(--ds-color-status-neutral);
+}
+```
+
+TypeScript:
+```ts
+import { DS_COLOR_PRIMARY_LIGHT } from "@poodle64/design-tokens";
+```
