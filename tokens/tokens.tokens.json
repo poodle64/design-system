@@ -300,6 +300,14 @@
           "$description": "Alias of status-error; shadcn-svelte destructive variant."
         },
         "dark": { "$value": "{palette.status.error.dark}", "$type": "color" }
+      },
+      "destructive-foreground": {
+        "light": {
+          "$value": "oklch(0.985 0.005 27)",
+          "$type": "color",
+          "$description": "Text on a solid destructive control; near-white in both modes."
+        },
+        "dark": { "$value": "oklch(0.970 0.012 25)", "$type": "color" }
       }
     }
   }

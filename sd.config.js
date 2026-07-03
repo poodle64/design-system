@@ -30,6 +30,12 @@ import { fileHeader } from 'style-dictionary/utils';
  * drop the 'semantic' level, spell 'colour' as 'color' (CSS convention),
  * and drop a trailing 'light'/'dark' mode key (the mode is carried by
  * :root vs .dark, not by the property name).
+ *
+ * The mode-split applies to palette primitives too, BY DESIGN: a palette
+ * pair like palette.primary.{light,dark} emits one --ds-palette-primary
+ * that follows the mode, exactly like the semantic tokens. The JS constants
+ * keep both values (DS_PALETTE_PRIMARY_LIGHT / _DARK) for consumers that
+ * need a specific mode's value.
  */
 const dsName = (parts) => {
   const trimmed = parts[0] === 'semantic' ? parts.slice(1) : parts;
@@ -84,21 +90,16 @@ StyleDictionary.registerFormat({
     const lines = [];
     const seen = new Set();
 
-    for (const [parts, node] of leaves(dictionary.tokens)) {
+    for (const [parts] of leaves(dictionary.tokens)) {
       if (parts[0] !== 'semantic') continue; // palette primitives stay out of @theme
       const { name } = dsName(parts);
       if (seen.has(name)) continue; // light/dark pairs collapse to one alias
       seen.add(name);
 
       // Alias the live --ds-* custom property so .dark toggling flows through
-      // @theme utilities automatically.
-      const group = parts[1];
-      if (group === 'colour') {
-        lines.push(`  --${name}: var(--ds-${name});`); // name already starts with color-
-      } else if (group === 'radius' || group === 'spacing' || group === 'text' || group === 'font') {
-        lines.push(`  --${group}-${parts.slice(2).join('-')}: var(--ds-${name});`);
-      }
-      void node;
+      // @theme utilities automatically. The normalised name already carries its
+      // Tailwind namespace (color-*, radius-*, spacing-*, text-*, font-*).
+      lines.push(`  --${name}: var(--ds-${name});`);
     }
 
     // Default Tailwind family hooks so font-sans / font-serif / font-mono

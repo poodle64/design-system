@@ -45,5 +45,15 @@ jobs:
             echo "non --ds- prefixed property found in dist/tokens.css" >&2
             exit 1
           fi
+          # tokens.tw.css deliberately emits un-prefixed Tailwind namespaces;
+          # every property must sit in one of them and alias a --ds- var.
           grep -q '@theme' dist/tokens.tw.css
+          if grep -Eo '^\s*--[a-z0-9-]+:' dist/tokens.tw.css | grep -Ev -- '--(color|radius|spacing|text|font)-'; then
+            echo "unexpected @theme namespace in dist/tokens.tw.css" >&2
+            exit 1
+          fi
+          if grep -E '^\s*--' dist/tokens.tw.css | grep -v 'var(--ds-'; then
+            echo "tokens.tw.css property not aliasing a --ds- var" >&2
+            exit 1
+          fi
           grep -q 'DS_COLOR_STATUS_SUCCESS' dist/tokens.js

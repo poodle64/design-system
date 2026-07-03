@@ -50,7 +50,7 @@ GitHub Packages requires authentication for every install, public packages inclu
 //npm.pkg.github.com/:_authToken=YOUR_TOKEN
 ```
 
-**CI** (GitHub Actions): the workflow's own `GITHUB_TOKEN` can install this package because it is public — pass it as `NODE_AUTH_TOKEN`, or use `actions/setup-node` with `registry-url`.
+**CI** (GitHub Actions): pass a token as `NODE_AUTH_TOKEN` (or use `actions/setup-node` with `registry-url`, which wires it). For workflows under the `poodle64` account the job's own `GITHUB_TOKEN` works (verified); a workflow elsewhere needs a PAT with `read:packages` — GitHub Packages authenticates every install, public packages included.
 
 **Install and wire** (Tailwind v4 app):
 

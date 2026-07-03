@@ -2,6 +2,18 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.7.1] - 2026-07-03
+
+### Added
+
+- `--ds-color-destructive-foreground` (near-white text on a solid destructive control, both modes) — review finding: shadcn-svelte destructive variants reference `text-destructive-foreground`, which had no token backing.
+
+### Changed
+
+- Tailwind `@theme` emitter simplified to one alias form for every semantic group (output byte-identical apart from the new token).
+- CI contract assertion now also checks `tokens.tw.css` namespaces and that every `@theme` entry aliases a `--ds-*` var.
+- README states the exact GitHub Packages auth contract per consumer class; `DESIGN.md.template` gains the `--destructive-foreground` alias line and current version.
+
 ## [2026.7.0] - 2026-07-03
 
 ### Added
