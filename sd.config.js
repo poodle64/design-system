@@ -10,7 +10,8 @@
  * Three platforms:
  *   css → dist/tokens.css    (:root light tokens + .dark overrides, --ds-* namespace)
  *   js  → dist/tokens.js + dist/tokens.d.ts  (DS_* constants)
- *   tw  → dist/tokens.tw.css (@theme block for Tailwind v4)
+ *   tw  → dist/tokens.tw.css (@theme block for Tailwind v4; every semantic
+ *                             group except THEME_EXCLUDED_NAMESPACES below)
  *
  * Emitted-name contract (what every consuming app relies on):
  *   semantic.colour.X.{light,dark} → --ds-color-X in :root and .dark
@@ -83,6 +84,26 @@ StyleDictionary.registerFormat({
 // ---------------------------------------------------------------------------
 // Custom format: Tailwind v4 @theme block
 // ---------------------------------------------------------------------------
+
+/**
+ * Tailwind namespaces this package must never register in @theme.
+ *
+ * spacing: Tailwind resolves the sizing utilities (w-*, max-w-*, min-w-*,
+ * basis-*) against --spacing-* BEFORE --container-*, so a named --spacing-<key>
+ * whose key also exists on the container scale (xs…7xl) silently rewrites them
+ * — max-w-2xl drops from 42rem to the 3rem spacing value, collapsing every
+ * shadcn-svelte dialogue, sheet, and tooltip. Our named scale is exactly
+ * xs…2xl, so every key collides, and every value is already reachable on the
+ * numeric scale anyway (--ds-spacing-md = 1rem = p-4).
+ *
+ * The --ds-spacing-* custom properties in tokens.css are unaffected: they stay
+ * the way to consume the named rhythm from hand-written CSS.
+ *
+ * Guarded by test/tailwind-namespace.test.js, which compiles real Tailwind and
+ * asserts the sizing scale means the same with and without this package.
+ */
+const THEME_EXCLUDED_NAMESPACES = new Set(['spacing']);
+
 StyleDictionary.registerFormat({
   name: 'css/tailwind-v4-theme',
   format: async ({ dictionary, file }) => {
@@ -93,6 +114,7 @@ StyleDictionary.registerFormat({
     for (const [parts] of leaves(dictionary.tokens)) {
       if (parts[0] !== 'semantic') continue; // palette primitives stay out of @theme
       const { name } = dsName(parts);
+      if (THEME_EXCLUDED_NAMESPACES.has(name.split('-')[0])) continue;
       if (seen.has(name)) continue; // light/dark pairs collapse to one alias
       seen.add(name);
 

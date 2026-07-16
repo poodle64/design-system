@@ -33,6 +33,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # A tag can be cut from a commit that never went through ci.yaml, so the
+      # emitted-contract guard runs here too rather than trusting the push gate.
+      - name: Build and test tokens
+        run: pnpm test
+
       - name: Verify tag matches package version
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")

@@ -23,7 +23,7 @@ description: >-                             # REQUIRED — one sentence
   E.g. "Calm, dense control plane on warm-paper surfaces with a eucalyptus-green
   accent and a fixed vivid status palette. Light-first, dark available."
 
-version: 2026.7.1                           # CalVer; bump when tokens change
+version: 2026.7.2                           # CalVer; bump when tokens change
 mode: light-first                           # light-first | dark-first | equal
 
 # ---------------------------------------------------------------------------
@@ -69,15 +69,14 @@ typography:
 #   lg: 0.5rem    # override base radius only if you have a documented reason
 
 # ---------------------------------------------------------------------------
-# Spacing (OPTIONAL)
+# Spacing (OPTIONAL — notes only)
+# The named scale ships as --ds-spacing-* CSS variables for hand-written CSS.
+# It is NOT in the Tailwind @theme block: a named --spacing-* entry captures
+# w-*/max-w-*/min-w-*/basis-* off the container scale. In markup use the
+# numeric scale — p-1 / p-2 / p-4 / p-6 / p-8 / p-12 are xs…2xl.
 # ---------------------------------------------------------------------------
 # spacing:
-#   xs: 0.25rem
-#   sm: 0.5rem
-#   md: 1rem
-#   lg: 1.5rem
-#   xl: 2rem
-#   2xl: 3rem
+#   notes: "cards use p-4; page gutters px-8"
 ---
 
 # APP_NAME Design System
@@ -183,6 +182,10 @@ REPLACE with the app's shell description:
 - **Inner width discipline:** [e.g. "tables fluid; forms capped at max-w-2xl; reading copy capped at 70ch"]
 - **Right context column:** [present/absent and purpose]
 - **Content padding:** [e.g. `px-8 py-7`]
+
+Spacing in markup uses Tailwind's numeric scale (`p-4`, `gap-6`). The named
+`--ds-spacing-*` variables are for hand-written CSS only — they are kept out of
+the `@theme` block so `max-w-*` keeps meaning the container scale.
 
 ---
 

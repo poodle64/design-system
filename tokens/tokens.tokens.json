@@ -3,8 +3,8 @@
   "$description": "Household canonical design tokens — W3C DTCG 2025.10 format. Base OKLCH palette, then semantic --ds-* tokens for surface ladder, status intents, action/primary, radius, spacing, and typography. Style Dictionary v4 consumes this file and emits CSS custom properties, JavaScript constants, and a Tailwind v4 @theme block. Binding: no per-app overrides on named semantics.",
   "meta": {
     "$value": "metadata",
-    "version": { "$value": "2026.7.0" },
-    "updated": { "$value": "2026-07-03" },
+    "version": { "$value": "2026.7.2" },
+    "updated": { "$value": "2026-07-16" },
     "colourSpace": { "$value": "oklch" },
     "namespace": { "$value": "--ds-" },
     "format": { "$value": "DTCG 2025.10" }
@@ -162,7 +162,7 @@
     },
 
     "spacing": {
-      "$description": "Named spacing scale for layout rhythm. Supplements (never replaces) Tailwind's numeric scale; use for semantic gaps that should stay consistent across apps.",
+      "$description": "Named spacing scale for layout rhythm, consumed as --ds-spacing-* from hand-written CSS. Deliberately absent from the Tailwind @theme block: Tailwind resolves w-*/max-w-*/min-w-*/basis-* against --spacing-* ahead of --container-*, so registering these keys silently collapses the container scale. In Tailwind markup use the numeric scale instead — md is p-4.",
       "xs": { "$value": "0.25rem", "$type": "dimension" },
       "sm": { "$value": "0.5rem", "$type": "dimension" },
       "md": { "$value": "1rem", "$type": "dimension" },

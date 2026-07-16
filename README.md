@@ -10,6 +10,7 @@ tokens/
 sd.config.js            Style Dictionary v4 config (css / tw / js platforms)
 templates/
   DESIGN.md.template    Per-app North Star template (copy → DESIGN.md, fill in)
+test/                   `pnpm test` — compiles real Tailwind against the build
 dist/                   Generated — run `pnpm build`; never edit by hand
   tokens.css            :root (light) + .dark custom properties (--ds-*)
   tokens.tw.css         Tailwind v4 @theme block (aliases the --ds-* vars)
@@ -95,7 +96,7 @@ tokens.tokens.json
        status/          Five semantic status hues (light + dark)
   └─ semantic/          What components consume
        radius/          none / sm / md / lg / xl / full
-       spacing/         xs / sm / md / lg / xl / 2xl
+       spacing/         xs / sm / md / lg / xl / 2xl  (CSS vars only — see below)
        text/            2xs (eyebrow / column head)
        font/            display / body / code
        colour/          surface ladder + status + primary + destructive
@@ -103,10 +104,37 @@ tokens.tokens.json
                         emitted as :root + .dark blocks
 ```
 
+### Spacing is CSS variables only
+
+`--ds-spacing-*` ships in `tokens.css` for hand-written CSS, but the named
+scale is deliberately **not** registered in the Tailwind `@theme` block.
+
+Tailwind resolves `w-*`, `max-w-*`, `min-w-*`, and `basis-*` against
+`--spacing-*` ahead of `--container-*`. A named `--spacing-2xl` therefore
+captures `max-w-2xl`, silently dropping it from 42rem to 3rem and collapsing
+every shadcn-svelte dialogue, sheet, and tooltip — no build error, no lint hit,
+just broken layout. Our named keys are exactly `xs`–`2xl`, so all of them
+collide.
+
+In Tailwind markup use the numeric scale, which carries the same values:
+
+| Token | Value | Tailwind |
+| --- | --- | --- |
+| `--ds-spacing-xs` | 0.25rem | `p-1` |
+| `--ds-spacing-sm` | 0.5rem | `p-2` |
+| `--ds-spacing-md` | 1rem | `p-4` |
+| `--ds-spacing-lg` | 1.5rem | `p-6` |
+| `--ds-spacing-xl` | 2rem | `p-8` |
+| `--ds-spacing-2xl` | 3rem | `p-12` |
+
+`test/tailwind-namespace.test.js` compiles real Tailwind and asserts the sizing
+scale means the same with and without this package, so a future token cannot
+reintroduce the collision unnoticed.
+
 ## Changing tokens
 
 1. Edit `tokens/tokens.tokens.json` only.
-2. `pnpm build` and check `dist/`.
+2. `pnpm test` (builds, then checks the emitted contract against real Tailwind) and check `dist/`.
 3. Bump `version` in `package.json` and `meta.version` in the token file (CalVer), update `CHANGELOG.md`.
 4. Commit, tag `v<version>`, push the tag — CI publishes to GitHub Packages.
 5. Renovate raises the bump PR in each consuming app.

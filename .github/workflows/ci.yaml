@@ -27,8 +27,8 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Build tokens
-        run: pnpm build
+      - name: Build and test tokens
+        run: pnpm test
 
       - name: Assert emitted contract
         run: |
@@ -47,8 +47,10 @@ jobs:
           fi
           # tokens.tw.css deliberately emits un-prefixed Tailwind namespaces;
           # every property must sit in one of them and alias a --ds- var.
+          # spacing is absent by design — a named --spacing-* entry captures the
+          # sizing utilities off the container scale (see sd.config.js).
           grep -q '@theme' dist/tokens.tw.css
-          if grep -Eo '^\s*--[a-z0-9-]+:' dist/tokens.tw.css | grep -Ev -- '--(color|radius|spacing|text|font)-'; then
+          if grep -Eo '^\s*--[a-z0-9-]+:' dist/tokens.tw.css | grep -Ev -- '--(color|radius|text|font)-'; then
             echo "unexpected @theme namespace in dist/tokens.tw.css" >&2
             exit 1
           fi
