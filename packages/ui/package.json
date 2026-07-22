@@ -1,7 +1,7 @@
 {
   "name": "@poodle64/ui",
   "version": "2026.7.0",
-  "description": "Household shared shadcn-svelte component primitives (bits-ui) — extracted from Portcullis, restyled by each app's @poodle64/design-tokens alias layer. One fix reaches every app.",
+  "description": "Household shared shadcn-svelte component primitives (bits-ui), restyled by each app's @poodle64/design-tokens alias layer. One fix reaches every app.",
   "type": "module",
   "license": "MIT",
   "repository": "github:poodle64/design-system",
@@ -24,10 +24,18 @@
     }
   },
   "peerDependencies": {
-    "bits-ui": "^2.16.0",
+    "bits-ui": "^2.18.1",
     "mode-watcher": "^1.1.0",
     "svelte": "^5.0.0",
-    "svelte-sonner": "^1.1.0"
+    "svelte-sonner": "^1.1.1"
+  },
+  "peerDependenciesMeta": {
+    "mode-watcher": {
+      "optional": true
+    },
+    "svelte-sonner": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@lucide/svelte": "^1.25.0",
@@ -40,19 +48,23 @@
     "@sveltejs/kit": "^2.63.0",
     "@sveltejs/package": "^2.5.8",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/svelte": "^5.4.2",
     "bits-ui": "^2.18.1",
+    "jsdom": "^29.1.1",
     "mode-watcher": "^1.1.0",
     "publint": "^0.3.15",
     "svelte": "^5.56.2",
     "svelte-check": "^4.6.0",
     "svelte-sonner": "^1.1.1",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.10"
   },
   "scripts": {
     "build": "svelte-kit sync && svelte-package && publint",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "pnpm run build"
+    "test": "pnpm run build && vitest run"
   },
   "packageManager": "pnpm@10.28.0"
 }

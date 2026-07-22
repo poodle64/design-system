@@ -12,9 +12,9 @@ packages/
                      build, --ds-* CSS custom properties, Tailwind v4 @theme block.
                      See packages/design-tokens/README.md.
   ui/                @poodle64/ui — shared shadcn-svelte component primitives
-                     (bits-ui), extracted from Portcullis (the reference frontend),
-                     restyled by whichever app's token alias layer is active.
-                     See packages/ui/README.md.
+                     (bits-ui), extracted from the household's most conformant
+                     consuming app, restyled by whichever app's token alias
+                     layer is active. See packages/ui/README.md.
 ```
 
 Both packages publish to GitHub Packages under the `@poodle64` scope. See each

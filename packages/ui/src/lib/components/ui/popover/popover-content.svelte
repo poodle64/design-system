@@ -3,6 +3,7 @@
 	import { cn } from '$lib/utils';
 
 	let {
+		ref = $bindable(null),
 		class: className,
 		align = 'center',
 		sideOffset = 4,
@@ -13,6 +14,7 @@
 
 <PopoverPrimitive.Portal>
 	<PopoverPrimitive.Content
+		bind:ref
 		{align}
 		{sideOffset}
 		class={cn(

@@ -1,18 +1,21 @@
 # @poodle64/ui
 
 Household shared shadcn-svelte component primitives (bits-ui), extracted from
-Portcullis (`repos/portcullis/frontend/src/lib/components/ui/`) — the reference
-frontend, the best-looking and most-conformant implementation in the estate — plus
-`alert`/`popover`/`progress`/`tabs` from Seshat, added when Seshat became the first
-app migrated onto this package (WP-51 Lane WP) and needed them.
+the estate's most conformant consuming app's frontend — the best-looking,
+most battle-tested implementation of each primitive — plus `alert`/`popover`/
+`progress`/`tabs` from the first app that migrated onto this package (WP-51
+Lane WP) and needed them.
 
-`bits-ui`, `mode-watcher`, and `svelte-sonner` are peerDependencies, not bundled
-dependencies: each is a singleton the consuming app shares with this package
-(compound-component context for `bits-ui`; a single dark-mode store for
-`mode-watcher`; one toast queue for `svelte-sonner`'s `toast()` + `Toaster` pair).
-A duplicated instance of any of the three is a real functional bug — mismatched
-types at best, a `Toaster` that never sees the app's own `toast()` calls at worst
-— not just wasted bytes.
+`bits-ui` is a required peerDependency: components share compound-component
+context across the package, so a duplicated `bits-ui` instance is a real
+functional bug (mismatched types at best). `mode-watcher` and `svelte-sonner`
+are optional peers (`peerDependenciesMeta`), needed only if the consuming app
+uses `@poodle64/ui/sonner` (a single dark-mode store for `mode-watcher`, one
+toast queue for `svelte-sonner`'s `toast()` + `Toaster` pair — a duplicated
+instance there means a `Toaster` that never sees the app's own `toast()`
+calls). Declare whichever peers you use directly in your own `package.json` —
+pnpm auto-installs missing peers, but an explicit dependency is what lets
+Renovate track the version and `pnpm ls` show it.
 
 Every app previously vendored its own copy of these primitives and restyled them
 through its `@poodle64/design-tokens` alias layer. That let apps differ by palette,
@@ -28,7 +31,7 @@ itself now lives once.
 src/lib/
   utils.ts              cn() (clsx + tailwind-merge) and the shared TS helper types
   components/ui/         one directory per shadcn-svelte primitive (bits-ui behaviour
-                          + shadcn markup/variants), copied from Portcullis verbatim
+                          + shadcn markup/variants)
 dist/                    generated — run `pnpm build` (@sveltejs/package); never edit
 ```
 
