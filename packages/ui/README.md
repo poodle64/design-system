@@ -2,7 +2,9 @@
 
 Household shared shadcn-svelte component primitives (bits-ui), extracted from
 Portcullis (`repos/portcullis/frontend/src/lib/components/ui/`) — the reference
-frontend, the best-looking and most-conformant implementation in the estate.
+frontend, the best-looking and most-conformant implementation in the estate — plus
+`alert`/`popover`/`tabs` from Seshat, added when Seshat became the first app
+migrated onto this package (WP-51 Lane WP) and needed them.
 
 Every app previously vendored its own copy of these primitives and restyled them
 through its `@poodle64/design-tokens` alias layer. That let apps differ by palette,
@@ -22,15 +24,16 @@ src/lib/
 dist/                    generated — run `pnpm build` (@sveltejs/package); never edit
 ```
 
-**Component set** (Portcullis's actual, battle-tested set — not an invented "ideal"
-list): `alert-dialog`, `badge`, `button`, `card`, `checkbox`, `command`, `data-table`,
-`dialog`, `dropdown-menu`, `input`, `input-group`, `label`, `password-input`,
-`select`, `separator`, `skeleton`, `sonner`, `switch`, `table`, `textarea`, `tooltip`.
+**Component set** (24 — battle-tested implementations pulled from whichever app had
+them first, not an invented "ideal" list): `alert`, `alert-dialog`, `badge`, `button`,
+`card`, `checkbox`, `command`, `data-table`, `dialog`, `dropdown-menu`, `input`,
+`input-group`, `label`, `password-input`, `popover`, `select`, `separator`,
+`skeleton`, `sonner`, `switch`, `table`, `tabs`, `textarea`, `tooltip`.
 
-Not yet included: `alert`, `popover`, `sheet`, `tabs` — no app's `ui/` has vendored
-these yet. Add them here (`pnpm dlx shadcn-svelte@latest add <name>` inside
-`packages/ui`, or hand-port from a sibling app once one adopts it) the first time a
-converging app actually needs one; do not invent them speculatively.
+Not yet included: `sheet` — no app's `ui/` has vendored it yet. Add it here
+(`pnpm dlx shadcn-svelte@latest add <name>` inside `packages/ui`, or hand-port from
+a sibling app once one adopts it) the first time a converging app actually needs it;
+do not invent it speculatively.
 
 ## Consuming the package
 

@@ -6,7 +6,7 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ### Added
 
-- Initial release: 21 shadcn-svelte primitives (bits-ui) extracted verbatim from Portcullis's `frontend/src/lib/components/ui/` — `alert-dialog`, `badge`, `button`, `card`, `checkbox`, `command`, `data-table`, `dialog`, `dropdown-menu`, `input`, `input-group`, `label`, `password-input`, `select`, `separator`, `skeleton`, `sonner`, `switch`, `table`, `textarea`, `tooltip` — plus the shared `cn()` helper and TS utility types.
+- Initial release: 24 shadcn-svelte primitives (bits-ui) — 21 extracted verbatim from Portcullis's `frontend/src/lib/components/ui/` (`alert-dialog`, `badge`, `button`, `card`, `checkbox`, `command`, `data-table`, `dialog`, `dropdown-menu`, `input`, `input-group`, `label`, `password-input`, `select`, `separator`, `skeleton`, `sonner`, `switch`, `table`, `textarea`, `tooltip`), plus `alert`/`popover`/`tabs` from Seshat (added when Seshat migrated onto this package and needed them) — plus the shared `cn()` helper and TS utility types.
 - Built with `@sveltejs/package`; per-component subpath exports (`@poodle64/ui/<name>`), matching shadcn-svelte's own convention (a flat barrel would collide on shared names like `Root`/`Content`/`Trigger`).
 - Publish workflow: tag `ui-v*` → GitHub Packages (`@poodle64/ui`).
 
