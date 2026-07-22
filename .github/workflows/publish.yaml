@@ -1,6 +1,10 @@
 name: Publish Package
 
-# Publishes @poodle64/design-tokens to GitHub Packages on tag push.
+# Publishes one workspace package to GitHub Packages on a package-scoped tag
+# push: design-tokens-v<version> for @poodle64/design-tokens, ui-v<version>
+# for @poodle64/ui. Scoped tags let each package release on its own cadence
+# without forcing a version bump on the other (WP-51 Lane WP, 2026-07-22).
+#
 # Deviation from 10-ci-workflow-standard (jobs on [self-hosted, atlas]),
 # dated 2026-07-03: this repo is PUBLIC, and exposing a self-hosted runner
 # to a public repo is a fork-PR execution risk. GitHub-hosted is the
@@ -8,7 +12,7 @@ name: Publish Package
 
 on:
   push:
-    tags: ['v*']
+    tags: ['design-tokens-v*', 'ui-v*']
 
 jobs:
   publish:
@@ -19,6 +23,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Resolve package from tag
+        id: pkg
+        run: |
+          set -e
+          case "$GITHUB_REF_NAME" in
+            design-tokens-v*)
+              echo "dir=packages/design-tokens" >> "$GITHUB_OUTPUT"
+              echo "version=${GITHUB_REF_NAME#design-tokens-v}" >> "$GITHUB_OUTPUT"
+              ;;
+            ui-v*)
+              echo "dir=packages/ui" >> "$GITHUB_OUTPUT"
+              echo "version=${GITHUB_REF_NAME#ui-v}" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "unrecognised tag: $GITHUB_REF_NAME" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Setup pnpm
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
@@ -34,20 +57,21 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # A tag can be cut from a commit that never went through ci.yaml, so the
-      # emitted-contract guard runs here too rather than trusting the push gate.
-      - name: Build and test tokens
-        run: pnpm test
+      # build/test guard runs here too rather than trusting the push gate.
+      - name: Build and test package
+        run: pnpm --filter "./${{ steps.pkg.outputs.dir }}" run test
 
       - name: Verify tag matches package version
         run: |
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "Tag $TAG_VERSION does not match package.json version $PKG_VERSION" >&2
+          set -e
+          PKG_VERSION=$(node -p "require('./${{ steps.pkg.outputs.dir }}/package.json').version")
+          if [ "$PKG_VERSION" != "${{ steps.pkg.outputs.version }}" ]; then
+            echo "Tag version ${{ steps.pkg.outputs.version }} does not match ${{ steps.pkg.outputs.dir }}/package.json version $PKG_VERSION" >&2
             exit 1
           fi
 
       - name: Publish
+        working-directory: ${{ steps.pkg.outputs.dir }}
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
