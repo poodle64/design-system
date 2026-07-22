@@ -1,3 +1,3 @@
-import { Checkbox as CheckboxPrimitive } from 'bits-ui';
-export { CheckboxPrimitive as Checkbox };
-export { default } from './checkbox.svelte';
+import Checkbox from './checkbox.svelte';
+
+export { Checkbox, Checkbox as default };

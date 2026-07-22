@@ -69,7 +69,7 @@ jobs:
           set -e
           for c in alert alert-dialog badge button card checkbox command data-table \
             dialog dropdown-menu input input-group label password-input popover \
-            select separator skeleton sonner switch table tabs textarea tooltip; do
+            progress select separator skeleton sonner switch table tabs textarea tooltip; do
             f="packages/ui/dist/components/ui/$c/index.js"
             test -f "$f" || { echo "missing built component: $f" >&2; exit 1; }
           done
