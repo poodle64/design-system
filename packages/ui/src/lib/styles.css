@@ -21,6 +21,94 @@
  */
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   The shadcn semantic surface.
+
+   Every component in this package is written against the shadcn colour names
+   (bg-card, bg-popover, bg-muted, bg-accent, border-input, bg-secondary and
+   their -foreground pairs). Declaring those names as plain custom properties
+   makes the VARIABLE exist but never tells Tailwind they are theme colours, so
+   the utilities compile to nothing at all: no build error, no lint hit, no
+   failing test — just a class in the DOM with no CSS behind it. Registration
+   is therefore two steps, and both are needed.
+
+   Step one, below: the mapping itself, declared once. Each shadcn name aliases
+   a --ds-* token from @poodle64/design-tokens, so a consuming app that picks a
+   palette by overriding --ds-color-* moves this whole surface with it, and
+   .dark flows through untouched.
+
+   The values are not a fresh design: they are what every app in the estate had
+   already converged on independently, hoisted here verbatim. There was no
+   disagreement to arbitrate — the surface ladder mapping (card/accent on
+   surface-2, popover on surface-3, muted/secondary on surface-1, input on
+   border) is identical in every app that had one.
+
+   An app may still override any single name after this import; that is a
+   deliberate deviation rather than the setup tax it is today.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+	--background: var(--ds-color-background);
+	--foreground: var(--ds-color-foreground);
+	--card: var(--ds-color-surface-2);
+	--card-foreground: var(--ds-color-foreground);
+	--popover: var(--ds-color-surface-3);
+	--popover-foreground: var(--ds-color-foreground);
+	--primary: var(--ds-color-primary);
+	--primary-foreground: var(--ds-color-primary-foreground);
+	--secondary: var(--ds-color-surface-1);
+	--secondary-foreground: var(--ds-color-foreground);
+	--muted: var(--ds-color-surface-1);
+	--muted-foreground: var(--ds-color-muted-foreground);
+	--accent: var(--ds-color-surface-2);
+	--accent-foreground: var(--ds-color-foreground);
+	--destructive: var(--ds-color-destructive);
+	--destructive-foreground: var(--ds-color-destructive-foreground);
+	--border: var(--ds-color-border);
+	--border-strong: var(--ds-color-border-strong);
+	--input: var(--ds-color-border);
+	--ring: var(--ds-color-ring);
+
+	/* Consumed by the button/input-group size ramps as calc(var(--radius) - n). */
+	--radius: var(--ds-radius-lg);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Step two: register those names with Tailwind so the utilities generate.
+
+   `inline` is what makes the override story work — Tailwind substitutes the
+   value into the utility, so .bg-card lands on var(--card) and follows any
+   redefinition of --card, at any scope, including .dark. Without it the
+   utility would freeze against whatever --card meant in :root.
+
+   Sidebar and chart colours are deliberately NOT registered here. This package
+   ships no sidebar or chart component, so nothing it exports could reference
+   them, and they are the one part of the shadcn surface the estate genuinely
+   disagrees on (chrome hue is an app's own decision, not a shared default).
+   An app using them registers them itself, as it does today.
+   ───────────────────────────────────────────────────────────────────────────── */
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-border: var(--border);
+	--color-border-strong: var(--border-strong);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    Theme registration — the scale keys the composed components reference as
    Tailwind utilities (text-display, text-body, text-stat, tracking-eyebrow).
    An app may override any of these by re-declaring the key after this import.
