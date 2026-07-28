@@ -4,6 +4,24 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.7.5] - 2026-07-28
+
+### Added
+
+- **`CardTitle` can now be a real heading, via an optional `level` prop** (`1`–`6`). Given one it renders the matching `<h1>`–`<h6>`; omitted, it renders the `<div>` it always did.
+
+  A card title is not always a heading, so the `<div>` default is right and stays — it matches upstream shadcn, and a card whose title merely labels a figure would put a phantom stop in the document outline. What was missing was any way for a consumer to say "this one IS the heading", and that gap is not free: it is invisible. The app this component's `<h3>` was replaced in has dozens of call sites where the card title is genuinely the heading for that card's content, on pages whose only other landmark is the page `<h1>`. After migrating onto this package those pages have an `h1` and then nothing — a screen-reader user navigating by heading gets one stop for an entire admin dashboard. No error, no lint hit, no visual difference; every app adopting this package inherits the same loss the same way, which is why the escape hatch belongs here rather than in each consumer's own fork of the component.
+
+  `level` is a heading LEVEL and never a size. The class list, `data-slot` and every rest prop are identical in both modes — the component is one `<svelte:element>` rather than two branches, so there is nowhere for them to drift apart — and the identity is measured, not asserted: seven cards differing only in that prop render at the same 352×22 title box inside the same 384×114 card, with all eighteen probed computed properties equal. That matters because `<h1>`–`<h6>` carry UA font-size, weight and margin a `<div>` does not. The class list overrides size and weight itself; **margin is neutralised by Tailwind's preflight and by nothing in this package**, so that dependency is now pinned against the compiled consumer chain rather than left to be rediscovered by an app that drops preflight.
+
+  Sizing stays where it already was, on `class`. Existing consumers are untouched: the default is unchanged, measured against a rebuild of the previous component in the same engine (identical class list, attribute set, box and computed style). The one difference in the whole read is the position of Svelte's empty anchor comment inside the element — invisible to layout, to the cascade and to the accessibility tree, all three measured. `harness/drive.md` records it, along with why the two-branch alternative was built, measured and rejected.
+
+- **A gate for both halves of that claim** (`src/test/card-title.*`). The heading branch and the div default are asserted against *each other* rather than against a copied-out class string, so the pin cannot rot the next time the class list is edited. Five red drives, each isolating one assertion: ignoring `level` fails only the six level tests; dropping `font-medium` from the heading branch fails only the parity test; dropping its rest props fails only the rest-props test; defaulting `level` to `3` fails only the "renders a div" test; and compiling the consumer chain without preflight fails only the UA-metrics test — which is what shows that last one is guarding a real dependency rather than restating the class list.
+
+  The real-browser leg is `harness/drive.md` (`?surface=card`), because jsdom can make neither claim: it applies no stylesheet, so a `<div>` and an `<h3>` are trivially identical there whether or not anything neutralises the UA metrics, and its `getByRole` is a static element→role table rather than a tree a browser built. In a real engine the six heading cards expose `heading "Estate summary" [level=1…6]` and the div card exposes plain text with no heading node anywhere on the page.
+
+  Deliberately left alone, having been assessed: `DialogTitle` is bits-ui's and already carries the dialogue's `aria-labelledby` semantics, so a heading there would add an outline entry to a surface that is already named. `PageHeader` is documented as the one page-title pattern and its `<h1>` is the point. `Panel`, `DetailPanel`, `EmptyState` and `AlertTitle` are a different defect class from this one — they hard-code a level (`h2`, `h2`, `h3`, `h5`) rather than omitting the element, so they contribute to the outline already and the open question is whether their fixed level suits every nesting an app puts them in. That is worth its own pass; changing them here would move existing consumers' outlines for symmetry rather than for evidence.
+
 ## [2026.7.4] - 2026-07-28
 
 ### Fixed
