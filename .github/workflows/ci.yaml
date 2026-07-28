@@ -1,8 +1,8 @@
 name: CI
 
-# Verifies the token build on every push/PR so Renovate PRs and token edits
-# carry a real signal. GitHub-hosted for the same public-repo reason as
-# publish.yaml (dated 2026-07-03).
+# Verifies both workspace packages on every push/PR so Renovate PRs and
+# token/component edits carry a real signal. GitHub-hosted for the same
+# public-repo reason as publish.yaml (dated 2026-07-03).
 
 on:
   push:
@@ -27,35 +27,50 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Build and test tokens
-        run: pnpm test
+      - name: Build and test every package
+        run: pnpm -r run test
 
-      - name: Assert emitted contract
+      - name: Type-check @poodle64/ui
+        run: pnpm --filter @poodle64/ui run check
+
+      - name: Assert @poodle64/design-tokens emitted contract
         run: |
           set -e
+          DIST=packages/design-tokens/dist
           for prop in \
             --ds-radius-lg --ds-font-display --ds-font-body --ds-font-code \
             --ds-spacing-md --ds-text-2xs \
             --ds-color-status-success --ds-color-status-warning \
             --ds-color-status-error --ds-color-status-info --ds-color-status-neutral; do
-            grep -q -- "$prop:" dist/tokens.css || { echo "missing $prop in dist/tokens.css" >&2; exit 1; }
+            grep -q -- "$prop:" "$DIST/tokens.css" || { echo "missing $prop in tokens.css" >&2; exit 1; }
           done
           # Every custom property in tokens.css must carry the --ds- namespace
-          if grep -Eo '^\s*--[a-z0-9-]+:' dist/tokens.css | grep -v -- '--ds-'; then
-            echo "non --ds- prefixed property found in dist/tokens.css" >&2
+          if grep -Eo '^\s*--[a-z0-9-]+:' "$DIST/tokens.css" | grep -v -- '--ds-'; then
+            echo "non --ds- prefixed property found in tokens.css" >&2
             exit 1
           fi
           # tokens.tw.css deliberately emits un-prefixed Tailwind namespaces;
           # every property must sit in one of them and alias a --ds- var.
           # spacing is absent by design — a named --spacing-* entry captures the
           # sizing utilities off the container scale (see sd.config.js).
-          grep -q '@theme' dist/tokens.tw.css
-          if grep -Eo '^\s*--[a-z0-9-]+:' dist/tokens.tw.css | grep -Ev -- '--(color|radius|text|font)-'; then
-            echo "unexpected @theme namespace in dist/tokens.tw.css" >&2
+          grep -q '@theme' "$DIST/tokens.tw.css"
+          if grep -Eo '^\s*--[a-z0-9-]+:' "$DIST/tokens.tw.css" | grep -Ev -- '--(color|radius|text|font)-'; then
+            echo "unexpected @theme namespace in tokens.tw.css" >&2
             exit 1
           fi
-          if grep -E '^\s*--' dist/tokens.tw.css | grep -v 'var(--ds-'; then
+          if grep -E '^\s*--' "$DIST/tokens.tw.css" | grep -v 'var(--ds-'; then
             echo "tokens.tw.css property not aliasing a --ds- var" >&2
             exit 1
           fi
-          grep -q 'DS_COLOR_STATUS_SUCCESS' dist/tokens.js
+          grep -q 'DS_COLOR_STATUS_SUCCESS' "$DIST/tokens.js"
+
+      - name: Assert @poodle64/ui subpath exports resolve
+        run: |
+          set -e
+          for c in alert alert-dialog badge button card checkbox command data-table \
+            dialog dropdown-menu input input-group label password-input popover \
+            progress select separator skeleton sonner switch table tabs textarea tooltip; do
+            f="packages/ui/dist/components/ui/$c/index.js"
+            test -f "$f" || { echo "missing built component: $f" >&2; exit 1; }
+          done
+          test -f packages/ui/dist/utils.js || { echo "missing dist/utils.js" >&2; exit 1; }

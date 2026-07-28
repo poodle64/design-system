@@ -1,0 +1,38 @@
+{
+  "name": "@poodle64/design-tokens",
+  "version": "2026.7.2",
+  "description": "Household canonical design tokens — DTCG source, Style Dictionary build, --ds-* CSS custom properties, Tailwind v4 @theme block, JS constants.",
+  "type": "module",
+  "license": "MIT",
+  "repository": "github:poodle64/design-system",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "tokens",
+    "templates",
+    "sd.config.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/tokens.d.ts",
+      "default": "./dist/tokens.js"
+    },
+    "./tokens.css": "./dist/tokens.css",
+    "./tokens.tw.css": "./dist/tokens.tw.css",
+    "./tokens.json": "./tokens/tokens.tokens.json"
+  },
+  "scripts": {
+    "build": "style-dictionary build --config sd.config.js",
+    "test": "pnpm build && node --test test/*.test.js",
+    "prepublishOnly": "pnpm build"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.2",
+    "style-dictionary": "^4.4.0",
+    "tailwindcss": "^4.3.2"
+  },
+  "packageManager": "pnpm@10.28.0"
+}
