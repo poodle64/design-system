@@ -30,12 +30,15 @@ itself now lives once.
 ```text
 src/lib/
   utils.ts              cn() (clsx + tailwind-merge) and the shared TS helper types
-  components/ui/         one directory per shadcn-svelte primitive (bits-ui behaviour
-                          + shadcn markup/variants)
+  styles.css            the component stylesheet: scale keys, .ds-edge, .ds-chip/.ds-dot,
+                          the dialogue-section divider rule
+  components/ui/         one directory per component — the shadcn-svelte primitives
+                          (bits-ui behaviour + shadcn markup/variants) and the composed
+                          page-chrome components built on top of them
 dist/                    generated — run `pnpm build` (@sveltejs/package); never edit
 ```
 
-**Component set** (25 — battle-tested implementations pulled from whichever app had
+**Primitives** (25 — battle-tested implementations pulled from whichever app had
 them first, not an invented "ideal" list): `alert`, `alert-dialog`, `badge`, `button`,
 `card`, `checkbox`, `command`, `data-table`, `dialog`, `dropdown-menu`, `input`,
 `input-group`, `label`, `password-input`, `popover`, `progress`, `select`,
@@ -45,6 +48,35 @@ Not yet included: `sheet` — no app's `ui/` has vendored it yet. Add it here
 (`pnpm dlx shadcn-svelte@latest add <name>` inside `packages/ui`, or hand-port from
 a sibling app once one adopts it) the first time a converging app actually needs it;
 do not invent it speculatively.
+
+**Composed components** (16). Primitives are not what makes an app look like an
+app — the page chrome is. These are the cross-cutting surfaces every route
+composes from, so a household app gets its layout language from the package
+rather than rebuilding it:
+
+| Import | What it is |
+| --- | --- |
+| `page-header` | The only page-title pattern: eyebrow, title, one clamped subtitle, an `info` tooltip, an `actions` slot. |
+| `panel` | The generic titled card: optional icon, subtitle and trailing actions over a body that can opt out of padding. |
+| `detail-panel` | The entity-detail surface: header with icon/eyebrow/title/`StatusBadge`/close, scrollable body, footer of actions. |
+| `context-column` | The persistent right-hand column: a standing `StatList` plus an optional detail that flows in on select. |
+| `app-dialog` | The dialogue frame: titled header, scrollable body, footer action bar, three sizes. |
+| `dialog-section` | One section of a dialogue body; adjacent sections are divided automatically. |
+| `stat-card` | A single metric that earns its space (label, value, unit, sub, status dot). |
+| `stat-list` | A route's low-context integers as a label→value list. Zero-aware: `muted` keeps a healthy zero quiet. |
+| `status` / `status-badge` | The fixed five-state vocabulary (`success \| warning \| error \| info \| neutral`) and the one state chip. |
+| `empty-state` / `error-state` / `loading-state` | The shared blank, error and loading surfaces. Never hand-roll one. |
+| `info-tip` | One tooltip pattern: a small info trigger, or wrap an existing affordance as children. |
+| `data-table-toolbar` | Search field plus filter-chip groups for a TanStack table. Owns no state; fires callbacks. |
+| `data-table-tanstack` | The TanStack-backed table: global search, column filters, master-detail row select, opt-in bulk selection, responsive column hiding, a first-class empty branch. |
+
+The table is the TanStack-shaped pair the household actually runs, not a
+`rows`/`columns` config API. The page owns the `Table` instance (built with
+`createSvelteTable` from `@poodle64/ui/data-table`) and passes it in; the
+component owns how it looks and how a row is picked. For a small static table
+that does not earn a table instance, `@poodle64/ui/table` also exports the
+`TH_CLASS` / `TD_CLASS` / `TH_HIDDEN_UNTIL_XL` constants for the raw-`<table>`
+idiom.
 
 ## Consuming the package
 
@@ -59,24 +91,42 @@ pnpm add @poodle64/ui @poodle64/design-tokens
 <script lang="ts">
 	import { Button } from '@poodle64/ui/button';
 	import * as Dialog from '@poodle64/ui/dialog';
+	import PageHeader from '@poodle64/ui/page-header';
+	import StatusBadge from '@poodle64/ui/status-badge';
+	import type { Status } from '@poodle64/ui/status';
 </script>
 ```
+
+Composed components export both a default and a named binding, so either import
+style works. `stat-list` also exports its `StatItem` type, and
+`data-table-toolbar` its `ChipGroup` / `ChipSpec` types.
 
 Each component is its own subpath export (`@poodle64/ui/<name>`), matching
 shadcn-svelte's own convention — a flat barrel would collide on the generic names
 (`Root`, `Content`, `Trigger`) that most primitives share.
 
-**Tailwind v4 content scanning.** The package's classes live in
-`node_modules/@poodle64/ui/dist`, outside the app's own `src/`, so Tailwind's
-default source scan misses them unless told to look. Add one line to the app's
-`app.css`, after the token imports:
+**Two lines in the app's `app.css`**, after the token imports:
 
 ```css
-@source '../node_modules/@poodle64/ui/dist';
+@import '@poodle64/design-tokens/tokens.tw.css';
+@import '@poodle64/design-tokens/tokens.css';
+@import '@poodle64/ui/styles.css'; /* component stylesheet */
+@source '../node_modules/@poodle64/ui/dist'; /* Tailwind content scan */
 ```
 
-Without it the components render unstyled (no build error, no lint hit — the classes
-just never make it into the compiled CSS).
+`@poodle64/ui/styles.css` carries what the shadcn variable layer does not: the
+`text-display` / `text-body` / `text-stat` / `tracking-eyebrow` scale keys, the
+`.ds-edge` card treatment, the `.ds-dialog-section` divider rule, and the
+`.ds-chip` / `.ds-dot` status classes. Without it the composed components lose
+their chips, dots, card edges and dialogue dividers. It holds no palette: every
+value resolves through a `--ds-*` token or a shadcn semantic variable, so your
+own alias layer still owns the colour. Override any key by re-declaring it after
+the import.
+
+`@source` is needed because the package's Tailwind classes live in
+`node_modules/@poodle64/ui/dist`, outside the app's own `src/`, so the default
+source scan misses them. Without it the components render unstyled (no build
+error, no lint hit; the classes just never reach the compiled CSS).
 
 ## Releasing
 

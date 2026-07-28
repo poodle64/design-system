@@ -36,6 +36,7 @@ A consumer needs `@poodle64:registry=https://npm.pkg.github.com` in its `.npmrc`
 | Token source | `packages/design-tokens/tokens/tokens.tokens.json` |
 | Style Dictionary config | `packages/design-tokens/sd.config.js` |
 | Per-app North Star template | `packages/design-tokens/templates/DESIGN.md.template` |
-| Shared components | `packages/ui/src/lib/components/ui/<name>/` |
+| Shared components | `packages/ui/src/lib/components/ui/<name>/` (primitives and composed page chrome share one directory and one `./*` subpath export) |
+| Component stylesheet | `packages/ui/src/lib/styles.css` — the `ds-*` classes and scale keys the composed components need; consuming apps import it as `@poodle64/ui/styles.css` |
 | WP-51 background (workspace + `@poodle64/ui`) | `master-project#174`; `docs/master/templates/golden-patterns/app-shape-and-frontend.md` in `poodle64/master-project` |
 | Changelog | one per package: `packages/design-tokens/CHANGELOG.md`, `packages/ui/CHANGELOG.md` |

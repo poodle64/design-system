@@ -11,9 +11,11 @@ packages/
   design-tokens/    @poodle64/design-tokens — DTCG token source, Style Dictionary
                      build, --ds-* CSS custom properties, Tailwind v4 @theme block.
                      See packages/design-tokens/README.md.
-  ui/                @poodle64/ui — shared shadcn-svelte component primitives
-                     (bits-ui), extracted from the household's most conformant
-                     consuming app, restyled by whichever app's token alias
+  ui/                @poodle64/ui — the shared component layer: shadcn-svelte
+                     primitives (bits-ui) plus the composed page chrome (page
+                     header, panels, states, stat cards, dialogue frame, data
+                     table), extracted from the household's most conformant
+                     consuming app and restyled by whichever app's token alias
                      layer is active. See packages/ui/README.md.
 ```
 
