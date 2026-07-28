@@ -460,9 +460,25 @@
 				tabindex="-1"
 				class={cn('relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto', mainClass)}
 			>
+				<!--
+					`min-w-0` is load-bearing and invisible. This container is a flex
+					item, so its default `min-width: auto` sizes it by its own
+					min-content — one wide child (a data table, an unbreakable string, a
+					`pre`) and the whole content region scrolls sideways on a phone.
+
+					The reason no consumer catches it: `<main>` is the scroll container,
+					so the excess never reaches `document.documentElement.scrollWidth`,
+					which is the measurement every app's "no horizontal overflow" check
+					takes. One app measured 39px of hidden sideways scroll at 375px with
+					its overflow suite green throughout. Every AppShell consumer would
+					have rediscovered this the first time a route carried a wide table
+					and fixed it on its own page wrappers — the per-app divergence this
+					package exists to end — so the shell constrains its own content box
+					and a wide child scrolls inside its own scroller instead.
+				-->
 				<div
 					class={cn(
-						'flex min-h-0 flex-1 flex-col',
+						'flex min-h-0 min-w-0 flex-1 flex-col',
 						contentWidth,
 						padded && 'px-4 py-5 sm:px-6 md:px-8 md:py-7 2xl:px-12'
 					)}
