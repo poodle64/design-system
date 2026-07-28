@@ -26,3 +26,5 @@ export {
 	Header as TableHeader,
 	Row as TableRow
 };
+
+export { TH_CLASS, TD_CLASS, TH_HIDDEN_UNTIL_XL } from './table-classes.js';
