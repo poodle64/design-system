@@ -53,6 +53,12 @@ describe('async-outcome announcements', () => {
 		expect(alert).toHaveAttribute('aria-live', 'assertive');
 	});
 
+	// Unlike the assertions above, this one cannot be driven red from the
+	// components: @lucide/svelte adds aria-hidden itself to any icon given no
+	// aria-*/role/title and no children, so it holds whether or not either
+	// component writes the attribute. It is a pin on the emitted output — the
+	// contract a consumer actually sees — against that upstream default moving,
+	// not coverage of the components' own source.
 	it('keeps the decorative glyph out of both announcements', async () => {
 		render(LiveRegions);
 
@@ -63,8 +69,8 @@ describe('async-outcome announcements', () => {
 		await failLoad();
 
 		const alert = await screen.findByRole('alert');
-		// The message carries the meaning; an unhidden glyph is announced as
-		// meaningless content ahead of it.
+		// The message carries the meaning; an unhidden glyph would be announced
+		// as meaningless content ahead of it.
 		expect(alert.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
 	});
 

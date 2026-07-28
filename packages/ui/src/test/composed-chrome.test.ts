@@ -134,7 +134,12 @@ describe('ErrorState', () => {
 		// waiting its turn.
 		expect(alert).toHaveAttribute('aria-live', 'assertive');
 		expect(alert).toHaveTextContent('Could not load the estate.');
-		// The glyph is decorative; the message carries the meaning.
+		// The glyph is decorative; the message carries the meaning. This one
+		// cannot be driven red from the component: @lucide/svelte adds
+		// aria-hidden itself to any icon given no aria-*/role/title and no
+		// children, so it holds whether or not the component writes it. What it
+		// pins is the emitted output — which is the contract a consumer sees —
+		// against that default ever changing.
 		expect(alert.querySelector('[aria-hidden="true"]')).not.toBeNull();
 	});
 
