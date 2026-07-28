@@ -10,7 +10,7 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ### Changed
 
-- `--ds-spacing-*` is now a CSS-variable-only contract, for hand-written CSS. In Tailwind markup use the numeric scale, which carries identical values (`md` = 1rem = `p-4`). No consumer used the named utilities, so nothing is lost; earworm and portcullis can drop their local `--spacing-*: initial` unregistration blocks.
+- `--ds-spacing-*` is now a CSS-variable-only contract, for hand-written CSS. In Tailwind markup use the numeric scale, which carries identical values (`md` = 1rem = `p-4`). No consumer used the named utilities, so nothing is lost; the two apps carrying a local `--spacing-*: initial` unregistration block can drop it.
 - `DESIGN.md.template` drops the per-app spacing override block (it could never reach Tailwind) for a notes field.
 
 ### Added
