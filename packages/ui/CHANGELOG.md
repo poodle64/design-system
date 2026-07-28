@@ -4,7 +4,19 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.7.3] - 2026-07-28
+
 ### Added
+
+- **The application shell (`app-shell`), and `command-palette` alongside it.** Primitives and page chrome are not what makes an app feel like an app; the shell is. Every household frontend still hand-built its own, and five were surveyed before this API was settled: a rail-plus-drawer, an eleven-file collapsible sidebar tree under its own top bar, and three header-only bars that each answered the mobile question differently. They agreed on almost nothing structurally while trying to be the same thing.
+
+  Two variants cover all five, because the only structural disagreement that survived scrutiny is **where primary navigation lives**: `variant="rail"` gives a permanent left column with an overlay drawer below `md`, `variant="header"` a horizontal row in the top bar with a disclosure panel. Everything the apps otherwise differed on turned out to be a slot rather than a variant, so the brand, the identity surface, a context switcher, a banner and a secondary column are snippets. The package therefore imports no app store, no app route and no app brand, which is exactly the coupling that made the best existing shell unliftable: its navigation was a module-level import, not a prop, and it reached directly into two app stores and two hardcoded routes.
+
+  `NavItem` and `NavGroup` are exported so apps type their own config against them. They carry no notion of who may see an item: two surveyed apps gate navigation on admin or per-module permission and both do it with their own auth store, so apps filter before they pass. `currentPath` is a prop rather than a `$app/state` import for a related reason — this package has no SvelteKit runtime, so importing it would make SvelteKit a hard peer and make the shell untestable outside a running app.
+
+  Sensible defaults were a design constraint: `nav` plus a brand gets a working shell, with a bypass link (WCAG 2.4.1), a theme toggle, a mobile treatment and an active-state marker that is never colour alone. `CommandPalette` ships beside it because it had the identical coupling to a hardcoded navigation module, and leaving it behind would have stranded the shell's search affordance; one nav config now feeds both, and the palette owns its own ⌘K binding instead of each app re-typing the handler.
+
+- **A real-browser verification harness (`harness/`).** jsdom applies no stylesheet and returns the unresolved `var(…)` literal from `getComputedStyle`, so it passes on a colour nothing defines: the blind spot behind five defects in this programme. The harness compiles the real Tailwind consumer chain over the built package and is driven at desktop and phone viewports; `harness/drive.md` records every claim, the observed value, and two measurement traps that produced false failures. The stateful behaviour is driven separately in jsdom, where it belongs.
 
 - **A named regression guard for the `checkbox` barrel export**, ported from the reference frontend the primitive was extracted from as that app migrates onto this package — the coverage belongs where the component now lives, not re-forked in the consumer. It pins the defect fixed in 2026.7.0 (bits-ui's compound namespace exported under the name `Checkbox`, shadowing the styled wrapper) by mounting the *named* export and asserting the wrapper's own `data-slot="checkbox"` marker, then driving the control off → on → off. Both assertions were driven red first: the historical barrel fails at mount, and a mountable-but-wrong export (`CheckboxPrimitive.Root`) fails only the marker check while toggling perfectly — which is precisely why asserting the marker is not redundant with driving the control.
 

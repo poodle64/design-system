@@ -71,6 +71,84 @@ rather than rebuilding it:
 | `data-table-toolbar` | Search field plus filter-chip groups for a TanStack table. Owns no state; fires callbacks. |
 | `data-table-tanstack` | The TanStack-backed table: global search, column filters, master-detail row select, opt-in bulk selection, responsive column hiding, a first-class empty branch. |
 
+**The application shell** (`app-shell`, `command-palette`). Page chrome is not
+what makes an app feel like an app either — the shell is. Five household
+frontends were surveyed before this API was settled, and between them they had
+built five shells: a rail-plus-drawer, an eleven-file collapsible sidebar tree
+under its own top bar, and three header-only bars that each answered the mobile
+question differently. They agreed on almost nothing structurally while trying to
+be the same thing.
+
+Two variants cover all five, because the only structural disagreement that
+survived scrutiny is **where primary navigation lives**:
+
+| `variant` | Desktop | Below `md` |
+| --- | --- | --- |
+| `"rail"` (default) | a permanent left column | an overlay drawer |
+| `"header"` | a horizontal row in the top bar | a disclosure panel under the bar |
+
+Everything the apps otherwise differed on turned out to be a slot, not a variant.
+The package therefore imports no app store, no app route and no app brand:
+
+```svelte
+<script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import AppShell, { type NavGroup } from '@poodle64/ui/app-shell';
+	import CommandPalette from '@poodle64/ui/command-palette';
+	import { nav } from '$lib/config/navigation'; // typed as NavGroup[]
+
+	let paletteOpen = $state(false);
+</script>
+
+<AppShell {nav} brandTitle="Console" currentPath={page.url.pathname}
+          onSearch={() => (paletteOpen = true)}>
+	{@render children()}
+</AppShell>
+<CommandPalette bind:open={paletteOpen} {nav} onNavigate={goto} />
+```
+
+That is the whole minimum. Everything below is optional.
+
+| Prop | Purpose |
+| --- | --- |
+| `nav` | Bare `NavItem`s, `NavGroup`s, or a mix. Consecutive bare items collapse into one run; an emptied group renders nothing. |
+| `currentPath` | Active state, and closing the mobile nav on navigation. |
+| `variant`, `collapsible`, `collapsed` | Rail vs header; an icon-only rail toggle whose state binds out so an app can persist it. |
+| `brand` / `brandTitle` + `brandMark` / `homeHref` | Full control of the lockup, or the wordmark-plus-mark shorthand. |
+| `identity` | The signed-in surface. Rendered in the rail foot (`rail`) or at the end of the bar (`header`), which is where the surveyed apps already put it in each case. |
+| `context`, `actions` | Leading and trailing top-bar slots: a store/tenant switcher, app-level action buttons. |
+| `banner` | Full-width region under the bar: reconnect notices, trial warnings. |
+| `sidebar` | A secondary, route-scoped column between the nav and the page body. |
+| `onSearch`, `searchLabel`, `searchShortcut` | Provide `onSearch` to render the search affordance at all. |
+| `themeToggle`, `onToggleTheme` | Defaults to `mode-watcher`. Set `themeToggle={false}` when the app puts theming inside its own user menu. |
+| `content`, `padded`, `mainClass` | Content ceiling (`full` \| `wide` \| `standard`), padding, and a background texture class. |
+
+`NavItem` / `NavGroup` are exported so an app types its own config against them.
+They carry **no notion of who may see an item**: two surveyed apps gate
+navigation on admin or per-module permission, and both do it with their own auth
+store. Apps filter before they pass (`nav.filter((i) => !i.adminOnly || user.isAdmin)`),
+and that is what keeps this package free of the auth coupling that made the best
+shell in the estate unliftable in the first place.
+
+`currentPath` is a prop rather than a `$app/state` import for the same reason:
+this package is built with `svelte-package` and has no SvelteKit runtime, so
+importing it would make SvelteKit a hard peer and make the shell untestable
+outside a running app.
+
+`CommandPalette` ships beside the shell because it carried the identical
+coupling to a hardcoded navigation module; leaving it behind would have stranded
+the shell's search affordance. It binds ⌘K / Ctrl-K itself (`shortcut={false}` to
+opt out) and takes a `children` snippet for app-specific command groups beneath
+the navigation group.
+
+The shell paints its chrome from `--ds-shell-chrome`, registered as the `shell`
+colour key. It is deliberately **not** `sidebar`: those keys stay the app's to
+define, and one-owner-per-key is what keeps an override from depending on
+stylesheet order. An app that already has a chrome hue points it there in one
+line, `:root { --ds-shell-chrome: var(--sidebar); }`, and `--ds-shell-rail-width`
+retunes the rail.
+
 The table is the TanStack-shaped pair the household actually runs, not a
 `rows`/`columns` config API. The page owns the `Table` instance (built with
 `createSvelteTable` from `@poodle64/ui/data-table`) and passes it in; the
