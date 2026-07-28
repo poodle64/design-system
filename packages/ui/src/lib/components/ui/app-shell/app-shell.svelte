@@ -455,26 +455,49 @@
 					{@render sidebar()}
 				</div>
 			{/if}
+			<!--
+				The scrolling content region, and the element a consumer's
+				"no horizontal overflow" test must measure.
+
+				`overflow-y: auto` makes `overflow-x` compute to `auto` too, so this
+				box — not the document — is where a wide child's excess ends up. Every
+				app's overflow check measures `document.documentElement.scrollWidth`,
+				which is why one app carried 39px of sideways scroll at 375px with its
+				suite green throughout: the number it was reading could not move.
+
+				`data-slot` rather than the `id` for that: `ds-main` is the skip link's
+				target and an app is free to have its own `#ds-main` ambitions, whereas
+				the slot marker is the same stable hook every other component here
+				exposes. `harness/drive.mjs` measures this element at 375px and 320px
+				and prints the document-level number beside it, blind, for contrast.
+			-->
 			<main
 				id="ds-main"
+				data-slot="app-shell-content"
 				tabindex="-1"
 				class={cn('relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto', mainClass)}
 			>
 				<!--
-					`min-w-0` is load-bearing and invisible. This container is a flex
-					item, so its default `min-width: auto` sizes it by its own
-					min-content — one wide child (a data table, an unbreakable string, a
-					`pre`) and the whole content region scrolls sideways on a phone.
+					`min-w-0` on a flex child, for the same reason `<main>` and both
+					boxes above it carry it: a flex item's default `min-width: auto` can
+					size it by its own min-content rather than by its container.
 
-					The reason no consumer catches it: `<main>` is the scroll container,
-					so the excess never reaches `document.documentElement.scrollWidth`,
-					which is the measurement every app's "no horizontal overflow" check
-					takes. One app measured 39px of hidden sideways scroll at 375px with
-					its overflow suite green throughout. Every AppShell consumer would
-					have rediscovered this the first time a route carried a wide table
-					and fixed it on its own page wrappers — the per-app divergence this
-					package exists to end — so the shell constrains its own content box
-					and a wide child scrolls inside its own scroller instead.
+					Measured rather than assumed, and the measurement is worth writing
+					down because it contradicts the obvious reading: in THIS structure
+					the declaration is currently INERT. The automatic minimum size
+					applies to a flex item's MAIN axis, and `<main>` is a column, so this
+					box's width is already cross-axis stretch and cannot grow past its
+					container. Driving the harness at 375px and 320px, with and without
+					the declaration, against a plain page wrapper and an `mx-auto` one,
+					moved nothing — `harness/drive.mjs` pins that.
+
+					It stays because it is the correct declaration for the box, and
+					because the day this container becomes a row item the omission would
+					be invisible all over again. What it is NOT is the cause of the
+					sideways scroll in #5: that comes from a child with no scroller of
+					its own, which no sizing rule here can prevent — only the child
+					carrying its own scroller can, as this package's Table does. The half
+					of that defect the shell genuinely owns is on `<main>` above.
 				-->
 				<div
 					class={cn(

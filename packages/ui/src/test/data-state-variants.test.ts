@@ -153,6 +153,63 @@ describe('the shorthand data-attribute variants', () => {
 	});
 });
 
+describe('the enter/exit animations those variants gate', () => {
+	/**
+	 * The second dead layer, found while driving the first. Getting the variant
+	 * right only buys a rule that MATCHES; the utility inside it has to exist too,
+	 * and `animate-in`, `fade-in-0`, `zoom-in-95` and `slide-in-from-*` are not
+	 * Tailwind utilities — they come from tw-animate-css. In an app that never
+	 * imported it, all ~40 of them compiled to nothing, so the transitions stayed
+	 * just as dead with the variants fixed, for a completely separate reason and
+	 * with exactly the same silence.
+	 *
+	 * The package now imports tw-animate-css itself, on the same principle as the
+	 * variants: it writes the utility, so it owns what makes the utility real.
+	 */
+	const ANIMATION_FAMILIES =
+		/\b((?:data-(?:open|closed):)?(?:animate-(?:in|out)|fade-(?:in|out)-\d+|zoom-(?:in|out)-\d+|slide-in-from-[a-z]+-\d+))\b/g;
+
+	function animationCandidates(): string[] {
+		const found = new Set<string>();
+		for (const file of walk(distDir)) {
+			if (!file.endsWith('.svelte') && !file.endsWith('.js')) continue;
+			for (const [, utility] of readFileSync(file, 'utf8').matchAll(ANIMATION_FAMILIES)) {
+				found.add(utility);
+			}
+		}
+		return [...found].sort();
+	}
+
+	const candidates = animationCandidates();
+
+	it('finds animation utilities to check (guards the extractor)', () => {
+		expect(candidates.length).toBeGreaterThan(10);
+		expect(candidates).toContain('data-open:animate-in');
+	});
+
+	it('every one emits a rule in a consuming app that imports nothing extra', () => {
+		const css = compile(candidates);
+		const dead = candidates.filter((candidate) => ruleBlock(css, candidate) === null);
+
+		expect(
+			dead,
+			'animation utilities that compile to no CSS — the package writes them, so the package must import what defines them'
+		).toEqual([]);
+	});
+
+	it('an open overlay actually gets the enter animation, and a closed one the exit', () => {
+		// The end of the chain, and the only assertion that says the transition
+		// RUNS rather than that a rule exists: the animation shorthand names a real
+		// keyframe set, and both keyframe sets are in the output.
+		const css = compile(['data-open:animate-in', 'data-closed:animate-out']);
+
+		expect(ruleBlock(css, 'data-open:animate-in')).toMatch(/animation:\s*enter\b/);
+		expect(ruleBlock(css, 'data-closed:animate-out')).toMatch(/animation:\s*exit\b/);
+		expect(css).toMatch(/@keyframes\s+enter\b/);
+		expect(css).toMatch(/@keyframes\s+exit\b/);
+	});
+});
+
 describe('what bits-ui actually puts in the DOM', () => {
 	// The other half of the pin. Without this, OWNED is just a table someone
 	// typed, and the day bits-ui renames an attribute the CSS half stays green

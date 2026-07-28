@@ -22,6 +22,14 @@
 	import LoadingState from '../dist/components/ui/loading-state/loading-state.svelte';
 	import ErrorState from '../dist/components/ui/error-state/error-state.svelte';
 	import EmptyState from '../dist/components/ui/empty-state/empty-state.svelte';
+	import AppDialog from '../dist/components/ui/app-dialog/app-dialog.svelte';
+	import * as DropdownMenu from '../dist/components/ui/dropdown-menu/index.js';
+	import * as Popover from '../dist/components/ui/popover/index.js';
+	import * as Select from '../dist/components/ui/select/index.js';
+	import * as Table from '../dist/components/ui/table/index.js';
+	import Avatar from '../dist/components/ui/avatar/avatar.svelte';
+	import AvatarImage from '../dist/components/ui/avatar/avatar-image.svelte';
+	import AvatarFallback from '../dist/components/ui/avatar/avatar-fallback.svelte';
 	import Card from '../dist/components/ui/card/card.svelte';
 	import CardHeader from '../dist/components/ui/card/card-header.svelte';
 	import CardTitle from '../dist/components/ui/card/card-title.svelte';
@@ -61,7 +69,32 @@
 	// differ only in what the UA stylesheet adds, and jsdom applies no
 	// stylesheet at all, so the two are trivially identical there whether or
 	// not anything neutralises the UA margins.
+	// `?surface=overlays` drives the four bits-ui overlay families whose
+	// enter/exit transitions the package's data-open:/data-closed: utilities
+	// carry. Neither jsdom nor a compiled-CSS gate can see the end of that
+	// chain: only an engine resolves `animation-name` on an element that has
+	// actually opened.
+	// `?surface=overflow` puts a table wider than the viewport inside the shell,
+	// so the hidden sideways scroll of #5 is measured rather than reasoned about
+	// — `&wrapper=auto` reproduces the second mechanism (an `mx-auto` page
+	// wrapper suppressing cross-axis stretch), which is a different sizing rule
+	// and needs its own case.
+	// `?surface=avatar` drives the real load-state swap over the network: a URL
+	// that cannot resolve, one that can, and no source at all.
 	const surface = params.get('surface') ?? 'shell';
+	const wrapper = params.get('wrapper') ?? 'plain';
+	// `table` is the reported case: a wide child that carries its own scroller.
+	// `word` is the harsher one — an unbreakable string with no scroller of its
+	// own, which nothing can make fit; it is here to pin what the shell DOES
+	// guarantee under it (its own box stays the content box) rather than to
+	// claim an overflow that is the page's to solve.
+	const overflowContent = params.get('content') ?? 'table';
+
+	let overlayDialogOpen = $state(false);
+	// A 1x1 transparent GIF, inline: the harness serves no assets and the claim
+	// is about the load-state machine, not about what the picture is.
+	const REAL_IMAGE =
+		'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 	const LEVELS = [1, 2, 3, 4, 5, 6] as const;
 
 	let phase: 'idle' | 'loading' | 'failed' | 'empty' = $state('idle');
@@ -73,7 +106,86 @@
 
 <ModeWatcher defaultMode="dark" />
 
-{#if surface === 'card'}
+{#if surface === 'overlays'}
+	<div class="flex flex-col items-start gap-4 p-8">
+		<button type="button" onclick={() => (overlayDialogOpen = true)}>Open dialog</button>
+		<AppDialog bind:open={overlayDialogOpen} title="Overlay dialogue">
+			<p>Dialogue body</p>
+		</AppDialog>
+
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger>Open menu</DropdownMenu.Trigger>
+			<DropdownMenu.Content>
+				<DropdownMenu.Item>Menu body</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+
+		<Popover.Root>
+			<Popover.Trigger>Open popover</Popover.Trigger>
+			<Popover.Content>Popover body</Popover.Content>
+		</Popover.Root>
+
+		<Select.Root type="single">
+			<Select.Trigger>Open select</Select.Trigger>
+			<Select.Content>
+				<Select.Item value="a" label="Select body">Select body</Select.Item>
+			</Select.Content>
+		</Select.Root>
+	</div>
+{:else if surface === 'avatar'}
+	<div class="flex items-center gap-4 p-8">
+		<div data-probe="avatar-broken">
+			<Avatar>
+				<AvatarImage src="/definitely-not-here.png" alt="Operator" />
+				<AvatarFallback>OP</AvatarFallback>
+			</Avatar>
+		</div>
+		<div data-probe="avatar-loaded">
+			<Avatar>
+				<AvatarImage src={REAL_IMAGE} alt="Operator" />
+				<AvatarFallback>OP</AvatarFallback>
+			</Avatar>
+		</div>
+		<div data-probe="avatar-sourceless">
+			<Avatar>
+				<AvatarFallback>OP</AvatarFallback>
+			</Avatar>
+		</div>
+	</div>
+{:else if surface === 'overflow'}
+	<AppShell {nav} currentPath="#/overview" brandTitle="Harness">
+		<!-- A consumer-shaped page: the root wrapper an app writes, holding
+		     something wider than a phone. `wrapper=auto` adds the `mx-auto`
+		     centring that is the ordinary way to cap a measure and the second,
+		     independent mechanism behind the overflow. -->
+		<div class={wrapper === 'auto' ? 'mx-auto w-full max-w-[80rem]' : ''} data-probe="page-wrapper">
+			<h1 class="font-display text-display font-semibold">Wide page</h1>
+			{#if overflowContent === 'word'}
+				<p data-probe="long-word" class="text-sm">
+					pneumonoultramicroscopicsilicovolcanoconiosisandthensomemoreforgoodmeasure
+				</p>
+			{/if}
+			<Table.Root>
+				<Table.Header>
+					<Table.Row>
+						{#each ['Identifier', 'Owner', 'Environment', 'Rotated', 'Expires', 'Consumer', 'Scope', 'Status'] as head (head)}
+							<Table.Head>{head}</Table.Head>
+						{/each}
+					</Table.Row>
+				</Table.Header>
+				<Table.Body>
+					{#each [1, 2, 3] as row (row)}
+						<Table.Row>
+							{#each ['credential-alpha-00' + row, 'platform', 'production', '2026-07-01', '2027-07-01', 'gateway', 'read:all', 'active'] as cell (cell)}
+								<Table.Cell>{cell}</Table.Cell>
+							{/each}
+						</Table.Row>
+					{/each}
+				</Table.Body>
+			</Table.Root>
+		</div>
+	</AppShell>
+{:else if surface === 'card'}
 	<div class="flex flex-col gap-4 p-8">
 		<!-- Seven cards built from the identical snippet of markup, differing in
 		     one prop. Same width container, same siblings, same body, so a

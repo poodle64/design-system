@@ -75,3 +75,39 @@ jobs:
             test -f "$f" || { echo "missing built component: $f" >&2; exit 1; }
           done
           test -f packages/ui/dist/utils.js || { echo "missing dist/utils.js" >&2; exit 1; }
+
+  # A separate job because it needs a browser binary, and because the two
+  # failure modes are worth telling apart at a glance: `build` failing means
+  # the package is wrong on paper, this one failing means it is wrong in an
+  # engine. Every defect this gate covers — dead overlay transitions, a shell
+  # region scrolling sideways under a passing document-level check, an avatar
+  # fallback that only a real 404 reaches — was invisible to `build` and to
+  # jsdom alike, and each was found by a person looking rather than by CI.
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The harness imports from dist, and the design-tokens stylesheets are
+      # generated, so the whole workspace has to be built in dependency order
+      # before the harness can be compiled against it.
+      - name: Build every package
+        run: pnpm -r run build
+
+      - name: Install Chromium
+        run: pnpm --filter @poodle64/ui exec playwright install --with-deps chromium
+
+      - name: Drive the built package in a real browser
+        run: pnpm --filter @poodle64/ui run test:browser

@@ -21,6 +21,27 @@
  */
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   The enter/exit animation utilities.
+
+   Every overlay this package ships is written against `animate-in`,
+   `animate-out`, `fade-in-0`, `zoom-in-95` and `slide-in-from-*`. None of those
+   are Tailwind utilities — they come from tw-animate-css — so in an app that
+   does not import it they compile to NOTHING, and the transition is dead for a
+   second, independent reason on top of the variant question below. Same
+   silence: the class is in the DOM, no rule exists, nothing fails.
+
+   It is a dependency rather than a peer, and imported here rather than
+   documented as a setup step, for the same reason the variants are declared
+   here: the package writes the utilities, so the package owns what makes them
+   real. An app that imports tw-animate-css itself as well loses nothing — the
+   definitions are identical.
+
+   It must stay the FIRST statement in this file: CSS requires @import before
+   any other at-rule, and the @custom-variant declarations below are at-rules.
+   ───────────────────────────────────────────────────────────────────────────── */
+@import 'tw-animate-css';
+
+/* ─────────────────────────────────────────────────────────────────────────────
    The dark variant.
 
    Tailwind v4 resolves a bare `dark:` against `prefers-color-scheme`, not

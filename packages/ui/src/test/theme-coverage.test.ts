@@ -111,6 +111,24 @@ describe('Tailwind theme variables the package reads directly', () => {
 	});
 });
 
+describe('custom properties inherited from the React registry', () => {
+	it('reads no --radix-* variable, which nothing in a Svelte tree ever sets', () => {
+		// shadcn/ui is a Radix wrapper and its class strings carry Radix's own
+		// positioning variables. shadcn-svelte is a bits-ui wrapper; bits-ui sets
+		// --bits-* and never --radix-*. A --radix-* reference that survives the port
+		// is therefore permanently undefined, and an undefined custom property makes
+		// the declaration invalid at computed-value time — so the property silently
+		// falls back and nothing anywhere reports it. Popover's transform-origin
+		// shipped that way, scaling from the box centre instead of from its trigger.
+		const offenders = distFiles
+			.filter((file) => /--radix-/.test(readFileSync(file, 'utf8')))
+			.map((file) => relative(packageRoot, file))
+			.sort();
+
+		expect(offenders, 'files referencing a Radix variable bits-ui does not set').toEqual([]);
+	});
+});
+
 describe('the shadcn semantic surface', () => {
 	const CASES = [
 		['bg-card', 'background-color', '--ds-color-surface-2'],

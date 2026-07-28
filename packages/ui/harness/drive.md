@@ -1,8 +1,27 @@
 # Real-browser verification
 
-Three surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
-`states` (the async-outcome surfaces) and `card` (CardTitle's heading mode) —
-both in their own sections at the end.
+Six surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
+plus `states` (the async-outcome surfaces), `card` (CardTitle's heading mode),
+`overlays`, `overflow` and `avatar` — each in its own section at the end.
+
+## Two ways to drive it
+
+`harness/drive.mjs` is the **scripted** subset, and it is the one CI runs:
+
+```sh
+pnpm run test:browser        # harness:build + drive.mjs, exits non-zero on failure
+```
+
+It covers the claims a machine can make unattended — the overlay animations, the
+shell's content-region measurements at two phone widths, and the avatar's real
+load-state swap — and prints every observed value beside its verdict, passing or
+failing. Everything else in this file is driven by hand (the household's
+`browser-driver` MCP was used), because the claim needs a judgement a script
+cannot make.
+
+The split is deliberate (`rules-library/core/73-verification.md` §"Scripts Drive,
+Models Judge"): pre-known choreography belongs in a script, and the model's time
+belongs on the judgement.
 
 ## AppShell (`?surface=shell`, the default)
 
@@ -213,3 +232,128 @@ emits `<!---->Estate summary` in the heading branch — so heading and div are N
 inner-markup identical under it, which is the parity the prop exists to promise.
 The single `<svelte:element>` gives that parity, adds nothing to the parent, and
 leaves the class list and rest props with only one place to be written.
+
+
+## The overlay transitions (`?surface=overlays`)
+
+Four bits-ui overlay families — dialogue, dropdown menu, popover, select —
+opened for real, with the **resolved** `animation-name` read off the content
+element. Scripted in `drive.mjs`.
+
+This is the end of a chain nothing else in the repo can follow. The compiled-CSS
+gate proves a rule exists and what selector it carries; only an engine proves the
+rule reaches an element that has actually opened, and jsdom resolves no
+animation at all.
+
+| Claim | Observed |
+| --- | --- |
+| Each overlay opens at all | dialogue, menu, popover, select: content visible |
+| bits-ui marks the content `data-state="open"` | `open` on all four |
+| The enter animation resolves, not `none` | `animation-name: enter` on all four |
+| It has a real duration | `0.1s` (dialogue, menu, select), `0.15s` (popover) |
+| Nothing throws | no page errors |
+
+### What this caught
+
+Two dead layers, one under the other, and fixing the first alone would have
+changed nothing visible.
+
+1. **The variant.** Tailwind compiles a bare `data-open:` to `&[data-open]`;
+   bits-ui emits `data-state="open"`. ~47 utilities matched nothing.
+2. **The utility.** `animate-in`, `fade-in-0`, `zoom-in-95` and
+   `slide-in-from-*` are not Tailwind utilities — they come from
+   `tw-animate-css`, which this package did not import. With the variants fixed
+   and nothing else, `animation-name` still read `none`: a completely separate
+   cause with exactly the same silence.
+
+Also caught here: popover's content carried the React registry's
+`transform-origin` variable, inherited verbatim in the port, which nothing in a
+Svelte tree sets — so the zoom scaled from the box centre rather than from the
+trigger.
+
+## The shell's content region (`?surface=overflow`)
+
+A consumer-shaped page inside `AppShell`, at **375px** and **320px**, in four
+combinations: a plain page wrapper and an `mx-auto` one, each holding either a
+wide table (`content=table`, which carries its own scroller) or an unbreakable
+string (`content=word`, which has none). Scripted in `drive.mjs`.
+
+| Claim | Observed |
+| --- | --- |
+| The content container is exactly the content box | container `clientWidth` == `<main>` `clientWidth`, all 8 combinations |
+| A wide table does not scroll the region sideways | `main.scrollWidth == clientWidth`, +0px, all 4 table combinations |
+| The wide table scrolls inside its own container | true, all 4 |
+| *(recorded, not asserted)* the document-level check | `documentElement.scrollWidth == innerWidth` — green in **every** case, including the ones carrying 180px and 235px of real region overflow |
+
+### What this settled, against the obvious reading
+
+`min-w-0` was added to the shell's content container and then **measured to be
+inert in this structure** — the harness reports identical numbers with and
+without it, at both widths, under both wrappers. The automatic minimum size
+applies to a flex item's MAIN axis, and `<main>` is a column, so that box's
+width is already cross-axis stretch and cannot grow. It stays as the correct
+declaration for the box (see the comment in `app-shell.svelte`), but it is not
+what a reported sideways scroll comes from.
+
+What the shell genuinely owns is the **blindness**, which is the last row above.
+`<main>` has `overflow-y: auto`, and that makes `overflow-x` compute to `auto`
+too, so it — not the document — is where a wide child's excess lands.
+`document.documentElement.scrollWidth` therefore cannot move, which is how an app
+carries real sideways scroll on a phone with its overflow suite green throughout.
+`<main>` now carries `data-slot="app-shell-content"` so a consumer's own check
+has a stable element to measure instead.
+
+The remaining overflow (the `word` case: 180px at 375px, 235px at 320px) is a
+child with no scroller of its own. No sizing rule in the shell can prevent that;
+only the child carrying its own scroller can, as this package's `Table` does.
+
+## The avatar load state (`?surface=avatar`)
+
+Three avatars driven over the real network: a URL that 404s, an inline image
+that decodes, and no source at all. Scripted in `drive.mjs`.
+
+| Claim | Observed |
+| --- | --- |
+| A source that cannot resolve falls back to the initials | `data-status="error"`, image `display: none`, fallback shown reading `OP` |
+| A source that resolves takes over | `data-status="loaded"`, image `display: block`, fallback `display: none` |
+| No source at all still shows the initials | fallback shown reading `OP` |
+
+jsdom loads no resources, so its half of this (`src/test/avatar.test.ts`) stubs
+`Image` to fire the events bits-ui listens for. This is the leg where the request
+genuinely fails and the picture genuinely decodes.
+
+## The Svelte/bits-ui pairing (no surface — a sweep)
+
+A report reached this package that **every** bits-ui overlay was silently dead on
+Svelte `5.53.5` with bits-ui `2.18.1` — with a type check, a lint, 257 unit tests
+and a production build all green — and that moving to `5.56.2` fixed it. The ask
+was to encode that as a peerDependency floor.
+
+It was swept before being encoded, in an isolated project holding nothing but
+`bits-ui@2.18.1`, one Svelte version, and the four overlay families, driven in a
+real browser:
+
+| Svelte | dialogue | menu | popover | select |
+| --- | --- | --- | --- | --- |
+| 5.30.0, 5.32.0 | open | open | open | open |
+| 5.33.0, 5.50.0, 5.51.0, 5.52.0 | open | open | open | open |
+| 5.53.0, 5.53.4, **5.53.5**, 5.53.6, 5.53.13 | open | open | open | open |
+| 5.54.0, 5.54.1, 5.55.0, 5.55.10 | open | open | open | open |
+| 5.56.0, **5.56.2**, 5.56.8 | open | open | open | open |
+
+Every version opened every overlay. The same sweep under jsdom agreed. A
+duplicate-instance hypothesis — two live Svelte copies in one graph, the classic
+cause of a silently broken `getContext` — was built deliberately (bits-ui given
+its own nested `svelte@5.56.2` under a root `svelte@5.53.5`), with Vite's Svelte
+dedupe both on and off, and every overlay still opened.
+
+So `>=5.56.2` was **not** encoded: it is not reproducible, and a floor that locks
+consumers out of a range measured to work is a worse defect than the one it
+claims to prevent. The declared floor moved from `^5.0.0` to `^5.33.0` instead —
+the floor bits-ui itself requires, and the lowest version this sweep covers.
+`5.25.0` does not build with the current `@sveltejs/vite-plugin-svelte` at all,
+so the range below the floor is not silent.
+
+What replaced the version range is the scripted overlay gate above. A range can
+only express a break someone has already characterised; driving the four overlays
+on every CI run catches the class of defect whatever causes it.
