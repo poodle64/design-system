@@ -64,8 +64,10 @@ pnpm add @poodle64/design-tokens
 @import 'tailwindcss';
 @import '@poodle64/design-tokens/tokens.tw.css'; /* @theme aliases            */
 @import '@poodle64/design-tokens/tokens.css';    /* :root + .dark --ds-* vars */
+@import '@poodle64/ui/styles.css';               /* shadcn surface + registration */
 
-/* then: per-app primary override + shadcn-svelte alias layer
+/* then: the per-app primary override, and nothing else.
+   An app does NOT hand-write a shadcn alias layer; @poodle64/ui ships it.
    (full snippet in templates/DESIGN.md.template §8) */
 ```
 

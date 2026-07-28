@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [Unreleased]
+
+### Fixed
+
+- `DESIGN.md.template` §8 and the README wiring snippet no longer tell an app to hand-write a shadcn alias layer. That snippet was the estate-wide origin of design-system#3: declaring `--card` / `--popover` / `--muted` / `--accent` / `--secondary` / `--input` / `--radius` and the `-foreground` pairs as plain custom properties makes each variable exist but never registers them as Tailwind v4 theme colours, so `bg-card`, `bg-muted`, `bg-accent` and `border-input` compiled to no CSS rule at all — no build error, no lint hit, no failing test. Both now import `@poodle64/ui/styles.css` after the token imports, which ships the mapping and its `@theme inline` registration together. Sidebar and chart colours stay per app.
+
+> `templates/` ships inside this package, so this correction reaches consumers only on the next `@poodle64/design-tokens` release; it is deliberately not tagged here.
+
 ## [2026.7.2] - 2026-07-16
 
 ### Fixed

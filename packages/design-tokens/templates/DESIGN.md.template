@@ -240,8 +240,12 @@ Icons: `@lucide/svelte`, deep imports, `size-4` inline / `size-5` standalone /
 @import "tailwindcss";
 @import "@poodle64/design-tokens/tokens.tw.css"; /* @theme block */
 @import "@poodle64/design-tokens/tokens.css";    /* :root + .dark */
+@import "@poodle64/ui/styles.css";               /* shadcn surface + its registration */
 
-/* Per-app primary override (only change from shared defaults) */
+/* @poodle64/ui ships in node_modules, outside Tailwind's default src/ scan. */
+@source "../node_modules/@poodle64/ui/dist";
+
+/* Per-app primary override — the ONLY change from shared defaults. */
 :root {
   --ds-color-primary: oklch(0.50 0.155 XXX);
   --ds-color-primary-foreground: oklch(0.99 0.005 XXX);
@@ -252,38 +256,22 @@ Icons: `@lucide/svelte`, deep imports, `size-4` inline / `size-5` standalone /
   --ds-color-primary-foreground: oklch(0.20 0.030 XXX);
   --ds-color-ring: oklch(0.70 0.140 XXX);
 }
-
-/* shadcn-svelte alias layer — map --ds-* onto --background, --primary, etc. */
-:root, .dark {
-  --background:         var(--ds-color-background);
-  --foreground:         var(--ds-color-foreground);
-  --card:               var(--ds-color-surface-2);
-  --card-foreground:    var(--ds-color-foreground);
-  --popover:            var(--ds-color-surface-3);
-  --popover-foreground: var(--ds-color-foreground);
-  --primary:            var(--ds-color-primary);
-  --primary-foreground: var(--ds-color-primary-foreground);
-  --secondary:          var(--ds-color-surface-1);
-  --secondary-foreground: var(--ds-color-foreground);
-  --muted:              var(--ds-color-surface-1);
-  --muted-foreground:   var(--ds-color-muted-foreground);
-  --accent:             var(--ds-color-surface-2);
-  --accent-foreground:  var(--ds-color-foreground);
-  --destructive:        var(--ds-color-destructive);
-  --destructive-foreground: var(--ds-color-destructive-foreground);
-  --border:             var(--ds-color-border);
-  --input:              var(--ds-color-border);
-  --ring:               var(--ds-color-ring);
-  --radius:             var(--ds-radius-lg);
-
-  /* Status convenience aliases */
-  --status-success: var(--ds-color-status-success);
-  --status-warning: var(--ds-color-status-warning);
-  --status-error:   var(--ds-color-status-error);
-  --status-info:    var(--ds-color-status-info);
-  --status-neutral: var(--ds-color-status-neutral);
-}
 ```
+
+**Do not hand-write a shadcn alias layer.** Every app used to declare
+`--card` / `--popover` / `--muted` / `--accent` / `--secondary` / `--input` /
+`--radius` and the `-foreground` pairs itself. That half-works in a way nothing
+catches: declaring them as plain custom properties makes the variable exist but
+never tells Tailwind v4 they are theme colours, so `bg-card`, `bg-muted`,
+`bg-accent` and `border-input` compile to no CSS rule at all — no build error,
+no lint hit, no failing test, just classes in the DOM with nothing behind them
+(design-system#3). Since `@poodle64/ui@2026.7.2` the import above ships that
+whole surface, mapping and registration together, and each name aliases a
+`--ds-*` token, so the primary override reaches all of it.
+
+The one part still owned per app is sidebar and chart colours: this package
+ships no sidebar or chart component, and chrome hue is genuinely an app's own
+decision, so an app that needs them declares and registers them itself.
 
 TypeScript:
 ```ts
