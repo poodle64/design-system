@@ -307,6 +307,79 @@ The remaining overflow (the `word` case: 180px at 375px, 235px at 320px) is a
 child with no scroller of its own. No sizing rule in the shell can prevent that;
 only the child carrying its own scroller can, as this package's `Table` does.
 
+## Overlays holding more rows than fit (`?surface=long-lists`)
+
+Every floating overlay this package ships, each opened over 36 rows, at **800px**
+and **560px** viewport height. Scripted in `drive.mjs`.
+
+Two heights, because one cannot tell a cap that tracks the space available from a
+lucky constant: a static `max-h-96` passes at 800 and fails at 560, and the
+bits-ui variable passes at both. The numbers below are the fixed build; the
+figures in brackets are the same measurement before the fix.
+
+| Overlay | Content bottom vs window | Scroller | Last row reached |
+| --- | --- | --- | --- |
+| select @ 800 | 800 vs 800 *(was 1068)* | viewport `scrollHeight` 1008 > `clientHeight` 716 *(was 1008 == 1008)* | top 772 after 292px *(was 1040, unreachable)* |
+| select @ 560 | 560 vs 560 *(was 1068)* | 1008 > 476 | top 532 after 532px |
+| dropdown menu @ 800 | 800 vs 800 *(was 1070)* | 1016 > 746 *(was 1016 == 1016)* | top 767 after 270px *(was 1037)* |
+| dropdown menu @ 560 | 560 vs 560 *(was 1070)* | 1016 > 506 | top 527 after 510px |
+| popover @ 800 | 800 vs 800 *(was 906)* | 896 > 746 *(was 896 == 896)* | top 759 after 150px *(was 865)* |
+| popover @ 560 | 560 vs 560 *(was 906)* | 896 > 506 | top 519 after 390px |
+| command list @ 800 | 595 vs 800 *(unchanged)* | 1188 > 288 *(unchanged)* | top 559 after 900px *(unchanged)* |
+| command list @ 560 | 515 vs 560 *(unchanged)* | 1188 > 288 *(unchanged)* | top 479 after 900px *(unchanged)* |
+
+Select also asserts that `SelectScrollDownButton` renders at all. bits-ui mounts
+it only while `viewportNode.scrollHeight - clientHeight > 0`, so on the broken
+build it was absent — the popper ran off the bottom of the window and displayed
+nothing saying there was more. Count went 0 → 1.
+
+### The scroller is not always the element carrying the cap
+
+Select is the exception and it matters, because measuring the wrong box calls a
+working select broken. bits-ui lays the select's content out as a flex column and
+gives the viewport `flex: 1; overflow: auto` inline, so the cap on the **content**
+is what gives the **viewport** a height to be `1` of, and the viewport is what
+moves. Read on the content, `scrollHeight > clientHeight` is 740 vs 740 — false
+on the fixed build. The script asserts against `[data-select-viewport]` there and
+against the content itself everywhere else.
+
+This is also why the `h-(--bits-select-anchor-height)` on the viewport is inert
+rather than harmful. That variable **is** set — 32px, the trigger's height — but
+`flex: 1 1 0%` wins on the main axis of a column flex container, so the declared
+height never applies. It only bites if something stops the content being a flex
+column, which is bits-ui's to decide, not this package's.
+
+### What this caught
+
+`overflow-y-auto` was on the select's content, the dropdown menu's content, and
+(as a scroll container with no cap) nowhere on the popover — and on all three it
+did nothing, because nothing constrained the height for it to act on. There is no
+way to see that by reading the class list: the utility is present, spelled
+correctly, and inert. Every existing gate agreed the components were fine.
+
+jsdom is structurally blind to it — with no layout, `scrollHeight` and
+`clientHeight` are both 0, so `scrollHeight > clientHeight` is false on the fixed
+build and the broken one alike, and a unit test asserting it would fail on the
+fix. The compiled-CSS gates can prove `max-h-(--bits-select-content-available-height)`
+compiles to a rule, but not that a box obeyed it.
+
+Upstream shadcn-svelte is not the reference here, and that is worth recording.
+It carried `max-h-(--bits-select-content-available-height)` on the select's
+content at `1.0.0` and **dropped it** in the rewrite that moved utilities into
+per-style `cn-*` classes: `cn-select-content` in the current `style-*.css` carries
+no height cap, nor does `cn-dropdown-menu-content` or `cn-popover-content`
+(`cn-menu-target`, the one remaining unknown in the class list, resolves to `dark`
+or to nothing — it is a colour-mode marker, not a cap). Only `cn-command-list`
+caps, at a static `max-h-72` under a `min()` with an `--available-height` nothing
+in a dialogue sets. So this package's port was faithful; the omission is
+upstream's, and the fix restores the `1.0.0` utility rather than following
+current `main`.
+
+Command's list is the one that was already right, and is left alone: `max-h-72`
+genuinely constrains it, it scrolls, and its last row is reachable at both
+heights. Its cap does not track the viewport, but at 288px it does not need to —
+it is asserted at both heights precisely so that stops being an assumption.
+
 ## The avatar load state (`?surface=avatar`)
 
 Three avatars driven over the real network: a URL that 404s, an inline image

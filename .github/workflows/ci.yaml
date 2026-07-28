@@ -81,8 +81,9 @@ jobs:
   # the package is wrong on paper, this one failing means it is wrong in an
   # engine. Every defect this gate covers — dead overlay transitions, a shell
   # region scrolling sideways under a passing document-level check, an avatar
-  # fallback that only a real 404 reaches — was invisible to `build` and to
-  # jsdom alike, and each was found by a person looking rather than by CI.
+  # fallback that only a real 404 reaches, an overlay whose `overflow-y-auto`
+  # had no height to act on — was invisible to `build` and to jsdom alike, and
+  # each was found by a person looking rather than by CI.
   browser:
     runs-on: ubuntu-latest
     steps:

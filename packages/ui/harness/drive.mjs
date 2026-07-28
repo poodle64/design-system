@@ -226,6 +226,168 @@ async function open(query, viewport = { width: 1440, height: 900 }) {
 	}
 }
 
+// ── Overlays holding more rows than fit (#8) ────────────────────────────────
+// `overflow-y-auto` only does something if a height constrains the box, and
+// nothing in the class list says so out loud — the utility is present and inert.
+// jsdom cannot see it: with no layout, scrollHeight and clientHeight are both 0,
+// so `scrollHeight > clientHeight` is false on the fixed build and on the broken
+// one alike. The claim has to be measured against a real box, which is why it is
+// here and not in `src/test/`.
+{
+	// `scroller` is the element that genuinely scrolls, which is not always the
+	// one carrying the cap. Select is the exception: bits-ui lays its content out
+	// as a flex column and gives the viewport `flex: 1; overflow: auto`, so the
+	// cap on the content is what gives the viewport a height to be `1` of, and
+	// the viewport is what moves. Asserting `scrollHeight > clientHeight` on the
+	// content there reads 740 vs 740 and calls a working select broken.
+	const LONG = [
+		{
+			what: 'select',
+			trigger: 'Open select',
+			how: 'enter',
+			slot: 'select-content',
+			scroller: '[data-select-viewport]',
+			// The pair only bits-ui can render, and only when the viewport can
+			// actually scroll — which is the user-visible half of this defect.
+			scrollButton: 'select-scroll-down-button'
+		},
+		{
+			what: 'dropdown menu',
+			trigger: 'Open menu',
+			how: 'click',
+			slot: 'dropdown-menu-content',
+			scroller: '[data-slot="dropdown-menu-content"]'
+		},
+		{
+			what: 'popover',
+			trigger: 'Open popover',
+			how: 'click',
+			slot: 'popover-content',
+			scroller: '[data-slot="popover-content"]'
+		},
+		{
+			what: 'command list',
+			trigger: 'Open command',
+			how: 'click',
+			slot: 'command-list',
+			scroller: '[data-slot="command-list"]'
+		}
+	];
+
+	// Two viewport heights, because one cannot tell a cap that tracks the space
+	// available from a lucky constant. A static `max-h-96` passes at 800 and
+	// fails at 560; the bits-ui variable passes at both.
+	const HEIGHTS = [800, 560];
+
+	for (const overlay of LONG) {
+		for (const height of HEIGHTS) {
+			// 1280x800 is the viewport the defect was reported at; 36 rows overflow
+			// it by several hundred pixels, so nothing here turns on a pixel.
+			const { context, page, errors } = await open('surface=long-lists', {
+				width: 1280,
+				height
+			});
+			const where = `${overlay.what} @ ${height}px`;
+			const trigger = page.getByText(overlay.trigger, { exact: true });
+			if (overlay.how === 'enter') {
+				await trigger.focus();
+				await page.keyboard.press('Enter');
+			} else {
+				await trigger.click();
+			}
+			await page.waitForSelector(`[data-slot="${overlay.slot}"]`, { timeout: 4000 });
+			// The floating layer positions on a frame, so read after it has settled.
+			await page.waitForTimeout(300);
+
+			const measured = await page.evaluate(
+				async ({ slot, scroller }) => {
+					// The deepest element whose whole text is the last row.
+					// Deliberately not a leaf test: a select item wraps its label
+					// beside a check indicator, so nothing inside it is childless, and
+					// a leaf test finds nothing and reports "unreachable" for entirely
+					// the wrong reason.
+					const findLastRow = () =>
+						[...document.querySelectorAll('*')]
+							.filter((node) => node.textContent.trim() === 'Option 36')
+							.pop();
+
+					const el = document.querySelector(`[data-slot="${slot}"]`);
+					const scroll = document.querySelector(scroller);
+					const rect = el.getBoundingClientRect();
+					const opened = {
+						contentRect: {
+							top: Math.round(rect.top),
+							height: Math.round(rect.height),
+							bottom: Math.round(rect.bottom)
+						},
+						windowHeight: window.innerHeight,
+						scrollHeight: scroll.scrollHeight,
+						clientHeight: scroll.clientHeight,
+						// Recorded whether or not it resolves: an unset custom property
+						// and a consumed one look identical in the class list, and the
+						// computed value is the only place the two differ.
+						maxHeight: getComputedStyle(el).getPropertyValue('max-height'),
+						rowRendered: findLastRow() !== undefined
+					};
+					// Reaching the last row is the outcome a mouse user needs, so drive
+					// the scroll rather than inferring it from the numbers above.
+					scroll.scrollTop = scroll.scrollHeight;
+					await new Promise((resolve) => requestAnimationFrame(resolve));
+					const lastRect = findLastRow()?.getBoundingClientRect();
+					return {
+						...opened,
+						scrolledBy: Math.round(scroll.scrollTop),
+						lastRow: lastRect
+							? { top: Math.round(lastRect.top), bottom: Math.round(lastRect.bottom) }
+							: null
+					};
+				},
+				{ slot: overlay.slot, scroller: overlay.scroller }
+			);
+
+			// A row that was never rendered is neither reachable nor unreachable, and
+			// would quietly turn the reachability claim below into a no-op.
+			check(`${where}: the last of the 36 rows renders`, measured.rowRendered, 'Option 36');
+			check(
+				`${where}: the rows do not push it past the bottom of the window`,
+				measured.contentRect.bottom <= measured.windowHeight,
+				`content bottom ${measured.contentRect.bottom} vs window ${measured.windowHeight} (height ${measured.contentRect.height}, max-height ${measured.maxHeight})`
+			);
+			// Without this the cap could "pass" by clipping the rows instead of
+			// scrolling them, which is the same defect wearing a different mask.
+			check(
+				`${where}: the rows past the fold scroll rather than being clipped`,
+				measured.scrollHeight > measured.clientHeight,
+				`scrollHeight ${measured.scrollHeight} vs clientHeight ${measured.clientHeight}`
+			);
+			check(
+				`${where}: the last row can actually be reached`,
+				measured.lastRow !== null &&
+					measured.lastRow.top >= 0 &&
+					measured.lastRow.bottom <= measured.windowHeight,
+				`after scrolling ${measured.scrolledBy}px, last row at ${JSON.stringify(measured.lastRow)} in a ${measured.windowHeight}px window`
+			);
+
+			if (overlay.scrollButton) {
+				// bits-ui renders these only while scrolling is possible, so their
+				// absence is the user-facing half of the defect rather than a separate
+				// one: a select that cannot scroll also shows nothing saying it could.
+				const buttonShown = await page.evaluate(
+					(slot) => document.querySelectorAll(`[data-slot="${slot}"]`).length,
+					overlay.scrollButton
+				);
+				check(
+					`${where}: the scroll affordance appears`,
+					buttonShown > 0,
+					`[data-slot="${overlay.scrollButton}"] count: ${buttonShown}`
+				);
+			}
+			check(`${where}: no page error`, errors.length === 0, JSON.stringify(errors));
+			await context.close();
+		}
+	}
+}
+
 // ── The avatar load-state swap (#7) ─────────────────────────────────────────
 // Driven over the real network: a genuine 404 and a genuine decode, which is
 // the pair jsdom can only stub.

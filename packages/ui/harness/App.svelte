@@ -26,6 +26,7 @@
 	import * as DropdownMenu from '../dist/components/ui/dropdown-menu/index.js';
 	import * as Popover from '../dist/components/ui/popover/index.js';
 	import * as Select from '../dist/components/ui/select/index.js';
+	import * as Command from '../dist/components/ui/command/index.js';
 	import * as Table from '../dist/components/ui/table/index.js';
 	import Avatar from '../dist/components/ui/avatar/avatar.svelte';
 	import AvatarImage from '../dist/components/ui/avatar/avatar-image.svelte';
@@ -81,6 +82,11 @@
 	// and needs its own case.
 	// `?surface=avatar` drives the real load-state swap over the network: a URL
 	// that cannot resolve, one that can, and no source at all.
+	// `?surface=long-lists` opens each floating overlay over a list longer than
+	// the viewport. Nothing short of an engine can make this claim: whether
+	// `overflow-y-auto` does anything depends entirely on whether a height
+	// constrains the box, which is a layout fact, and jsdom has no layout — it
+	// reports scrollHeight and clientHeight as 0 either way.
 	const surface = params.get('surface') ?? 'shell';
 	const wrapper = params.get('wrapper') ?? 'plain';
 	// `table` is the reported case: a wide child that carries its own scroller.
@@ -96,6 +102,11 @@
 	const REAL_IMAGE =
 		'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 	const LEVELS = [1, 2, 3, 4, 5, 6] as const;
+
+	// 36 is the count from the report: enough that the list is taller than an
+	// 800px viewport by a clear margin, so a missing cap cannot be mistaken for
+	// a rounding error.
+	const LONG_LIST = Array.from({ length: 36 }, (_, i) => `Option ${String(i + 1).padStart(2, '0')}`);
 
 	let phase: 'idle' | 'loading' | 'failed' | 'empty' = $state('idle');
 
@@ -131,6 +142,53 @@
 				<Select.Item value="a" label="Select body">Select body</Select.Item>
 			</Select.Content>
 		</Select.Root>
+	</div>
+{:else if surface === 'long-lists'}
+	<!-- Every floating overlay this package ships, each holding more rows than
+	     fit. The triggers sit near the top so the popper has the whole viewport
+	     below it to overflow into: an overlay opening from the bottom edge would
+	     flip above the trigger and could fit by accident, which would prove
+	     nothing. -->
+	<div class="flex flex-wrap items-start gap-4 p-6">
+		<Select.Root type="single">
+			<Select.Trigger>Open select</Select.Trigger>
+			<Select.Content>
+				{#each LONG_LIST as option (option)}
+					<Select.Item value={option} label={option}>{option}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
+
+		<DropdownMenu.Root>
+			<DropdownMenu.Trigger>Open menu</DropdownMenu.Trigger>
+			<DropdownMenu.Content>
+				{#each LONG_LIST as option (option)}
+					<DropdownMenu.Item>{option}</DropdownMenu.Item>
+				{/each}
+			</DropdownMenu.Content>
+		</DropdownMenu.Root>
+
+		<Popover.Root>
+			<Popover.Trigger>Open popover</Popover.Trigger>
+			<Popover.Content>
+				{#each LONG_LIST as option (option)}
+					<p>{option}</p>
+				{/each}
+			</Popover.Content>
+		</Popover.Root>
+
+		<button type="button" onclick={() => (paletteOpen = true)}>Open command</button>
+		<Command.Dialog bind:open={paletteOpen} title="Long command list" description="Search">
+			<Command.Input placeholder="Search" />
+			<Command.List>
+				<Command.Empty>Nothing matched.</Command.Empty>
+				<Command.Group heading="Options">
+					{#each LONG_LIST as option (option)}
+						<Command.Item value={option}>{option}</Command.Item>
+					{/each}
+				</Command.Group>
+			</Command.List>
+		</Command.Dialog>
 	</div>
 {:else if surface === 'avatar'}
 	<div class="flex items-center gap-4 p-8">
