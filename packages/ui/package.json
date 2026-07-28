@@ -64,7 +64,8 @@
   "scripts": {
     "build": "svelte-kit sync && svelte-package && publint",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "pnpm run build && vitest run"
+    "test": "pnpm run build && vitest run",
+    "prepublishOnly": "pnpm run build"
   },
   "packageManager": "pnpm@10.28.0"
 }
