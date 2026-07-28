@@ -132,6 +132,20 @@
 	const hasNav = $derived(toItems(nav).length > 0);
 	const railCollapsed = $derived(isRail && collapsible && collapsed);
 
+	// The disclosure toggle and the region it opens have to be programmatically
+	// related, not merely adjacent: `aria-expanded` says the control is open,
+	// `aria-controls` says WHAT it opened, and assistive technology uses the
+	// pair to jump straight to the region instead of trusting DOM order (#12).
+	//
+	// Generated rather than a literal, because the id is a real one in the
+	// consumer's document. A fixed `ds-shell-nav` would collide with an app's
+	// own element of that name, and would collide with ITSELF the moment a page
+	// mounts two shells — and `document.getElementById` would answer with a coin
+	// toss, which is the same failure the rail deliberately avoids by being one
+	// element rather than two.
+	const shellId = $props.id();
+	const navRegionId = `${shellId}-nav`;
+
 	// The mobile nav is an overlay below `md`; on `md`+ the rail is a permanent
 	// column (or the nav is inline in the bar) and this stays false. It closes on
 	// any navigation so a tap-through never leaves it covering the page it just
@@ -280,6 +294,7 @@
 			`.ds-shell-rail[data-drawer]` in styles.css) rather than two branches.
 		-->
 		<aside
+			id={navRegionId}
 			class="ds-shell-rail bg-shell text-shell-foreground border-border flex-none flex-col border-r"
 			data-collapsed={railCollapsed ? 'true' : undefined}
 			data-drawer={mobileNavOpen ? 'true' : undefined}
@@ -337,12 +352,21 @@
 			class="ds-shell-bar bg-shell/80 text-shell-foreground border-border sticky top-0 z-20 flex h-14 flex-none items-center gap-2 border-b px-3 backdrop-blur sm:gap-3 sm:px-5"
 		>
 			{#if hasNav}
+				<!-- `aria-controls` names the region this toggle opens. It is present
+				     whenever that region is in the document, which under variant="rail"
+				     is always (the rail and the drawer are ONE element) and under
+				     variant="header" is while the disclosure panel is open, since the
+				     panel is created and destroyed with the state. Pointing at an id
+				     that is not in the document is a dangling reference assistive
+				     technology is entitled to ignore, so it is omitted rather than left
+				     hanging; closed, the `aria-expanded="false"` is the whole story. -->
 				<button
 					bind:this={menuButton}
 					onclick={() => (mobileNavOpen ? closeMobileNav() : (mobileNavOpen = true))}
 					class="border-border text-shell-muted-foreground hover:text-shell-foreground grid size-9 flex-none place-items-center rounded-md border md:hidden"
 					aria-label="Menu"
 					aria-expanded={mobileNavOpen}
+					aria-controls={isRail || mobileNavOpen ? navRegionId : undefined}
 					data-testid="ds-shell-menu"
 				>
 					{#if mobileNavOpen}
@@ -432,6 +456,7 @@
 			     focus cannot walk out of the open panel into the page behind it.
 			     The region stays a landmark; nothing here is click-to-activate. -->
 			<section
+				id={navRegionId}
 				class="ds-shell-panel border-border bg-shell border-b md:hidden"
 				data-testid="ds-shell-panel"
 				aria-label="Navigation"

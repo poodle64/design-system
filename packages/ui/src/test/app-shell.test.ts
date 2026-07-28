@@ -247,6 +247,64 @@ describe('AppShell — mobile navigation (header variant)', () => {
 	});
 });
 
+describe('AppShell — the toggle and the region it opens are related (#12)', () => {
+	// A fair jsdom claim, and the reason it is here rather than in the harness:
+	// this is a DOM RELATIONSHIP, not a resolved style. `aria-expanded` already
+	// said the control was open; `aria-controls` is the other half — it says what
+	// it opened, which is how assistive technology offers to jump to the region
+	// instead of trusting DOM order, and how automated tooling can tell the two
+	// elements are related at all.
+	//
+	// `getElementById` is the assertion rather than a string compare on purpose:
+	// the id is generated per instance, so what matters is that the reference
+	// RESOLVES, not what it happens to spell.
+	it.each([
+		['rail', 'ds-shell-drawer'],
+		['header', 'ds-shell-panel']
+	] as const)('%s: the toggle points at the region it opened', async (variant, testId) => {
+		render(ShellHarness, { props: { variant } });
+		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
+		const region = await screen.findByTestId(testId);
+
+		const controls = screen.getByTestId('ds-shell-menu').getAttribute('aria-controls');
+		expect(controls, `${variant}: the toggle names no region`).toBeTruthy();
+		expect(document.getElementById(controls!)).toBe(region);
+	});
+
+	it('rail: names the rail even while closed, because it is always in the document', () => {
+		// The rail and the drawer are ONE element, so the reference is live from
+		// first render — there is no window in which it dangles.
+		render(ShellHarness);
+		const controls = screen.getByTestId('ds-shell-menu').getAttribute('aria-controls');
+		expect(controls).toBeTruthy();
+		expect(document.getElementById(controls!)).toHaveClass('ds-shell-rail');
+	});
+
+	it('header: omits the reference while closed rather than dangling it', () => {
+		// The disclosure panel is created and destroyed with the state, so naming
+		// it while closed would point at nothing. A dangling IDREF is a reference
+		// assistive technology may ignore outright, which is strictly worse than
+		// the `aria-expanded="false"` that already tells the whole story.
+		render(ShellHarness, { props: { variant: 'header' } });
+		expect(screen.getByTestId('ds-shell-menu')).not.toHaveAttribute('aria-controls');
+		expect(screen.getByTestId('ds-shell-menu')).toHaveAttribute('aria-expanded', 'false');
+	});
+
+	it('gives two shells on one page distinct regions', async () => {
+		// A literal id would collide with itself here, and `getElementById` would
+		// answer with whichever rendered first — the same coin toss the rail
+		// avoids by refusing to render its contents twice.
+		render(ShellHarness, { props: { variant: 'header' } });
+		render(ShellHarness, { props: { variant: 'header' } });
+		const toggles = screen.getAllByTestId('ds-shell-menu');
+		for (const toggle of toggles) await fireEvent.click(toggle);
+
+		const ids = toggles.map((toggle) => toggle.getAttribute('aria-controls'));
+		expect(ids.every(Boolean)).toBe(true);
+		expect(new Set(ids).size).toBe(2);
+	});
+});
+
 describe('AppShell — rail collapse', () => {
 	it('does not offer a collapse control unless the app asks for one', () => {
 		render(ShellHarness);
