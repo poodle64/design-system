@@ -42,6 +42,33 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   The bits-ui open/closed variants.
+
+   Same defect as `dark` above, one attribute along. This package writes ~47
+   `data-open:` / `data-closed:` utilities across the dialogue, alert-dialogue,
+   dropdown-menu, popover, tooltip, select and command surfaces — the whole
+   enter/exit animation of every overlay it ships. Tailwind v4 compiles a bare
+   `data-open:` to `&[data-open]`, and bits-ui does not emit `data-open`: it
+   emits `data-state="open"` / `data-state="closed"`. So the utilities exist in
+   the stylesheet, match nothing, and every overlay opens and closes with no
+   transition. Nothing fails — the class is in the DOM, the rule simply never
+   matches — which is why four of the five adopting apps shipped with dead
+   overlay transitions and none of them noticed.
+
+   Only these two need declaring. The other five shorthand data-variants this
+   package writes — `data-selected`, `data-highlighted`, `data-disabled`,
+   `data-placeholder` (bits-ui, all emitted as empty-string-or-undefined) and
+   `data-inset` (set by this package's own menu items) — are BARE attributes, so
+   Tailwind's default `&[data-x]` already matches them and a declaration here
+   would only restate it. `src/test/data-state-variants.test.ts` is what keeps
+   that distinction honest: it enumerates every shorthand data-variant the built
+   package ships and fails on any one whose compiled selector is not the
+   attribute the DOM actually carries, so a new unowned variant cannot ship.
+   ───────────────────────────────────────────────────────────────────────────── */
+@custom-variant data-open (&[data-state='open']);
+@custom-variant data-closed (&[data-state='closed']);
+
+/* ─────────────────────────────────────────────────────────────────────────────
    The shadcn semantic surface.
 
    Every component in this package is written against the shadcn colour names
