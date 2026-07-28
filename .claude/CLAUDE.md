@@ -1,25 +1,28 @@
 # Design System
 
-The household web design-language factory: publishes `@poodle64/design-tokens`,
-the token layer every SvelteKit app consumes to converge on one look —
-personality differs by palette only (`master-project#174`, WP-51). A second
-package, `@poodle64/ui` (shared shadcn-svelte components), is being built out
-on the `wp51/shared-ui-package` branch as a pnpm workspace restructure; it has
-not merged to `main` — do not assume `packages/`, `pnpm-workspace.yaml`, or a
-component library exist here until that lands.
+The household web design-language factory: a pnpm workspace publishing two
+packages every SvelteKit app consumes to converge on one look — personality
+differs by palette only (`master-project#174`, WP-51). `@poodle64/design-tokens`
+(`packages/design-tokens/`) is the token layer; `@poodle64/ui`
+(`packages/ui/`) is the shared shadcn-svelte component layer. The
+`wp51/shared-ui-package` restructure is merged — `packages/` and
+`pnpm-workspace.yaml` are the live layout.
 
 ## Dev Environment
 
-- Plain pnpm package at the repo root (no workspace yet); pnpm `10.28.0` pinned via `packageManager`; Node `22` (CI floor, `.github/workflows/ci.yaml`)
-- `pnpm install`, `pnpm build` (Style Dictionary → `dist/tokens.{css,tw.css,js,d.ts}`), `pnpm test` (build + `node --test test/*.test.js`)
-- `tokens/tokens.tokens.json` is the single DTCG source; `sd.config.js` is the Style Dictionary v4 config; `templates/DESIGN.md.template` is the per-app North Star template consuming apps copy in
+- pnpm workspace (`pnpm-workspace.yaml` → `packages/*`); the repo root is a private workspace root, never a published package. pnpm `10.28.0` pinned via `packageManager`; Node `22` (CI floor, `.github/workflows/ci.yaml`)
+- `pnpm install`, then `pnpm build` / `pnpm test` / `pnpm check` fan out with `pnpm -r`. Scope to one package with `pnpm --filter @poodle64/ui run test`
+- `packages/design-tokens/`: `tokens/tokens.tokens.json` is the single DTCG source; `sd.config.js` is the Style Dictionary v4 config; `templates/DESIGN.md.template` is the per-app North Star template consuming apps copy in; build emits `dist/tokens.{css,tw.css,js,d.ts}`
+- `packages/ui/`: `svelte-package` build (`dist/components/ui/<name>/index.js` per component, plus `dist/utils.js`), `svelte-check` type gate, `vitest` + `@testing-library/svelte` interaction tests, `publint` on the emitted package
 - No lint/format tooling is configured yet (no ESLint, no Prettier) — do not assume either is wired into CI or pre-commit
 
 ## Publishing
 
-Public repo (GitHub Packages needs it for the household's consumption story); CI runs on GitHub-hosted runners, not the self-hosted `atlas` runner every other repo defaults to (`10-ci-workflow-standard.md` deviation, recorded in `.github/workflows/publish.yaml`). A `v<version>` tag push builds, verifies the tag matches `package.json`, and publishes `@poodle64/design-tokens` to GitHub Packages under the `@poodle64` scope. **Live and published** — consumed by six apps via an ordinary `^2026.7.x` version spec.
+Public repo (GitHub Packages needs it for the household's consumption story); CI runs on GitHub-hosted runners, not the self-hosted `atlas` runner every other repo defaults to (`10-ci-workflow-standard.md` deviation, recorded in `.github/workflows/publish.yaml`). Auth is `secrets.GITHUB_TOKEN` — GitHub Actions mints it per run, so no human credential exists anywhere in the publish path.
 
-The `wp51/shared-ui-package` branch changes this to a **per-package** tag scheme (`design-tokens-v<version>`, `ui-v<version>`) once it merges, so each package can release independently. Until then, `v*` is the only tag pattern `publish.yaml` on `main` reacts to.
+Tags are **per-package** so each releases on its own cadence: `design-tokens-v<version>` publishes `@poodle64/design-tokens`, `ui-v<version>` publishes `@poodle64/ui`. `publish.yaml` resolves the package directory from the tag prefix, re-runs that package's build/test, verifies the tag version matches that package's `package.json`, and `npm publish`es from the package directory. Both are **live and published** to GitHub Packages under the `@poodle64` scope and consumed by ordinary `^2026.7.x` version specs. The retired repo-wide `v<version>` scheme (tags `v2026.7.0`–`v2026.7.2`) no longer triggers anything.
+
+A consumer needs `@poodle64:registry=https://npm.pkg.github.com` in its `.npmrc` plus a token with `read:packages`; `@poodle64/ui` also needs its peers installed (`svelte`, `bits-ui`, and — where the sonner/theme components are used — `svelte-sonner` and `mode-watcher`).
 
 ## Key Reminders
 
@@ -30,8 +33,9 @@ The `wp51/shared-ui-package` branch changes this to a **per-package** tag scheme
 
 | Asset | Location |
 | --- | --- |
-| Token source | `tokens/tokens.tokens.json` |
-| Style Dictionary config | `sd.config.js` |
-| Per-app North Star template | `templates/DESIGN.md.template` |
-| WP-51 background (workspace + `@poodle64/ui`, in progress on `wp51/shared-ui-package`) | `master-project#174`; `docs/master/templates/golden-patterns/app-shape-and-frontend.md` in `poodle64/master-project` |
-| Changelog | `CHANGELOG.md` |
+| Token source | `packages/design-tokens/tokens/tokens.tokens.json` |
+| Style Dictionary config | `packages/design-tokens/sd.config.js` |
+| Per-app North Star template | `packages/design-tokens/templates/DESIGN.md.template` |
+| Shared components | `packages/ui/src/lib/components/ui/<name>/` |
+| WP-51 background (workspace + `@poodle64/ui`) | `master-project#174`; `docs/master/templates/golden-patterns/app-shape-and-frontend.md` in `poodle64/master-project` |
+| Changelog | one per package: `packages/design-tokens/CHANGELOG.md`, `packages/ui/CHANGELOG.md` |
