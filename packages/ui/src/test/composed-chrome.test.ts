@@ -125,6 +125,31 @@ describe('LoadingState', () => {
 	});
 });
 
+describe('ErrorState', () => {
+	it('announces itself assertively, unlike its polite loading sibling', () => {
+		render(ChromeHarness);
+		const alert = screen.getByRole('alert');
+		// assertive, not the sibling's polite: this surface only exists because
+		// the user's task has already broken, so it interrupts rather than
+		// waiting its turn.
+		expect(alert).toHaveAttribute('aria-live', 'assertive');
+		expect(alert).toHaveTextContent('Could not load the estate.');
+		// The glyph is decorative; the message carries the meaning.
+		expect(alert.querySelector('[aria-hidden="true"]')).not.toBeNull();
+	});
+
+	it('leaves EmptyState with no live region of its own', () => {
+		render(ChromeHarness);
+		const empty = screen.getByRole('heading', { level: 3, name: 'Nothing yet' }).closest('div');
+		expect(empty).not.toBeNull();
+		// An empty result is ordinary static page content the app placed
+		// deliberately, not an outcome that arrived and must interrupt. Giving it
+		// a live region would announce a blank list as urgently as a failure.
+		expect(empty?.getAttribute('role')).toBeNull();
+		expect(empty?.getAttribute('aria-live')).toBeNull();
+	});
+});
+
 describe('InfoTip', () => {
 	it('exposes the hint to assistive tech whether or not it is hovered', () => {
 		render(ChromeHarness);
