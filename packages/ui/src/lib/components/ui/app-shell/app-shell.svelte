@@ -145,6 +145,68 @@
 		mobileNavOpen = false;
 	});
 
+	// Focus follows the overlay, in both directions. Opening a drawer and leaving
+	// the caret behind it strands a keyboard user in a page they can no longer
+	// see; closing it without returning focus drops them at the top of the
+	// document. Neither is visible in a screenshot and neither is something the
+	// consuming app can fix from the outside, so the shell owns it.
+	let menuButton = $state<HTMLButtonElement | null>(null);
+	let overlayFirstFocus = $state<HTMLElement | null>(null);
+	$effect(() => {
+		if (mobileNavOpen) overlayFirstFocus?.focus();
+	});
+
+	function closeMobileNav() {
+		if (!mobileNavOpen) return;
+		mobileNavOpen = false;
+		menuButton?.focus();
+	}
+
+	// Crossing up into md closes the overlay. Without this, opening the drawer on
+	// a phone and then widening (rotate, split-view, a resized window) leaves
+	// `mobileNavOpen` true while the rail is back in flow — a stale state that
+	// also makes the modal semantics below wrong. Closing it here is what earns
+	// the invariant the dialog role depends on: open implies narrow.
+	$effect(() => {
+		if (typeof window === 'undefined' || !window.matchMedia) return;
+		const wide = window.matchMedia('(min-width: 48rem)');
+		const sync = () => {
+			if (wide.matches) mobileNavOpen = false;
+		};
+		sync();
+		wide.addEventListener('change', sync);
+		return () => wide.removeEventListener('change', sync);
+	});
+
+	// Tab must not walk out of an overlay into the page it is covering. A full
+	// `inert` on the rest of the shell would be the heavier answer; wrapping at
+	// the ends is enough here because the overlay's content is a short, flat list.
+	function trapTab(event: KeyboardEvent) {
+		if (event.key !== 'Tab' || !mobileNavOpen) return;
+		const overlay = event.currentTarget as HTMLElement;
+		const candidates = [
+			...overlay.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
+		].filter((el) => el.tabIndex !== -1);
+		// Drop what CSS has hidden — the collapse control is display:none below md
+		// and must not be a tab stop. `getClientRects()` is the check that works
+		// against a real layout; where there is no layout engine at all it reports
+		// EVERYTHING as hidden, so an empty result means "cannot tell", not "none",
+		// and the trap falls back to the unfiltered set rather than silently
+		// switching itself off.
+		const visible = candidates.filter((el) => el.getClientRects().length > 0);
+		const focusable = visible.length > 0 ? visible : candidates;
+		if (focusable.length === 0) return;
+		const first = focusable[0];
+		const last = focusable[focusable.length - 1];
+		if (event.shiftKey && document.activeElement === first) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && document.activeElement === last) {
+			event.preventDefault();
+			first.focus();
+		}
+	}
+
 	function toggleTheme() {
 		if (onToggleTheme) onToggleTheme();
 		else toggleMode();
@@ -161,7 +223,7 @@
 
 <svelte:window
 	onkeydown={(e) => {
-		if (e.key === 'Escape') mobileNavOpen = false;
+		if (e.key === 'Escape') closeMobileNav();
 	}}
 />
 
@@ -198,8 +260,9 @@
 		{#if mobileNavOpen}
 			<button
 				class="bg-background/70 fixed inset-0 z-40 backdrop-blur-sm md:hidden"
-				aria-label="Close menu"
-				onclick={() => (mobileNavOpen = false)}
+				aria-label="Dismiss menu"
+				tabindex="-1"
+				onclick={closeMobileNav}
 			></button>
 		{/if}
 
@@ -221,10 +284,15 @@
 			data-collapsed={railCollapsed ? 'true' : undefined}
 			data-drawer={mobileNavOpen ? 'true' : undefined}
 			data-testid={mobileNavOpen ? 'ds-shell-drawer' : undefined}
+			role={mobileNavOpen ? 'dialog' : undefined}
+			aria-modal={mobileNavOpen ? 'true' : undefined}
+			aria-label={mobileNavOpen ? 'Navigation' : undefined}
+			onkeydown={trapTab}
 		>
 			{#if mobileNavOpen}
 				<button
-					onclick={() => (mobileNavOpen = false)}
+					bind:this={overlayFirstFocus}
+					onclick={closeMobileNav}
 					class="border-border text-muted-foreground hover:text-foreground absolute top-3 right-3 z-10 grid size-8 place-items-center rounded-md border md:hidden"
 					aria-label="Close menu"
 				>
@@ -270,9 +338,10 @@
 		>
 			{#if hasNav}
 				<button
-					onclick={() => (mobileNavOpen = !mobileNavOpen)}
+					bind:this={menuButton}
+					onclick={() => (mobileNavOpen ? closeMobileNav() : (mobileNavOpen = true))}
 					class="border-border text-muted-foreground hover:text-foreground grid size-9 flex-none place-items-center rounded-md border md:hidden"
-					aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+					aria-label="Menu"
 					aria-expanded={mobileNavOpen}
 					data-testid="ds-shell-menu"
 				>
@@ -357,14 +426,25 @@
 			     bar rather than a side drawer. A drawer sliding in from the left
 			     with nothing on the left is a gesture with no origin; the panel
 			     drops from the control that opened it. -->
-			<div class="ds-shell-panel border-border bg-shell border-b md:hidden" data-testid="ds-shell-panel">
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<!-- The listener is a focus trap on the container, not an interaction
+			     the region itself offers: it only redirects Tab at the ends so
+			     focus cannot walk out of the open panel into the page behind it.
+			     The region stays a landmark; nothing here is click-to-activate. -->
+			<section
+				class="ds-shell-panel border-border bg-shell border-b md:hidden"
+				data-testid="ds-shell-panel"
+				aria-label="Navigation"
+				onkeydown={trapTab}
+			>
 				<AppNav
 					{nav}
 					{currentPath}
 					class="max-h-[60vh] py-2"
+					bind:firstLink={overlayFirstFocus}
 					onNavigate={() => (mobileNavOpen = false)}
 				/>
-			</div>
+			</section>
 		{/if}
 
 		{#if banner}{@render banner()}{/if}

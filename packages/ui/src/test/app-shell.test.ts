@@ -16,7 +16,7 @@
  * the blind spot that has now hidden five defects in this programme. Those
  * claims are made in a real browser instead; see `harness/README.md`.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import ShellHarness from './app-shell.svelte';
 import { isNavItemActive, toGroups, toItems } from '$lib/components/ui/app-shell/types.js';
@@ -84,6 +84,141 @@ describe('AppShell — mobile navigation (rail variant)', () => {
 		await fireEvent.click(within(drawer, 'Close menu'));
 
 		await waitFor(() => expect(screen.queryByTestId('ds-shell-drawer')).not.toBeInTheDocument());
+	});
+});
+
+describe('AppShell — focus follows the overlay', () => {
+	// A drawer that opens without taking focus strands a keyboard user behind an
+	// overlay they cannot see; one that closes without returning focus drops them
+	// at the top of the document. Both are invisible to a screenshot, and neither
+	// is something a consuming app can fix from outside the component.
+	it('moves focus into the drawer on open and back to the trigger on close', async () => {
+		render(ShellHarness);
+		const trigger = screen.getByTestId('ds-shell-menu');
+		trigger.focus();
+
+		await fireEvent.click(trigger);
+		const drawer = await screen.findByTestId('ds-shell-drawer');
+		await waitFor(() => expect(drawer.contains(document.activeElement)).toBe(true));
+
+		await fireEvent.keyDown(window, { key: 'Escape' });
+
+		await waitFor(() => expect(document.activeElement).toBe(trigger));
+	});
+
+	it('returns focus when the drawer is dismissed by its own close control', async () => {
+		render(ShellHarness);
+		const trigger = screen.getByTestId('ds-shell-menu');
+		await fireEvent.click(trigger);
+		const drawer = await screen.findByTestId('ds-shell-drawer');
+
+		await fireEvent.click(within(drawer, 'Close menu'));
+
+		await waitFor(() => expect(document.activeElement).toBe(trigger));
+	});
+
+	it('moves focus into the header variant’s panel, onto its first link', async () => {
+		render(ShellHarness, { props: { variant: 'header' } });
+		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
+		const panel = await screen.findByTestId('ds-shell-panel');
+
+		await waitFor(() => {
+			expect(panel.contains(document.activeElement)).toBe(true);
+			expect(document.activeElement).toHaveAttribute('href', '/overview');
+		});
+	});
+
+	it('keeps the scrim out of the tab order, since Escape and the close button dismiss', async () => {
+		render(ShellHarness);
+		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
+		await screen.findByTestId('ds-shell-drawer');
+
+		const scrim = document.querySelector<HTMLElement>('.fixed.inset-0[aria-label="Dismiss menu"]');
+		expect(scrim).not.toBeNull();
+		expect(scrim!.tabIndex).toBe(-1);
+
+		// The three dismiss-adjacent controls that coexist while the drawer is open
+		// must not share one accessible name: an invisible full-viewport backdrop
+		// and a visible X button both called "Close menu" is two indistinguishable
+		// controls to a screen reader, and an ambiguous by-role query to a test.
+		const drawer = screen.getByTestId('ds-shell-drawer');
+		const names = [
+			scrim!.getAttribute('aria-label'),
+			drawer.querySelector('button[aria-label]')!.getAttribute('aria-label'),
+			screen.getByTestId('ds-shell-menu').getAttribute('aria-label')
+		];
+		expect(new Set(names).size, `duplicate accessible names: ${names}`).toBe(3);
+	});
+});
+
+describe('AppShell — the drawer is a real modal', () => {
+	it('announces itself as a modal dialogue only while it is the overlay', async () => {
+		render(ShellHarness);
+		const rail = document.querySelector('.ds-shell-rail')!;
+		// At rest it is an ordinary complementary landmark, not a dialogue nobody
+		// opened. The role is only correct while the thing is actually covering
+		// the page.
+		expect(rail).not.toHaveAttribute('role');
+
+		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
+
+		await waitFor(() => {
+			expect(rail).toHaveAttribute('role', 'dialog');
+			expect(rail).toHaveAttribute('aria-modal', 'true');
+		});
+
+		await fireEvent.keyDown(window, { key: 'Escape' });
+		await waitFor(() => expect(rail).not.toHaveAttribute('role'));
+	});
+
+	it('wraps Tab at the end of the overlay instead of leaking into the page', async () => {
+		render(ShellHarness);
+		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
+		const drawer = await screen.findByTestId('ds-shell-drawer');
+
+		const focusable = [...drawer.querySelectorAll<HTMLElement>('a[href], button')].filter(
+			(el) => el.tabIndex !== -1
+		);
+		const last = focusable[focusable.length - 1];
+		last.focus();
+
+		await fireEvent.keyDown(last, { key: 'Tab' });
+
+		// Without the wrap, focus lands on whatever follows the overlay in the
+		// document — content the user cannot see.
+		await waitFor(() => expect(document.activeElement).toBe(focusable[0]));
+	});
+
+	it('closes itself when the viewport grows past the breakpoint', async () => {
+		// Open on a phone, then widen: the rail is back in flow, so an overlay
+		// still flagged open would be a stale state AND a lie about modality.
+		const listeners: Array<() => void> = [];
+		const matchMedia = vi.fn().mockImplementation((query: string) => ({
+			matches: false,
+			media: query,
+			addEventListener: (_: string, fn: () => void) => listeners.push(fn),
+			removeEventListener: () => {},
+			addListener: () => {},
+			removeListener: () => {},
+			dispatchEvent: () => true,
+			onchange: null
+		}));
+		const original = window.matchMedia;
+		Object.defineProperty(window, 'matchMedia', { writable: true, value: matchMedia });
+		try {
+			render(ShellHarness);
+			await fireEvent.click(screen.getByTestId('ds-shell-menu'));
+			await waitFor(() => expect(screen.getByTestId('ds-shell-drawer')).toBeInTheDocument());
+
+			matchMedia.mock.results.forEach((r) => ((r.value as { matches: boolean }).matches = true));
+			listeners.forEach((fn) => fn());
+
+			await waitFor(() =>
+				expect(screen.queryByTestId('ds-shell-drawer')).not.toBeInTheDocument()
+			);
+		} finally {
+			Object.defineProperty(window, 'matchMedia', { writable: true, value: original });
+		}
 	});
 });
 

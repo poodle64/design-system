@@ -19,6 +19,7 @@
 		collapsed = false,
 		label = 'Primary',
 		onNavigate,
+		firstLink = $bindable(null),
 		class: className
 	}: {
 		nav?: NavSource;
@@ -30,6 +31,12 @@
 		label?: string;
 		/** Fired after any nav link activates — AppShell uses it to shut the drawer. */
 		onNavigate?: () => void;
+		/**
+		 * The first rendered link, bound out. AppShell moves focus here when this
+		 * list is the content of an overlay, so a keyboard user lands inside the
+		 * thing that just opened rather than behind it.
+		 */
+		firstLink?: HTMLElement | null;
 		class?: string;
 	} = $props();
 
@@ -53,6 +60,12 @@
 			{#each group.items as item (item.href)}
 				{@const active = isNavItemActive(item, currentPath)}
 				<a
+					bind:this={
+						() => firstLink,
+						(node) => {
+							if (i === 0 && group.items[0] === item) firstLink = node;
+						}
+					}
 					href={item.href}
 					class="ds-nav-item"
 					data-active={active ? 'true' : undefined}
