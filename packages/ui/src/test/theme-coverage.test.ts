@@ -149,16 +149,70 @@ describe('the shadcn semantic surface', () => {
 		expect(flatten(value!, properties)).toBe('rebeccapurple');
 	});
 
-	it('is registered by this package, so a consuming app needs no alias layer', () => {
+	it('is mapped by this package, so a consuming app needs no alias layer', () => {
 		// The whole point of #3: the contract ships beside the components that
 		// depend on it. If this moved back out to per-app CSS, the next app to
 		// adopt the package inherits the same broken surface.
 		const stylesheet = readFileSync(join(distDir, 'styles.css'), 'utf8');
 		for (const [utility] of CASES) {
 			const name = colourNameOf(utility);
-			expect(stylesheet, `--color-${name} is not registered in the shipped stylesheet`).toMatch(
-				new RegExp(`--color-${name}\\s*:`)
+			expect(stylesheet, `--${name} is not mapped in the shipped stylesheet`).toMatch(
+				new RegExp(`--${name}\\s*:\\s*var\\(--ds-`)
 			);
+		}
+	});
+
+	it('has exactly one owner per theme key, across both packages', () => {
+		// @theme registration is decided by import order, so a key both packages
+		// register resolves differently depending on which stylesheet came last —
+		// an app override that works in one app's app.css and silently does
+		// nothing in another's. One owner per key is what makes the next test's
+		// order-independence possible at all.
+		const ours = registeredColourKeys(readFileSync(join(distDir, 'styles.css'), 'utf8'));
+		const theirs = registeredColourKeys(
+			readFileSync(require.resolve('@poodle64/design-tokens/tokens.tw.css'), 'utf8')
+		);
+		const contested = [...ours].filter((key) => theirs.has(key)).sort();
+
+		expect(ours.size, 'this package registers no colour keys at all').toBeGreaterThan(0);
+		expect(contested, 'colour keys registered by both packages').toEqual([]);
+	});
+
+	it('resolves identically whichever order the stylesheets are imported', () => {
+		const forward = compile(candidates);
+		const reverse = compile(candidates, { reverseChain: true });
+		const forwardProperties = customProperties(forward);
+		const reverseProperties = customProperties(reverse);
+
+		const divergent = CASES.filter(([utility, property]) => {
+			const a = declaration(forward, utility, property);
+			const b = declaration(reverse, utility, property);
+			return (
+				a === null ||
+				b === null ||
+				flatten(a, forwardProperties) !== flatten(b, reverseProperties)
+			);
+		}).map(([utility]) => utility);
+
+		expect(divergent, 'utilities whose colour depends on stylesheet import order').toEqual([]);
+	});
+
+	it('honours a per-app palette override in either import order', () => {
+		for (const reverseChain of [false, true]) {
+			const emitted = compile(['bg-card', 'bg-primary'], {
+				reverseChain,
+				extraCss: ':root { --ds-color-surface-2: rebeccapurple; --ds-color-primary: goldenrod; }'
+			});
+			const properties = customProperties(emitted);
+			const where = reverseChain ? 'reverse order' : 'documented order';
+			expect(
+				flatten(declaration(emitted, 'bg-card', 'background-color')!, properties),
+				`bg-card ignores the token override in ${where}`
+			).toBe('rebeccapurple');
+			expect(
+				flatten(declaration(emitted, 'bg-primary', 'background-color')!, properties),
+				`bg-primary ignores the token override in ${where}`
+			).toBe('goldenrod');
 		}
 	});
 
@@ -169,6 +223,15 @@ describe('the shadcn semantic surface', () => {
 		);
 	});
 });
+
+/** The `--color-*` keys a stylesheet registers in its own @theme blocks. */
+function registeredColourKeys(css: string): Set<string> {
+	const keys = new Set<string>();
+	for (const [, body] of css.matchAll(/@theme[^{]*\{([\s\S]*?)\n\}/g)) {
+		for (const [, key] of body.matchAll(/^\s*--color-([a-z0-9-]+)\s*:/gm)) keys.add(key);
+	}
+	return keys;
+}
 
 /** The declared value of whichever property `candidate`'s rule sets, or null. */
 function ruleFor(css: string, candidate: string): string | null {

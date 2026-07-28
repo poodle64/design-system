@@ -42,8 +42,11 @@
    surface-2, popover on surface-3, muted/secondary on surface-1, input on
    border) is identical in every app that had one.
 
-   An app may still override any single name after this import; that is a
-   deliberate deviation rather than the setup tax it is today.
+   The override point is --ds-color-*, and it reaches everything below. The
+   bare names are the contract components and app CSS read directly (the chip
+   colour, the selected-row rule, the card edge); redeclaring one after this
+   import is a deliberate per-app deviation rather than the setup tax it is
+   today.
    ───────────────────────────────────────────────────────────────────────────── */
 :root {
 	--background: var(--ds-color-background);
@@ -67,7 +70,8 @@
 	--input: var(--ds-color-border);
 	--ring: var(--ds-color-ring);
 
-	/* Consumed by the button/input-group size ramps as calc(var(--radius) - n). */
+	/* Consumed by the input-group size ramp as calc(var(--radius) - n). The
+	   button ramp uses --radius-md from @poodle64/design-tokens instead. */
 	--radius: var(--ds-radius-lg);
 }
 
@@ -79,33 +83,32 @@
    redefinition of --card, at any scope, including .dark. Without it the
    utility would freeze against whatever --card meant in :root.
 
-   Sidebar and chart colours are deliberately NOT registered here. This package
-   ships no sidebar or chart component, so nothing it exports could reference
-   them, and they are the one part of the shadcn surface the estate genuinely
-   disagrees on (chrome hue is an app's own decision, not a shared default).
-   An app using them registers them itself, as it does today.
+   Only the names @poodle64/design-tokens does NOT already register appear
+   here, and that exclusivity is load-bearing rather than tidiness. Registering
+   a key both packages claim makes the winner depend on which stylesheet was
+   imported last, so an app overriding it would get different results from the
+   same CSS depending on its import order, silently. One owner per key removes
+   the question; `background`, `foreground`, `primary`, `border`, `ring`,
+   `destructive` and their pairs stay the token package's, which is why they
+   are absent below despite being part of the same surface.
+
+   Sidebar and chart colours are deliberately NOT registered here either. This
+   package ships no sidebar or chart component, so nothing it exports could
+   reference them, and they are the one part of the shadcn surface the estate
+   genuinely disagrees on (chrome hue is an app's own decision, not a shared
+   default). An app using them registers them itself, as it does today.
    ───────────────────────────────────────────────────────────────────────────── */
 @theme inline {
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
 	--color-card: var(--card);
 	--color-card-foreground: var(--card-foreground);
 	--color-popover: var(--popover);
 	--color-popover-foreground: var(--popover-foreground);
-	--color-primary: var(--primary);
-	--color-primary-foreground: var(--primary-foreground);
 	--color-secondary: var(--secondary);
 	--color-secondary-foreground: var(--secondary-foreground);
 	--color-muted: var(--muted);
-	--color-muted-foreground: var(--muted-foreground);
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
-	--color-destructive: var(--destructive);
-	--color-destructive-foreground: var(--destructive-foreground);
-	--color-border: var(--border);
-	--color-border-strong: var(--border-strong);
 	--color-input: var(--input);
-	--color-ring: var(--ring);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

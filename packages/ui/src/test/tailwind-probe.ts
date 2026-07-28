@@ -42,11 +42,17 @@ export interface CompileOptions {
 	designSystem?: boolean;
 	/** Extra CSS appended after the chain (used to probe hypothetical registrations). */
 	extraCss?: string;
+	/**
+	 * Import this package's stylesheet BEFORE the token package's. Nothing stops
+	 * an app writing its app.css that way, and @theme registration is decided by
+	 * import order, so the contract has to hold either way round.
+	 */
+	reverseChain?: boolean;
 }
 
 /** Compile `candidates` as class names and return the emitted CSS. */
 export function compile(candidates: string[], options: CompileOptions = {}): string {
-	const { designSystem = true, extraCss = '' } = options;
+	const { designSystem = true, extraCss = '', reverseChain = false } = options;
 	// The fixture lives under node_modules so `@import "tailwindcss"` resolves
 	// against this package's own dependency tree.
 	const dir = mkdtempSync(join(packageRoot, 'node_modules', '.tw-probe-'));
@@ -54,7 +60,8 @@ export function compile(candidates: string[], options: CompileOptions = {}): str
 		writeFileSync(join(dir, 'probe.html'), `<div class="${candidates.join(' ')}"></div>\n`);
 		const imports = ['@import "tailwindcss";'];
 		if (designSystem) {
-			for (const [name, source] of CONSUMER_CHAIN) {
+			const chain = reverseChain ? [...CONSUMER_CHAIN].reverse() : CONSUMER_CHAIN;
+			for (const [name, source] of chain) {
 				cpSync(source, join(dir, name));
 				imports.push(`@import "./${name}";`);
 			}
@@ -175,7 +182,13 @@ export function colourCandidates(files: string[]): Set<string> {
 	return found;
 }
 
-/** Drop `hover:`, `dark:`, `data-[state=open]:` … leaving the bare utility. */
+/**
+ * Drop `hover:`, `dark:`, `data-[state=open]:` … leaving the bare utility.
+ * Both important markers go too: Tailwind v4 writes it postfix (`bg-card!`)
+ * and still accepts the v3 prefix (`!bg-card`). Missing the postfix form let a
+ * dead `bg-nosuchcolour!` through the whole gate — it fell out of the re-probe
+ * step as an unparseable name rather than being reported.
+ */
 function stripVariants(word: string): string {
 	let depth = 0;
 	let lastColon = -1;
@@ -185,7 +198,10 @@ function stripVariants(word: string): string {
 		else if (char === ']') depth -= 1;
 		else if (char === ':' && depth === 0) lastColon = i;
 	}
-	return word.slice(lastColon + 1).replace(/^!/, '');
+	return word
+		.slice(lastColon + 1)
+		.replace(/^!/, '')
+		.replace(/!$/, '');
 }
 
 /** The utility family of a bare candidate: the longest known prefix. */
