@@ -184,6 +184,21 @@ Each component is its own subpath export (`@poodle64/ui/<name>`), matching
 shadcn-svelte's own convention; a flat barrel would collide on the generic names
 (`Root`, `Content`, `Trigger`) that most primitives share.
 
+**`CardTitle` takes an optional `level`.** It renders a `<div>` by default, as
+upstream shadcn does, because a card title is not always a heading. Where it IS
+the heading for that card's content — the common case on a dashboard — pass the
+level and it becomes a real `<h1>`–`<h6>`:
+
+```svelte
+<Card.Title level={2}>Estate summary</Card.Title>
+```
+
+Nothing else changes: the class list is identical either way, so `level` moves
+the document outline and not a pixel. Worth knowing before a migration, because
+the default is silent — an app replacing its own `<h3>` card titles with this
+component loses every heading below its page `<h1>` with no error, no lint hit
+and no visual difference.
+
 **Two lines in the app's `app.css`**, after the token imports:
 
 ```css

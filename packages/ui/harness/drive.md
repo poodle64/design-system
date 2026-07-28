@@ -1,7 +1,8 @@
 # Real-browser verification
 
-Two surfaces, selected by `?surface=`: the default `shell` (AppShell, below) and
-`states` (the async-outcome surfaces — see the last section).
+Three surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
+`states` (the async-outcome surfaces) and `card` (CardTitle's heading mode) —
+both in their own sections at the end.
 
 ## AppShell (`?surface=shell`, the default)
 
@@ -155,3 +156,60 @@ region rather than re-deriving this from scratch.
 
 The same source notes an alert must be **visible** to be recognised, which this
 one is; a caller hiding it with `hidden` or `display:none` would silence it.
+
+## CardTitle's heading mode (`?surface=card`)
+
+Seven cards built from the identical markup, differing in one prop: one plain
+`<CardTitle>` and one per `level={1…6}`. Same container width, same siblings,
+same body, so any measured difference in the title can only have come from the
+tag name.
+
+The claim is that `level` moves the document outline and nothing else, and it
+needs an engine on both halves. jsdom cannot support the visual half at all: a
+`<div>` and an `<h3>` differ only in what the UA stylesheet adds, and jsdom
+applies no stylesheet, so the two are trivially identical there whether or not
+anything neutralises the UA metrics. It cannot support the semantic half either
+— `getByRole` is testing-library resolving a static element→role table, so it
+proves the tag name and nothing about the tree a browser builds.
+
+| Claim | Observed (1440×900) |
+| --- | --- |
+| The title is a real heading at the level asked for | `H1`…`H6`; tree carries `heading "Estate summary" [level=1…6]` |
+| The default contributes no heading at all | tree carries `text: Estate summary`; `document.querySelectorAll('h1,…,h6').length === 0` |
+| The class list is identical across all seven | `text-base leading-snug font-medium group-data-[size=sm]/card:text-sm`, byte-for-byte |
+| A heading is laid out identically to the div | title box 352×22 and card box 384×114 on all seven |
+| The UA heading metrics are neutralised | 18 computed properties identical on all seven — `font-size: 16px`, `font-weight: 500`, `line-height: 22px`, all four margins `0px` |
+
+The margin row is the one that could have gone the other way. `text-base` and
+`font-medium` override the UA size and weight from the class list itself, but
+**nothing in this package touches a heading's UA margin** — `<h3>` carries
+`margin-block: 1em` and a `<div>` carries none, which would have pushed the card
+header apart. Tailwind's preflight is what levels it, and this package does not
+own preflight, so an app that dropped it would get a layout shift out of a prop
+that promises none. `src/test/card-title.test.ts` pins that dependency against
+the compiled consumer chain so it is visible rather than assumed.
+
+### The default, measured against the pre-change build
+
+Not merely asserted unchanged. The previous `card-title.svelte` was restored,
+`dist` and the harness rebuilt, and the div-mode card measured in the same
+engine: identical class list, identical attribute set (`class,data-slot`),
+identical 352×22 box inside an identical 384×114 card, and the same 18 computed
+properties.
+
+One difference exists and it is worth writing down rather than discovering
+later. `<svelte:element>` places its child anchor comment *before* the content
+where a static `<div>` places it after, so the div-mode inner HTML went from
+`Estate summary<!---->` to `<!---->Estate summary`. It is an empty comment node:
+invisible to layout, to the cascade (comments are not elements, so `:first-child`
+is unaffected) and to the accessibility tree, all three measured above. Only an
+`innerHTML` string comparison could see it.
+
+The two-branch `{#if level}` alternative was built and measured too, rather than
+reasoned about, and it is worse on exactly the criterion this change is held to.
+It keeps the div's comment where it was, but adds a block anchor *outside* the
+element (`<!----><!---->` before, `<!---->` after in the parent), and it still
+emits `<!---->Estate summary` in the heading branch — so heading and div are NOT
+inner-markup identical under it, which is the parity the prop exists to promise.
+The single `<svelte:element>` gives that parity, adds nothing to the parent, and
+leaves the class list and rest props with only one place to be written.
