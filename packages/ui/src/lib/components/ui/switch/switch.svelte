@@ -15,8 +15,8 @@
   translate-x-4) so it scales with the consuming app's root font-size instead
   of a fixed pixel size. The thumb is darkened to dark:bg-foreground so the
   ball stays light on the dark-first theme. The track colour comes from the
-  project tokens. An app with a non-standard root font-size (e.g. Portcullis's
-  18px console) compensates in its own override layer, not here.
+  project tokens. An app with a non-standard root font-size (a dense console
+  running an 18px root, say) compensates in its own override layer, not here.
 -->
 <SwitchPrimitive.Root
 	bind:ref
