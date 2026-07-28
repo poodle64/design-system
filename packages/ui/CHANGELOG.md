@@ -4,6 +4,42 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.7.8] - 2026-07-29
+
+### Fixed
+
+- **`AppShell` painted the active nav label in `--ds-color-primary`, so an app whose brand hue is light shipped an unreadable nav entry** (#11). Measured in Chromium from resolved computed colours, composited over the surfaces the label actually sits on: a warm amber brand read **1.90:1**, a saturated blue **2.87:1**, against a 4.5:1 floor. The package default cleared it by 0.05. The nav's count badge was worse still, at **1.73:1** under the amber palette and **3.72:1** on the package default, because it sits on the active row's tint as well as its own.
+
+  The framing matters more than the numbers. `--ds-color-primary` is the one token this package invites every app to override, and the only constraint stated where an app picks it is that it clear AA against its own `-foreground` pair: the **fill** case, primary as a background with text on top. Both failing palettes cleared that comfortably (7.69:1 and 5.00:1) and were illegible anyway. Consuming the token as **ink** on the chrome was a second, stricter requirement that nothing documented and that constrains a brand hue far more tightly than the stated rule implies. Every app picking a light or high-lightness hue inherited it silently.
+
+  So the shell stops asking a colour it does not control to be legible text. The active row's ink is now the chrome's own foreground, whose legibility the app's palette is **already** obliged to guarantee, so the fix inherits an existing contract instead of inventing a new one. No app is told to repaint its brand. Light mode now measures **12.60–13.97:1** across all three fixture palettes and both variants; dark mode, which never failed, moves from 6.05–8.21:1 to 12.45–13.13:1.
+
+  The brand is not lost, it moves to where it is not text: the 12% tint, the rail's edge bar, the header's underline. Those keep `--primary` at full strength deliberately. WCAG 1.4.11 holds a state indicator to 3:1 only where the state is not conveyed another way, and here it is conveyed three others (the ink lifts from muted to full, the weight steps to 500, the row carries `aria-current="page"`), so the bar stays the one place an app's brand hue survives undiluted. The gate asserts that redundancy rather than trusting the argument.
+
+  An app whose primary genuinely is legible as ink on its chrome puts it back with `--ds-nav-ink-active`, and owns the contrast knowingly. `DESIGN.md.template` now states the fill-vs-ink distinction where an app picks its hue, which was the other half of what the report asked for.
+
+  Two alternatives were measured and lost. Deriving an accessible ink by clamping lightness in `oklch(from …)` is not sound across the gamut: a saturated green clamped to L 0.55 still lands at 3.44:1, so it trades a visible failure for a subtler one. Mixing primary into the chrome ink **is** provable (35% clears 4.5:1 for every in-gamut primary in both modes) but at that ratio the hue reads as warm or cool grey, degrading every palette that was already fine to buy safety for palettes no app has.
+
+- **An app inverting its chrome got no effect on the nav at all.** Found by the new gate, not by the report. `--ds-shell-chrome-foreground` is the documented way to invert the rail and bar against the palette; the nav rows ignored it entirely. A custom property declared **on** an element beats one inherited **into** it, and `.ds-nav` is a descendant of every chrome surface, so the chrome re-pointing `--ds-nav-ink` was overridden by `.ds-nav`'s own declaration on the very element that consumes it. Both declarations were correct in isolation and only their placement was wrong, which is why no compiled-CSS gate could see it: the winner is a cascade fact and needs an engine. It was invisible in use too, because both sides default to the same token, so the only symptom was an app asking for an inverted chrome and getting silence. The chrome now sets a variable the nav **reads** rather than one it redeclares.
+
+  The gate pins both halves of that rule, because it has to give two opposite answers at once: `AppNav` is also exported for a route-scoped secondary column on the ordinary page background, and that one must NOT follow the chrome — an inverted chrome would otherwise paint near-white ink on a near-white surface. The harness renders one beside the inverted rail and asserts each stays where it belongs.
+
+### Added
+
+- **`aria-controls` on the mobile disclosure toggle** (#12). The toggle already managed `aria-expanded` correctly and moved focus into the panel, trapped it, and returned it on Escape; what was missing was the programmatic relationship between the control and the region, which is how assistive technology offers to jump to the region rather than relying on DOM order, and how automated tooling can tell the two elements are related at all. Both variants carry it: under `variant="rail"` the reference is live from first render, because the rail and the drawer are one element; under `variant="header"` the disclosure panel is created and destroyed with the state, so the reference is present while the panel is and omitted rather than left dangling when it is not. The region id is generated per instance, so two shells on one page cannot collide with each other or with an app's own ids.
+
+- **A real-browser contrast gate for the whole defect class** (`harness/drive.mjs`). The class is *a shared component painting a colour the consumer owns as ink*, and nothing cheaper can see it: jsdom applies no stylesheet and returns the unresolved `var(--…)` literal, so a unit test passes just as happily on a colour nothing defines, and a compiled-CSS gate proves a rule exists without ever resolving `color-mix()` over a real surface. The gate drives the built package under three palettes (the package default plus two deliberately different consumer brands, including the low-luminance-on-light amber that is the failing shape) across both themes and both variants, and asserts the resolved ratio.
+
+  Three measurement details are load-bearing, each having produced a wrong answer first. Contrast is taken against the **composited ancestor stack**, not the page background: the active row's background is a 12% `color-mix` over the chrome and the chrome is `bg-shell/80` over the page, so the label sits on three layers and any single one of them is the wrong comparison. **Transitions are disabled** before reading, because swapping a custom property starts `.ds-nav-item`'s 150ms colour transition and `getComputedStyle` mid-flight returns an interpolated value; the first run of this gate reported the package default while believing it had applied the override. And each fixture palette is asserted to clear AA **as a fill** first, so a future edit that breaks the fixture fails as a fixture problem rather than quietly weakening the claim.
+
+  The gate also records two numbers it does not assert, each with its reason: the brand indicator's own ratio (non-text, and redundant per the assertion above), and the resting nav label's, which is a genuine AA failure at 3.62:1 in light mode but belongs to `--ds-color-muted-foreground` in the token package rather than to this shell, and is tracked as #13.
+
+  `src/test/nav-ink.test.ts` is the cheap structural half that runs on every `pnpm test`: it cannot report a ratio, but it catches the one-character regression that puts `var(--primary)` back, in milliseconds and without a browser.
+
+### Changed
+
+- **The harness follows the OS colour-scheme preference instead of claiming a default mode.** `ModeWatcher` was passed `defaultMode="dark"`, which was measurably not doing what it said: mode-watcher tracks the system preference and Chromium's default is light, so every surface in the harness had in fact been rendering **light** since the day it was written. The contrast gate has to know which theme it is looking at, so the theme is now driven by `browser.newContext({ colorScheme })` and waited on rather than assumed.
+
 ## [2026.7.7] - 2026-07-29
 
 ### Fixed

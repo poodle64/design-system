@@ -4,11 +4,19 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.7.3] - 2026-07-29
+
+### Changed
+
+- **`DESIGN.md.template` now states that `--ds-color-primary` is a FILL constraint, and only a fill constraint.** It said the primary "must meet WCAG AA (>=4.5:1) on its surface in both modes", which an app reasonably reads as the fill case: primary as a background under its own `-foreground` pair. `@poodle64/ui`'s `AppShell` was additionally consuming the token as **ink** on its chrome, which is a second and much stricter requirement that this template never stated (design-system#11). Two real app palettes satisfied the documented rule comfortably and were illegible as nav labels anyway, at 1.90:1 and 2.87:1 against a 4.5:1 floor.
+
+  The shell stopped doing that in `@poodle64/ui@2026.7.8`, so no app is asked to repaint its brand. This template now says so at the point an app picks its hue: the constraint is the fill, a light or high-lightness brand hue costs nothing in legibility, and the primary belongs on the active nav row's tint, edge bar and underline rather than on its label. It also documents `--ds-nav-ink-active`, for an app that wants its brand back on the label and will own the contrast, and names the surface to check that against (`--ds-color-surface-1`, the chrome, not `--ds-color-background`).
+
+  No token values change.
+
 ### Fixed
 
 - `DESIGN.md.template` §8 and the README wiring snippet no longer tell an app to hand-write a shadcn alias layer. That snippet was the estate-wide origin of design-system#3: declaring `--card` / `--popover` / `--muted` / `--accent` / `--secondary` / `--input` / `--radius` and the `-foreground` pairs as plain custom properties makes each variable exist but never registers them as Tailwind v4 theme colours, so `bg-card`, `bg-muted`, `bg-accent` and `border-input` compiled to no CSS rule at all — no build error, no lint hit, no failing test. Both now import `@poodle64/ui/styles.css` after the token imports, which ships the mapping and its `@theme inline` registration together. Sidebar and chart colours stay per app.
-
-> `templates/` ships inside this package, so this correction reaches consumers only on the next `@poodle64/design-tokens` release; it is deliberately not tagged here.
 
 ## [2026.7.2] - 2026-07-16
 
