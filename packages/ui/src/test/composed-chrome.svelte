@@ -17,6 +17,10 @@
 	import Panel from '$lib/components/ui/panel/panel.svelte';
 
 	let dialogOpen = $state(false);
+	// Every open-state change the dialogue reports, in order — including the ones
+	// it makes for itself (Escape, the scrim, the close control), which is exactly
+	// what bind:open alone cannot give a caller a moment to act on.
+	let dialogOpenChanges = $state<boolean[]>([]);
 	let panelClosed = $state(false);
 	let showDetail = $state(true);
 	let emptyActionFired = $state(false);
@@ -35,7 +39,13 @@
 </PageHeader>
 
 <button type="button" onclick={() => (dialogOpen = true)}>Open app dialog</button>
-<AppDialog bind:open={dialogOpen} title="Harness dialog" subtitle="A subtitle" size="lg">
+<AppDialog
+	bind:open={dialogOpen}
+	onOpenChange={(open) => (dialogOpenChanges = [...dialogOpenChanges, open])}
+	title="Harness dialog"
+	subtitle="A subtitle"
+	size="lg"
+>
 	<DialogSection label="First">
 		<p>Section one body</p>
 	</DialogSection>
@@ -99,8 +109,29 @@
 	<span data-testid="wrapped-trigger">wrapped</span>
 </InfoTip>
 
+<!-- A page header that is a breadcrumb bar: no title at all, which is the shape
+     19 of one app's 22 headers take and the reason it could not adopt this
+     component. The trail is the app's own routed links, as a snippet. -->
+<PageHeader>
+	{#snippet breadcrumbs()}
+		<a href="#/estate">Estate</a>
+		<span aria-hidden="true">/</span>
+		<span data-testid="crumb-current">Records</span>
+	{/snippet}
+	{#snippet actions()}
+		<button type="button">Trail action</button>
+	{/snippet}
+</PageHeader>
+
 <StatusBadge status="success" label="Healthy" />
+<!-- A state that is still moving. `pulse` is the axis that separates "syncing"
+     from "synced" without adding a sixth word to a closed vocabulary; `class` is
+     placement, which only the call site knows. -->
+<StatusBadge status="info" label="Syncing" pulse class="ml-auto self-start" />
 <StatCard label="Sessions" value={12} unit="live" sub="last hour" status="info" />
+<!-- The feed is healthy (status) and the number is a loss (valueTone). Two
+     different claims about the same card, which is why they are two props. -->
+<StatCard label="Realised" value="-1,204.55" unit="AUD" status="success" valueTone="error" />
 <StatList
 	title="Totals"
 	items={[
@@ -114,5 +145,6 @@
 
 <!-- Non-visual outcome probes. -->
 <output data-testid="panel-closed">{panelClosed ? 'closed' : 'open'}</output>
+<output data-testid="dialog-open-changes">{dialogOpenChanges.join(',') || 'none'}</output>
 <output data-testid="empty-action">{emptyActionFired ? 'fired' : 'idle'}</output>
 <output data-testid="error-action">{errorActionFired ? 'fired' : 'idle'}</output>

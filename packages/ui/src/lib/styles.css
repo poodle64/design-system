@@ -339,6 +339,51 @@
 		background: var(--ds-color-status-neutral);
 	}
 
+	/**
+	 * Ink in the status vocabulary, for text that IS the state rather than text
+	 * that sits beside a chip. StatCard's `valueTone` is the first consumer: a
+	 * negative figure should read as negative on the figure itself, not on a dot
+	 * two lines above it.
+	 *
+	 * Same five names and the same tokens as the chips, so a palette change moves
+	 * both together and an app cannot end up with a red chip beside an orange
+	 * number.
+	 */
+	.ds-ink-success {
+		color: var(--ds-color-status-success);
+	}
+	.ds-ink-warning {
+		color: var(--ds-color-status-warning);
+	}
+	.ds-ink-error {
+		color: var(--ds-color-status-error);
+	}
+	.ds-ink-info {
+		color: var(--ds-color-status-info);
+	}
+	.ds-ink-neutral {
+		color: var(--muted-foreground);
+	}
+
+	/**
+	 * A dot for a state that is still moving (StatusBadge's `pulse`). Opacity
+	 * only — no scale — so the pulse cannot shift the row it sits in, and the dot
+	 * never fades below the contrast at which it is still legible as a colour.
+	 */
+	.ds-dot-pulse {
+		animation: ds-dot-pulse 1.6s ease-in-out infinite;
+	}
+
+	@keyframes ds-dot-pulse {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.35;
+		}
+	}
+
 	/* ─────────────────────────────────────────────────────────────────────────
 	   The application shell (AppShell, AppNav, CommandPalette).
 
@@ -377,7 +422,7 @@
 		padding: 0.5rem 0.625rem;
 		font-size: 0.875rem;
 		line-height: 1.25rem;
-		color: var(--muted-foreground);
+		color: var(--ds-nav-ink-muted);
 		white-space: nowrap;
 		transition:
 			color 150ms,
@@ -385,8 +430,8 @@
 	}
 
 	.ds-nav-item:hover {
-		color: var(--foreground);
-		background: color-mix(in oklch, var(--foreground) 5%, transparent);
+		color: var(--ds-nav-ink);
+		background: color-mix(in oklch, var(--ds-nav-ink) 5%, transparent);
 	}
 
 	.ds-nav-item[data-active='true'] {
@@ -556,7 +601,8 @@
 
 	@media (prefers-reduced-motion: reduce) {
 		.ds-shell-rail[data-drawer='true'],
-		.ds-shell-panel {
+		.ds-shell-panel,
+		.ds-dot-pulse {
 			animation: none;
 		}
 		.ds-shell-rail {

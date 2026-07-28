@@ -32,6 +32,33 @@ describe('AppDialog', () => {
 			expect(screen.queryByText('Harness dialog')).not.toBeInTheDocument();
 		});
 	});
+
+	it('reports its own dismissal through onOpenChange, not only through the binding', async () => {
+		// The gap this closes: a caller that has to reset a form or abort a request
+		// when its dialogue closes has nowhere to hang that work if the only signal
+		// is a bound value. 12 of 28 dialogues in the reporting app close through a
+		// path the caller never drove — Escape, the scrim, this close control — so
+		// the self-dismiss leg is the one that matters, and it is asserted here
+		// rather than the caller-driven one.
+		render(ChromeHarness);
+		expect(screen.getByTestId('dialog-open-changes')).toHaveTextContent('none');
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Open app dialog' }));
+		await waitFor(() => expect(screen.getByText('Harness dialog')).toBeInTheDocument());
+		// The caller set `open` itself, so it is told nothing: the callback reports
+		// the dialogue's OWN changes, which is precisely the set a bound variable
+		// cannot distinguish.
+		expect(screen.getByTestId('dialog-open-changes')).toHaveTextContent('none');
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+
+		await waitFor(() => {
+			expect(screen.getByTestId('dialog-open-changes')).toHaveTextContent('false');
+		});
+		// And the binding still moves — the two compose rather than replacing
+		// each other.
+		expect(screen.queryByText('Harness dialog')).not.toBeInTheDocument();
+	});
 });
 
 describe('DialogSection', () => {
@@ -180,6 +207,47 @@ describe('StatusBadge / StatCard / StatList', () => {
 		expect(badge?.querySelector('.ds-dot-success')).not.toBeNull();
 	});
 
+	it('animates the dot only when the state is still moving', () => {
+		render(ChromeHarness);
+		const settled = screen.getByText('Healthy').closest('.ds-chip');
+		const moving = screen.getByText('Syncing').closest('.ds-chip');
+
+		expect(settled?.querySelector('.ds-dot-pulse')).toBeNull();
+		expect(moving?.querySelector('.ds-dot-pulse')).not.toBeNull();
+		// Motion refines the colour; it never replaces it, so a reader who cannot
+		// perceive the animation still gets the state (WCAG 1.4.1).
+		expect(moving?.querySelector('.ds-dot-info')).not.toBeNull();
+	});
+
+	it('takes a class for placement without losing its own chip identity', () => {
+		render(ChromeHarness);
+		const moving = screen.getByText('Syncing').closest('.ds-chip');
+		expect(moving?.className).toContain('ml-auto');
+		// The reason this is `cn` and not string concatenation: the caller's class
+		// must not be able to knock out the chip's own colour.
+		expect(moving?.className).toContain('ds-chip-info');
+	});
+
+	it('colours the figure independently of the source status', () => {
+		render(ChromeHarness);
+		const figure = screen.getByText('-1,204.55');
+
+		// The number is the loss; the dot is the health of the feed reporting it.
+		expect(figure).toHaveClass('ds-ink-error');
+		const card = figure.closest('.bg-card');
+		expect(card?.querySelector('.ds-dot-success')).not.toBeNull();
+		expect(card?.querySelector('.ds-dot-error')).toBeNull();
+	});
+
+	it('leaves an untoned figure in the default foreground', () => {
+		render(ChromeHarness);
+		// The default has to stay inert: every existing StatCard call site passes
+		// no valueTone, and none of them may change colour.
+		const figure = screen.getByText('12');
+		expect(figure.className).not.toContain('ds-ink-');
+		expect(figure.getAttribute('data-tone')).toBeNull();
+	});
+
 	it('shows a StatCard dot for its status and renders unit and sub', () => {
 		render(ChromeHarness);
 		const card = screen.getByText('Sessions').closest('div')?.parentElement;
@@ -206,6 +274,32 @@ describe('PageHeader / Panel', () => {
 		expect(screen.getByText('Section')).toBeInTheDocument();
 		expect(screen.getByText('One line, clamped.')).toHaveClass('line-clamp-1');
 		expect(screen.getByRole('button', { name: 'Primary action' })).toBeInTheDocument();
+	});
+
+	it('renders as a breadcrumb bar with no title at all', () => {
+		render(ChromeHarness);
+		// The whole point of making `title` optional: this shape must produce no
+		// heading. An empty <h1> would be worse than the component not adopting —
+		// it puts a nameless stop in the document outline of every such page.
+		expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+		expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName('Chrome harness');
+
+		const trail = screen.getByTestId('crumb-current');
+		expect(trail).toBeInTheDocument();
+		expect(screen.getByRole('link', { name: 'Estate' })).toBeInTheDocument();
+		// Actions still sit opposite the trail, so the title-less shape is the same
+		// header rather than a second component with its own spacing.
+		expect(screen.getByRole('button', { name: 'Trail action' })).toBeInTheDocument();
+	});
+
+	it('keeps the trail above the title when a header carries both', () => {
+		render(ChromeHarness);
+		const bar = screen.getByTestId('crumb-current').closest('div')?.parentElement;
+		expect(bar).not.toBeNull();
+		// Document order is the claim: a trail reads as context for the heading
+		// beneath it, never as a caption under it.
+		const trailRow = screen.getByTestId('crumb-current').closest('div');
+		expect(trailRow?.previousElementSibling).toBeNull();
 	});
 
 	it('renders a Panel header with its subtitle above the body', () => {
