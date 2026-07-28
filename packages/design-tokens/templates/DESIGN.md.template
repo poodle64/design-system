@@ -23,13 +23,18 @@ description: >-                             # REQUIRED — one sentence
   E.g. "Calm, dense control plane on warm-paper surfaces with a eucalyptus-green
   accent and a fixed vivid status palette. Light-first, dark available."
 
-version: 2026.7.2                           # CalVer; bump when tokens change
+version: 2026.7.3                           # CalVer; bump when tokens change
 mode: light-first                           # light-first | dark-first | equal
 
 # ---------------------------------------------------------------------------
 # Brand primary — the ONE action accent. Override --ds-color-primary in :root.
 # Everything else in the shared token sheet is used as-is.
-# Must meet WCAG AA (>=4.5:1) on its surface in both modes.
+#
+# The constraint is a FILL constraint, and that is the whole constraint:
+# --ds-color-primary must meet WCAG AA (>=4.5:1) against its OWN -foreground
+# pair, in both modes — primary as a background with text on top. No shared
+# component paints it as ink on chrome, so a light or high-lightness brand hue
+# costs you nothing in legibility. Pick the hue your brand wants.
 # ---------------------------------------------------------------------------
 primary:
   light: oklch(0.50 0.155 XXX)              # REQUIRED — pick a hue (XXX = 0-360)
@@ -112,11 +117,30 @@ is the primary accent.
 
 The primary is the ONE brand accent. It appears on:
 - The primary action in any context (one per `PageHeader`)
-- The active nav item
+- The active nav item's tint, edge bar and underline — as a FILL, never as the
+  label's ink (see below)
 - Focus rings (`--ds-color-ring` aliases `--ds-color-primary`)
 - OPTIONALLY: [list any other deliberate use; keep it short]
 
 Nowhere decorative. No second accent.
+
+**Primary is a fill, not an ink.** `AppShell` marks the active nav row with a
+12% primary tint plus a primary edge bar or underline, and paints the LABEL in
+the chrome's own foreground. That is deliberate: contrast against the chrome
+depends entirely on your brand hue, and a hue that is unimpeachable as a button
+fill can be illegible as text on a near-white bar. Because the shell never asks
+your brand to be ink, you never have to trade brand for legibility.
+
+If your primary genuinely is legible as text on your chrome and you want it back
+on the active label, say so explicitly and own the contrast:
+
+```css
+:root { --ds-nav-ink-active: var(--ds-color-primary); }
+```
+
+Check it at >=4.5:1 against `--ds-color-surface-1` (the chrome), not against
+`--ds-color-background` — they are different surfaces, and the chrome is the
+darker of the two.
 
 ### Status palette (binding — do not redefine)
 
@@ -215,7 +239,8 @@ Icons: `@lucide/svelte`, deep imports, `size-4` inline / `size-5` standalone /
 **Do:**
 - Compose from shared primitives; add to the shared library when a new one is needed
 - Use `StatusBadge` for every state chip (dot + label, never colour alone)
-- Use `--ds-color-primary` for the one action accent and the active nav item
+- Use `--ds-color-primary` for the one action accent, and as a FILL — a
+  background, a tint, a bar — rather than as ink on chrome
 - Use mono + tabular figures for any machine-produced value
 - Let tables run full width; cap forms at `max-w-2xl`
 - Apply `--ds-radius-lg` to cards; `--ds-radius-xl` to dialogues
