@@ -4,6 +4,73 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.7.6] - 2026-07-28
+
+Five apps migrated onto this package. What they found is below; the package
+absorbs it so no app has to fork around it.
+
+### Fixed
+
+- **Every overlay this package ships opened and closed with no transition** — dialogue, alert-dialogue, dropdown menu, popover, tooltip, select and command — in any app that had not, years earlier, copied a pair of declarations into its own `app.css`. Four of the five adopting apps were shipping that.
+
+  Two independent dead layers, one underneath the other, and each is silent in exactly the way the `@custom-variant dark` defect fixed in `2026.7.3` was: the markup is identical whether the rule matches or not, so there is no build error, no lint hit, no failing test and no visual diff on a static screenshot.
+
+  The first is the variant. This package writes ~47 `data-open:` / `data-closed:` utilities; Tailwind v4 compiles a bare `data-open:` to `&[data-open]`, and bits-ui emits `data-state="open"` — an attribute nothing in the tree carries. The two declarations now ship in `styles.css` beside the utilities that depend on them.
+
+  The second only became visible once the first was fixed, by driving a dialogue open in a real browser and reading the resolved `animation-name`: still `none`. `animate-in`, `animate-out`, `fade-in-0`, `zoom-in-95` and `slide-in-from-*` are not Tailwind utilities — they come from `tw-animate-css`, which this package neither imported nor declared. It is now a dependency, imported from `styles.css`, on the same principle: the package writes the utility, so the package owns what makes the utility real. An app that also imports it itself loses nothing; the definitions are identical.
+
+  Only `data-open` and `data-closed` needed declaring. The other five shorthand data-variants this package writes — `data-selected`, `data-highlighted`, `data-disabled`, `data-placeholder` (bits-ui writes all four as empty-string-or-undefined) and `data-inset` (this package's own menu items) — are bare attributes that Tailwind's default `&[data-x]` already matches, so a declaration would only restate it. That distinction is measured rather than assumed, and pinned; see the gate below.
+
+- **The popover's zoom scaled from the wrong origin.** Its content carried the React registry's `transform-origin` custom property, inherited verbatim when the component was ported, and nothing in a Svelte tree ever sets it — bits-ui uses its own. An undefined custom property makes the declaration invalid at computed-value time, so the property silently fell back and the panel zoomed from its own centre instead of from its trigger. It also gained the `data-slot` marker every other content component in the package already had.
+
+- **`--color-shell-foreground` was registered as a theme colour and read by nothing.** The shell painted its chrome text off `--foreground` and `--muted-foreground`, so an app pointing `--ds-shell-chrome-foreground` at a contrasting value got no effect at all, and the only route to chrome ink that inverts against the palette was to override a package style — the per-app divergence this package exists to end. A registered key with no consumer is worse than a missing one: a missing key fails loudly at the utility, a dead one looks like a supported option.
+
+  The rail, the top bar, every chrome control and every navigation rule now read it, alongside a new `--ds-shell-chrome-muted-foreground` for the resting state. Both default to the tokens the chrome previously hard-coded, so no app's rendering moves until it asks. Navigation ink resolves through a pair of locals rather than the chrome key directly, because `AppNav` is also exported for a route-scoped secondary column on the ordinary page background: inverting the chrome must not drag that with it.
+
+### Added
+
+- **`avatar`** (`@poodle64/ui/avatar`) — root, image and load-state-aware fallback. `AppShell` defines the `identity` slot and building that surface needs an avatar, so every consumer was keeping a private copy of the upstream primitive purely to fill a slot the shell itself asks for; in one app it was the sole survivor of a hundred-file vendored folder, a file that could never receive an upstream fix. The group and badge variants are not included: no surveyed app had a consumer for either.
+
+- **`AppDialog` takes `onOpenChange`**, so a caller can act on the dismissals it did not drive — Escape, the scrim, the close control, which is how 12 of one app's 28 dialogues close. `bind:open` reports the new value but offers no moment to act on it, so the workaround is an `$effect` that also fires on the open leg. The two compose: bind for state, take this for the side effect.
+
+- **`AppDialog`'s width scale grows to five** (`xs` `sm` `md` `lg` `xl`). Three was one app's whole reason for keeping a local dialogue frame. The scale extends at its ends rather than being renumbered, so `sm`, `md` and `lg` mean exactly what they always did and no existing call site changes width.
+
+- **`StatusBadge` takes `pulse` and `class`.** The status vocabulary is five settled states and deliberately closed, so it had no way to say "in progress": a sync that is running and one that has finished are both `info` and read identically. Motion is the axis that separates them without adding a sixth word, and it composes with all five because it carries no colour meaning. The animation stops under `prefers-reduced-motion: reduce`, so it never carries meaning alone — the label still says what is happening. `class` is for placement, which only the call site knows; colour and shape stay the package's.
+
+- **`StatCard` takes `valueTone`.** A negative figure rendered in the default foreground with a coloured dot beside its label, which is the wrong element carrying the meaning — the eye goes to the figure, and the figure said nothing. `status` remains the health of the source and `valueTone` the sign of the number; a card often makes both claims at once (a healthy feed reporting a loss). Colour is a refinement, never the message: the figure still carries its own sign.
+
+- **`PageHeader` takes a `breadcrumbs` snippet, and `title` is now optional.** One app could not adopt this component at all: 19 of its 22 page headers carry a trail and 15 have no title, because its page header IS a breadcrumb bar with actions opposite. It grew a slot rather than becoming a second component — a `BreadcrumbHeader` would have had to re-implement the actions row, the eyebrow, the info tip and the spacing, and every app would then face a choice between two page headers that must not drift, which is the drift this package exists to end. The trail itself stays the app's, as a snippet: a breadcrumb trail is made of routed links, and a package with no SvelteKit runtime cannot own those (the same reasoning that makes `AppShell` take `currentPath` as a prop). A title-less header emits no heading at all — an empty `<h1>` would be worse than not adopting.
+
+- **`Table` takes `containerClass`.** The table and its scroll container are different boxes and only one of them can be told to be shorter; a sticky header needs a bounded, scrolling ancestor and `class` lands on the `<table>`. An app wanting one had to reach in from the outside with `[&>[data-slot=table-container]]:…`, an arbitrary-variant selector aimed at a structure this package is free to change — a private detail in use as public API. Naming the seam makes it public and keeps the structure ours.
+
+- **A real-browser gate, wired into CI** (`harness/drive.mjs`, `pnpm run test:browser`). Three of the most expensive defects on this programme were invisible to every gate in this repo *and* to jsdom, and each was found by a person happening to look. The script opens all four bits-ui overlay families and asserts the resolved `animation-name` is the enter animation rather than `none`, measures the shell's content region at 375px and 320px across four page-wrapper shapes, and drives the avatar through a genuine 404 and a genuine decode. It is a script rather than a model-driven session because the choreography is pre-known; it prints every observed value beside its verdict, passing or failing.
+
+- **Four new compiled-CSS gates**, each driven red before being kept:
+
+  - every shorthand `data-*:` variant the built package ships must appear in an exhaustive owned map (so a new one cannot arrive unowned), must compile to a selector targeting the attribute it is owned against, and that map is pinned against what bits-ui really puts in the DOM — otherwise it is only a table someone typed;
+  - every animation utility the package writes must emit a rule in a consuming app that imports nothing extra;
+  - every `--color-*` key this package registers must be read by a utility or a `var()` in the built output — the gate that would have caught `shell-foreground`;
+  - nothing in the built package may reference a Radix custom property, which no Svelte tree sets.
+
+  Plus per-component gates for each new prop: the dialogue's self-dismissal driven through a probe, the width scale compiled to five distinct container widths with none of them unprefixed, the untoned figure asserted inert, the title-less header asserted to emit no heading, the two table class seams asserted to land on different boxes, and the avatar's load-state machine driven rather than rendered.
+
+### Changed
+
+- **The `svelte` peerDependency floor moves from `^5.0.0` to `^5.33.0`** — bits-ui's own requirement, and the lowest version covered by the sweep below.
+
+  A report reached this package that every bits-ui overlay was silently dead on Svelte `5.53.5` with bits-ui `2.18.1`, with a type check, a lint, 257 unit tests and a production build all green, and asked for `>=5.56.2` to be encoded as a floor. It was swept before being encoded: sixteen Svelte versions from `5.30.0` to `5.56.8`, each in an isolated project holding nothing but bits-ui, that Svelte, and the four overlay families, driven in a real browser. Every version opened every overlay; jsdom agreed; and a deliberately duplicated Svelte instance (bits-ui given its own nested copy, with Vite's dedupe both on and off) did not reproduce it either.
+
+  So it is not encoded. A floor that locks consumers out of a range measured to work is a worse defect than the one it claims to prevent, and a version range can only ever express a break someone has already characterised. What replaced it is the scripted overlay gate above, which catches the class of defect whatever causes it. `harness/drive.md` records the full sweep.
+
+- **`<main>` in `AppShell` carries `data-slot="app-shell-content"`**, and the shell's content container carries `min-w-0`.
+
+  The second of those is honest bookkeeping rather than a fix, and the distinction is worth stating because it contradicts the obvious reading of the report. `min-w-0` there was measured **inert** in the current structure — the harness reports identical numbers with and without it, at both phone widths, under both wrapper shapes — because the automatic minimum size applies to a flex item's main axis and `<main>` is a column. It stays as the correct declaration for the box, not as the thing that fixes anything.
+
+  What the shell genuinely owns is the **blindness**. `overflow-y: auto` makes `overflow-x` compute to `auto` too, so `<main>` — not the document — is where a wide child's excess lands, and `document.documentElement.scrollWidth` (the number nearly every app's overflow test reads) therefore cannot move. That is how an app carries real sideways scroll on a phone with its suite green throughout. The slot marker gives every consumer a stable element to measure instead, and the README documents the check. A child wider than the region still has to carry its own scroller — this package's `Table` does; a `<pre>` or an unbreakable string needs one from the page.
+
+- **`CardTitle`'s `level` prop was already published**, in `2026.7.5`. The app that reported it missing was on `2026.7.3`; verified against the tarball on the registry. No change was needed, and the ARIA workaround it describes can be deleted on upgrade.
+
+
 ## [2026.7.5] - 2026-07-28
 
 ### Added
