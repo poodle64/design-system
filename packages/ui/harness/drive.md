@@ -1,4 +1,9 @@
-# Real-browser verification — AppShell
+# Real-browser verification
+
+Two surfaces, selected by `?surface=`: the default `shell` (AppShell, below) and
+`states` (the async-outcome surfaces — see the last section).
+
+## AppShell (`?surface=shell`, the default)
 
 The interaction logic is proved in `src/test/app-shell.test.ts` under jsdom.
 Everything on this page is proved in a real engine instead, because jsdom
@@ -86,3 +91,67 @@ The declaration now ships in `@poodle64/ui/styles.css` beside the utilities that
 depend on it, and `src/test/dark-variant.test.ts` compiles the built package
 *without* an app's own declaration and fails if any shipped `dark:` utility
 lands somewhere a class-based theme switch cannot reach.
+
+## The async-outcome surfaces (`?surface=states`)
+
+`LoadingState`, `ErrorState` and `EmptyState` from `../dist`, reached by driving
+a load (idle → loading → failed | empty) rather than by mounting the finished
+markup. What arrives after the page has settled is the whole claim: a live
+region only announces if it is there at the instant the outcome lands.
+
+jsdom can see the attribute but not the semantics. `getByRole` there is
+testing-library resolving a static element→role table, so it proves the string
+`role="alert"` is present and nothing about what a browser hands the platform.
+The engine builds the tree itself, which is why the same claim is made twice.
+
+| Claim | Observed (1440×900) |
+| --- | --- |
+| Nothing announces before a load is under way | tree carries the three drivers and no live region |
+| An in-flight load is a polite status | `status "Fetching records…"` |
+| A failure that arrives later is exposed as an alert | `alert:` → `paragraph: Could not load the estate.` |
+| The glyph is not announced beside the message | no `img`/graphic node inside the alert |
+| An empty result never interrupts | `heading "No records"`, no live region |
+
+**The pre-change build was driven in the same engine**, and the failure surfaced
+as a bare `paragraph: Could not load the estate.` — no live region, nothing for
+a screen reader to announce, on a surface that only ever appears because the
+user's task has broken.
+
+Zero visual difference was measured, not assumed, against that same baseline
+build: identical class list, bounding box (1376×166 at 32,72), background
+`oklch(1 0 0)`, border `oklab(0.53 0.178201 0.0907981 / 0.4)` at 1px, radius
+10px, padding 32px, message colour/size/`max-width` and icon box. The only
+difference in the whole read was `role`/`aria-live` going from `null/null` to
+`alert/assertive`. Nothing in the package's CSS selects on either attribute
+(the only `[role=…]` rules are the table's `[&:has([role=checkbox])]`).
+
+One thing the baseline settled that the source did not: the icon carried
+`aria-hidden="true"` **before** the change too. `@lucide/svelte` v1 adds it to
+any icon given no `aria-*`/`role`/`title` and no children, so the glyph was
+never being announced. The explicit attribute here is a pin against that
+default moving, and matches how `LoadingState` already writes it — not a fix
+for a live defect.
+
+### The limit of what was verified
+
+The engine proves the alert node is built and carries the message. It does not
+prove what a screen reader then *says*, and one nuance is worth writing down
+because it is the obvious thing to get wrong later.
+
+`ErrorState` mounts already carrying its message. MDN counsels the opposite —
+prime an empty `role="alert"` in the markup first, then inject the text, since
+a live region announces on *content change* and an element that arrives fully
+populated is not a change. The Accessibility Developer Guide's matrix tests
+exactly the populated-on-insert form and records a pass on NVDA and JAWS across
+Firefox, Chrome and Edge, which is the mainstream set and the form every
+component library in this class ships. Priming instead would buy the stricter
+reading at the cost of a frame of empty box, and of a non-obvious mechanism the
+next maintainer would strip.
+
+Two things remain genuinely unverified: **VoiceOver/Safari**, absent from that
+matrix, and any real AT at all — no screen reader was run here. If a report ever
+arrives that a failure is not announced on a particular pairing, prime the
+region rather than re-deriving this from scratch.
+
+The same source notes an alert must be **visible** to be recognised, which this
+one is; a caller hiding it with `hidden` or `display:none` would silence it.
