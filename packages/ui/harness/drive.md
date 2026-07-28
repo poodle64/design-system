@@ -38,21 +38,30 @@ from a screenshot. Two viewports: **1440×900** (desktop) and **390×844** (phon
 | Exactly one theme icon shows per mode | `dark:` variants never resolve | `[block, none]` → `[none, block]` |
 | The rail collapses and re-expands | no transitions, no layout | 248 → 56 → 248px; labels drop to a 1×1 `sr-only` box; links centre |
 | The rail is hidden on a phone | no media queries | `display: none` at 390px; brand moves into the bar |
-| The drawer opens flush and full-height | no layout | 248px wide at `left: 0`, real background, 4 items, active lit |
+| The drawer opens flush and full-height | no layout | `display:none` → `flex`, `position: fixed`, 248px at `left: 0`, scrim covers the viewport, 4 items, active lit |
+| The rail and drawer are one element, never two | no cascade, no layout | exactly one `identity`, one collapse control and one `Primary` landmark in both states |
+| A drawer opened on a phone is inert once widened | no media queries | forcing `data-drawer` at 1440px leaves `position: sticky`, 248px |
 | A tap-through does not leave the drawer over the page | needs real navigation | drawer gone, hash advanced |
 | The header variant opens a panel, never a drawer | no layout | panel below the bar, full width, drawer absent |
 | Nothing overflows horizontally on a phone | no layout | `scrollWidth <= innerWidth`, both variants |
 | The palette opens on ⌘K and navigates | — (also covered in jsdom) | 4 items listed, hash advanced to the selected item, palette closed |
 | The bypass link hides at rest and reveals on focus | `:focus` styling is not computed | `top: -48px` → `8px`, 3px outline, focus lands on `#ds-main` |
 
-Two measurement traps worth inheriting, both of which produced a false failure
-on the first pass here:
+Three measurement traps worth inheriting. Each produced a false failure here,
+and the third looked exactly like a total regression:
 
 - **Read a rect after the transition, not with it.** `.ds-skip-link` animates
   `top` over 150ms; reading `getBoundingClientRect()` in the same frame as
   `.focus()` returns the resting value and reads as "the control does nothing".
 - **Blur before measuring a resting state.** `evaluate` calls share one page, so
   an element focused by the previous call is still focused in the next.
+- **A rebuilt stylesheet is not a reloaded stylesheet.** The page's `<link>` is
+  cached across navigations within a session, so re-navigating after
+  `harness:build` re-runs the new JS against the OLD css. That reads as "the
+  rules do not apply at all" — here it briefly looked like a restructured rail
+  had lost every rule. Recreate the session (a fresh context has no cache)
+  rather than trusting a query-string bust on the HTML, which does not bust the
+  stylesheet.
 
 ## What this caught
 

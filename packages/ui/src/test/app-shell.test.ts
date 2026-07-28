@@ -57,6 +57,25 @@ describe('AppShell — mobile navigation (rail variant)', () => {
 		await waitFor(() => expect(screen.queryByTestId('ds-shell-drawer')).not.toBeInTheDocument());
 	});
 
+	it('never renders the consumer’s slots twice, open or closed', async () => {
+		// The rail and the drawer are one element in two states precisely so this
+		// holds. Rendering the rail's contents twice would put a second live copy
+		// of whatever the app passed as `identity` in the DOM — their menu, their
+		// test hooks, any `id` they wrote — and leave getElementById answering
+		// with whichever came first. The reference shell did exactly that.
+		render(ShellHarness, { props: { collapsible: true } });
+		expect(screen.getAllByTestId('identity')).toHaveLength(1);
+		expect(screen.getAllByTestId('ds-rail-collapse')).toHaveLength(1);
+
+		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
+		await waitFor(() => expect(screen.getByTestId('ds-shell-drawer')).toBeInTheDocument());
+
+		expect(screen.getAllByTestId('identity')).toHaveLength(1);
+		expect(screen.getAllByTestId('ds-rail-collapse')).toHaveLength(1);
+		// One navigation landmark, not two competing ones with the same name.
+		expect(document.querySelectorAll('nav[aria-label="Primary"]')).toHaveLength(1);
+	});
+
 	it('closes the drawer from its own close control', async () => {
 		render(ShellHarness);
 		await fireEvent.click(screen.getByTestId('ds-shell-menu'));

@@ -391,17 +391,56 @@
 		padding-inline: 0;
 	}
 
+	/* The rail is ONE element in two states, not two elements (see the comment in
+	   app-shell.svelte): below md it is hidden until `data-drawer` turns it into
+	   an overlay; at md and up it is the permanent column and `data-drawer` means
+	   nothing. Expressing the swap here rather than as competing utility classes
+	   is what makes it deterministic — `fixed` and `sticky` set the same property,
+	   so which won would otherwise depend on Tailwind's emission order, not on the
+	   order they appear in the class attribute.
+
+	   48rem is Tailwind's own --breakpoint-md. It is written literally because a
+	   media query cannot read a custom property; an app that retunes the md
+	   breakpoint must retune this rule with it. */
 	.ds-shell-rail {
+		display: none;
+		position: sticky;
+		top: 0;
+		height: 100dvh;
 		width: var(--ds-shell-rail-width);
 		transition: width 200ms ease;
 	}
-	.ds-shell-rail[data-collapsed='true'] {
-		width: var(--ds-shell-rail-width-collapsed);
+
+	.ds-shell-rail[data-drawer='true'] {
+		display: flex;
+		position: fixed;
+		inset-block: 0;
+		left: 0;
+		z-index: 50;
+		max-width: 82vw;
+		box-shadow:
+			0 10px 15px -3px oklch(0 0 0 / 0.1),
+			0 4px 6px -4px oklch(0 0 0 / 0.1);
+		animation: ds-drawer-in 200ms ease-out;
 	}
 
-	.ds-shell-drawer {
-		width: var(--ds-shell-rail-width);
-		animation: ds-drawer-in 200ms ease-out;
+	@media (min-width: 48rem) {
+		.ds-shell-rail {
+			display: flex;
+		}
+		/* At md the drawer state is inert: the rail is already on screen, so an
+		   overlay opened on a phone and then widened must not stay an overlay. */
+		.ds-shell-rail[data-drawer='true'] {
+			position: sticky;
+			z-index: auto;
+			max-width: none;
+			box-shadow: none;
+			animation: none;
+		}
+	}
+
+	.ds-shell-rail[data-collapsed='true'] {
+		width: var(--ds-shell-rail-width-collapsed);
 	}
 
 	.ds-shell-panel {
@@ -451,7 +490,7 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.ds-shell-drawer,
+		.ds-shell-rail[data-drawer='true'],
 		.ds-shell-panel {
 			animation: none;
 		}

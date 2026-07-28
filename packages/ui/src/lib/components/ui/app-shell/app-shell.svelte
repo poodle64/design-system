@@ -190,65 +190,78 @@
 	</a>
 {/snippet}
 
-{#snippet railBody()}
-	{@render brandLockup()}
-	<AppNav {nav} {currentPath} collapsed={railCollapsed} onNavigate={() => (mobileNavOpen = false)} />
-	{#if collapsible}
-		<button
-			type="button"
-			onclick={() => (collapsed = !collapsed)}
-			class="text-muted-foreground hover:text-foreground hidden items-center gap-2.5 px-4 py-2 text-sm transition-colors md:flex"
-			aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-			aria-pressed={collapsed}
-			data-testid="ds-rail-collapse"
-		>
-			{#if collapsed}
-				<PanelLeftOpen class="size-4 flex-none" />
-			{:else}
-				<PanelLeftClose class="size-4 flex-none" />
-				<span>Collapse</span>
-			{/if}
-		</button>
-	{/if}
-	{#if identity}
-		<div class="border-border border-t">{@render identity()}</div>
-	{/if}
-{/snippet}
-
 <div class="ds-shell bg-background text-foreground flex h-dvh overflow-hidden">
 	<!-- WCAG 2.4.1: every app gets the bypass link, rather than one app having it. -->
 	<a href="#ds-main" class="ds-skip-link">Skip to content</a>
 
 	{#if isRail && hasNav}
-		<aside
-			class="ds-shell-rail bg-shell border-border sticky top-0 hidden h-dvh flex-none flex-col border-r md:flex"
-			data-collapsed={railCollapsed ? 'true' : undefined}
-		>
-			{@render railBody()}
-		</aside>
-
 		{#if mobileNavOpen}
-			<div class="fixed inset-0 z-50 md:hidden">
-				<button
-					class="bg-background/70 absolute inset-0 backdrop-blur-sm"
-					aria-label="Close menu"
-					onclick={() => (mobileNavOpen = false)}
-				></button>
-				<aside
-					class="ds-shell-drawer bg-shell border-border absolute inset-y-0 left-0 flex max-w-[82vw] flex-col border-r shadow-lg"
-					data-testid="ds-shell-drawer"
-				>
-					<button
-						onclick={() => (mobileNavOpen = false)}
-						class="border-border text-muted-foreground hover:text-foreground absolute top-3 right-3 z-10 grid size-8 place-items-center rounded-md border"
-						aria-label="Close menu"
-					>
-						<X class="size-4" />
-					</button>
-					{@render railBody()}
-				</aside>
-			</div>
+			<button
+				class="bg-background/70 fixed inset-0 z-40 backdrop-blur-sm md:hidden"
+				aria-label="Close menu"
+				onclick={() => (mobileNavOpen = false)}
+			></button>
 		{/if}
+
+		<!--
+			ONE element, not two. The desktop rail and the mobile drawer are the
+			same aside wearing a different `data-drawer` state, because rendering
+			the rail's contents twice duplicates whatever the CONSUMER put in the
+			`identity` snippet — a second copy of their menu, their test hooks, and
+			any `id` they wrote, live in the DOM at the same time. Which of the two
+			`document.getElementById` then answers with is a coin toss the consumer
+			never agreed to. The reference shell rendered it twice; that is the one
+			piece of its behaviour deliberately not carried over.
+
+			The rail/drawer swap is therefore CSS on this single element (see
+			`.ds-shell-rail[data-drawer]` in styles.css) rather than two branches.
+		-->
+		<aside
+			class="ds-shell-rail bg-shell border-border flex-none flex-col border-r"
+			data-collapsed={railCollapsed ? 'true' : undefined}
+			data-drawer={mobileNavOpen ? 'true' : undefined}
+			data-testid={mobileNavOpen ? 'ds-shell-drawer' : undefined}
+		>
+			{#if mobileNavOpen}
+				<button
+					onclick={() => (mobileNavOpen = false)}
+					class="border-border text-muted-foreground hover:text-foreground absolute top-3 right-3 z-10 grid size-8 place-items-center rounded-md border md:hidden"
+					aria-label="Close menu"
+				>
+					<X class="size-4" />
+				</button>
+			{/if}
+
+			{@render brandLockup()}
+			<AppNav
+				{nav}
+				{currentPath}
+				collapsed={railCollapsed}
+				onNavigate={() => (mobileNavOpen = false)}
+			/>
+
+			{#if collapsible}
+				<button
+					type="button"
+					onclick={() => (collapsed = !collapsed)}
+					class="text-muted-foreground hover:text-foreground hidden items-center gap-2.5 px-4 py-2 text-sm transition-colors md:flex"
+					aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+					aria-pressed={collapsed}
+					data-testid="ds-rail-collapse"
+				>
+					{#if collapsed}
+						<PanelLeftOpen class="size-4 flex-none" />
+					{:else}
+						<PanelLeftClose class="size-4 flex-none" />
+						<span>Collapse</span>
+					{/if}
+				</button>
+			{/if}
+
+			{#if identity}
+				<div class="border-border border-t">{@render identity()}</div>
+			{/if}
+		</aside>
 	{/if}
 
 	<div class="flex min-h-0 min-w-0 flex-1 flex-col">
