@@ -1,0 +1,69 @@
+<script lang="ts">
+	// Harness for the shell's driven tests. Both variants are mounted from one
+	// component so a single test file can drive rail behaviour and header
+	// behaviour without two render helpers, and the probes below are non-visual
+	// (text nodes read by testid) so every assertion is on an OUTCOME rather than
+	// on the fact that something drew.
+	import AppShell from '$lib/components/ui/app-shell/app-shell.svelte';
+	import CommandPalette from '$lib/components/ui/command-palette/command-palette.svelte';
+	import type { NavSource } from '$lib/components/ui/app-shell/types.js';
+	import Package from '@lucide/svelte/icons/package';
+
+	let {
+		variant = 'rail',
+		currentPath = $bindable('/overview'),
+		collapsible = false
+	}: { variant?: 'rail' | 'header'; currentPath?: string; collapsible?: boolean } = $props();
+
+	const nav: NavSource = [
+		{ label: 'Overview', href: '/overview', icon: Package },
+		{
+			heading: 'Access',
+			items: [
+				{ label: 'Credentials', href: '/credentials', icon: Package, badge: 3 },
+				{ label: 'Identities', href: '/identities', icon: Package }
+			]
+		},
+		{ heading: 'Empty', items: [] },
+		{ label: 'Docs', href: 'https://example.invalid/docs', external: true }
+	];
+
+	let paletteOpen = $state(false);
+	let themeFlips = $state(0);
+	let navigatedTo = $state('none');
+	let collapsed = $state(false);
+</script>
+
+<div data-testid="probe-theme">{themeFlips}</div>
+<div data-testid="probe-navigated">{navigatedTo}</div>
+<div data-testid="probe-collapsed">{collapsed ? 'collapsed' : 'expanded'}</div>
+<div data-testid="probe-palette">{paletteOpen ? 'open' : 'closed'}</div>
+
+<AppShell
+	{nav}
+	{variant}
+	{currentPath}
+	{collapsible}
+	bind:collapsed
+	brandTitle="Harness"
+	onSearch={() => (paletteOpen = true)}
+	onToggleTheme={() => (themeFlips += 1)}
+>
+	{#snippet identity()}
+		<button data-testid="identity">Signed in</button>
+	{/snippet}
+	{#snippet banner()}
+		<div data-testid="banner">Reconnect required</div>
+	{/snippet}
+	{#snippet actions()}
+		<button data-testid="action">Support</button>
+	{/snippet}
+	<p>Page body</p>
+</AppShell>
+
+<CommandPalette
+	bind:open={paletteOpen}
+	{nav}
+	onNavigate={(href) => (navigatedTo = href)}
+	placeholder="Search the harness…"
+/>

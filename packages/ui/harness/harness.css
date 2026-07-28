@@ -1,0 +1,14 @@
+/*
+ * The consumer's stylesheet, verbatim: the exact import chain
+ * `packages/design-tokens/templates/DESIGN.md.template` tells an app to write.
+ * The harness compiles THIS, over the BUILT package, so what the browser paints
+ * is what a consuming app gets — not what the source happens to mean.
+ */
+@import 'tailwindcss';
+@import '@poodle64/design-tokens/tokens.tw.css';
+@import '@poodle64/design-tokens/tokens.css';
+@import '@poodle64/ui/styles.css';
+
+/* A consuming app's own dark palette, as every household app declares it. */
+@source '../dist';
+@source './';

@@ -21,6 +21,27 @@
  */
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   The dark variant.
+
+   Tailwind v4 resolves a bare `dark:` against `prefers-color-scheme`, not
+   against a class. Every component in this package — the shell's theme-toggle
+   icons, the input surfaces, the destructive ring refinements, ~50 utilities in
+   all — is written against the CLASS strategy, so without this line every one
+   of them is dead in a consuming app and the app's theme switch moves the
+   palette while leaving the components' dark refinements behind. Nothing fails:
+   the class is in the DOM, the rule simply never matches.
+
+   It was unowned until now. All four adopting apps had independently typed the
+   identical declaration into their own app.css, which is precisely the drift
+   this package exists to end — and it meant the FIFTH app to adopt would get a
+   silently half-dark component set. It ships here, with the utilities that
+   depend on it. The selector is byte-identical to what those apps already
+   declare, so an app that keeps its own copy re-declares the same thing and
+   nothing changes; an app that deletes its copy loses nothing.
+   ───────────────────────────────────────────────────────────────────────────── */
+@custom-variant dark (&:is(.dark *));
+
+/* ─────────────────────────────────────────────────────────────────────────────
    The shadcn semantic surface.
 
    Every component in this package is written against the shadcn colour names
