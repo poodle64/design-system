@@ -74,6 +74,12 @@
 
 <button type="button" onclick={() => (showDetail = !showDetail)}>Toggle detail</button>
 
+<!-- Negative branch: a status with no statusLabel must draw no chip, since a
+     colour with no label is the WCAG 1.4.1 failure StatusBadge exists to stop. -->
+<DetailPanel title="record-99" status="error">
+	<p>Unlabelled status body</p>
+</DetailPanel>
+
 <EmptyState title="Nothing yet" description="Add the first one.">
 	{#snippet action()}
 		<button type="button" onclick={() => (emptyActionFired = true)}>Create</button>

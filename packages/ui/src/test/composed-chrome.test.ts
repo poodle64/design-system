@@ -62,11 +62,22 @@ describe('DetailPanel', () => {
 		});
 	});
 
-	it('renders its status chip only when both status and statusLabel are given', () => {
+	it('renders its status chip when both status and statusLabel are given', () => {
 		render(ChromeHarness);
 		const chip = screen.getByText('Expiring').closest('.ds-chip');
 		expect(chip).not.toBeNull();
 		expect(chip?.className).toContain('ds-chip-warning');
+	});
+
+	it('draws no chip for a status with no label', () => {
+		render(ChromeHarness);
+		// A colour with no label is the WCAG 1.4.1 failure the status vocabulary
+		// exists to prevent, so the panel must suppress the chip entirely rather
+		// than render an empty one.
+		const panel = screen.getByText('record-99').closest('section');
+		expect(panel).not.toBeNull();
+		expect(panel?.querySelector('.ds-chip')).toBeNull();
+		expect(panel?.querySelector('.ds-dot-error')).toBeNull();
 	});
 });
 

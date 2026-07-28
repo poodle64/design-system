@@ -39,6 +39,10 @@
 	let bulkSelection = $state<string[]>([]);
 	let activeState = $state('all');
 
+	// For exercising the component's imperative accessor rather than its callback.
+	let tableRef: { getSelectedIds: () => string[] } | undefined = $state();
+	let imperativeIds = $state('unread');
+
 	const table = createSvelteTable<Row>({
 		get data() {
 			return data;
@@ -98,7 +102,12 @@
 	{chipGroups}
 />
 
+<button type="button" onclick={() => (imperativeIds = tableRef?.getSelectedIds().join(',') || 'none')}>
+	Read selected ids
+</button>
+
 <DataTableTanstack
+	bind:this={tableRef}
 	{table}
 	{selectedId}
 	getRowId={(row) => row.id}
@@ -113,3 +122,4 @@
 <output data-testid="selected-id">{selectedId ?? 'none'}</output>
 <output data-testid="bulk-selection">{bulkSelection.join(',') || 'none'}</output>
 <output data-testid="row-order">{table.getRowModel().rows.map((r) => r.original.name).join(',')}</output>
+<output data-testid="imperative-ids">{imperativeIds}</output>

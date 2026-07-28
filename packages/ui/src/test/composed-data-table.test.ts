@@ -154,6 +154,42 @@ describe('DataTableTanstack — bulk selection', () => {
 		});
 	});
 
+	it('shows the header checkbox as indeterminate on a partial selection', async () => {
+		render(DataTableHarness);
+		const selectAll = screen.getByRole('checkbox', { name: 'Select all rows' });
+		expect(selectAll).toHaveAttribute('aria-checked', 'false');
+
+		const firstRow = document.querySelectorAll('tbody tr')[0];
+		await fireEvent.click(within(firstRow as HTMLElement).getByRole('checkbox'));
+
+		// One of three ticked: neither all nor none, so the header must say "mixed"
+		// rather than lie in either direction.
+		await waitFor(() => {
+			expect(selectAll).toHaveAttribute('aria-checked', 'mixed');
+		});
+
+		await fireEvent.click(selectAll);
+		await waitFor(() => {
+			expect(selectAll).toHaveAttribute('aria-checked', 'true');
+		});
+	});
+
+	it('returns the current selection from the imperative getSelectedIds()', async () => {
+		render(DataTableHarness);
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Read selected ids' }));
+		await waitFor(() => expect(screen.getByTestId('imperative-ids')).toHaveTextContent('none'));
+
+		const firstRow = document.querySelectorAll('tbody tr')[0];
+		await fireEvent.click(within(firstRow as HTMLElement).getByRole('checkbox'));
+		await waitFor(() => expect(screen.getByTestId('bulk-selection')).toHaveTextContent('r1'));
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Read selected ids' }));
+		await waitFor(() => {
+			expect(screen.getByTestId('imperative-ids')).toHaveTextContent('r1');
+		});
+	});
+
 	it('drops a filtered-away row from the bulk selection', async () => {
 		render(DataTableHarness);
 
