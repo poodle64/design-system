@@ -89,14 +89,50 @@ export function declaration(css: string, selector: string, prop: string): string
 /**
  * Every custom property the compiled sheet defines outside a `.dark` scope,
  * so a var() chain can be flattened to the concrete light-mode value.
+ *
+ * This is a depth-aware scan rather than a block regex because Tailwind nests
+ * an `@supports (color: color-mix(...))` inside the very `:root` block that
+ * carries this package's atmosphere variables. A `\{([^{}]*)\}` body pattern
+ * cannot match a block containing braces, so every declaration in such a block
+ * was invisible — and a var() chain terminating in one of them was reported as
+ * dangling when it resolves perfectly well. Worse in the other direction: a
+ * genuinely dangling variable declared after a color-mix sibling would have
+ * flattened to null for the RIGHT reason by accident, and the day someone
+ * removed the color-mix the gate's verdict would have flipped for no code
+ * change at all.
  */
 export function customProperties(css: string): Map<string, string> {
 	const properties = new Map<string, string>();
-	const blocks = css.matchAll(/(?:^|\n)([^{}@\n][^{}]*?)\{([^{}]*)\}/g);
-	for (const [, selector, body] of blocks) {
-		if (selector.includes('.dark')) continue;
-		for (const [, name, value] of body.matchAll(/(--[a-zA-Z0-9-]+):\s*([^;]+);/g)) {
-			properties.set(name, value.trim());
+	// The chain of selectors/at-preludes enclosing the cursor. A `.dark` link
+	// anywhere in it means these declarations are the dark-mode overrides.
+	const scope: string[] = [];
+	let prelude = '';
+	let i = 0;
+
+	while (i < css.length) {
+		const char = css[i];
+		if (char === '{') {
+			scope.push(prelude.trim());
+			prelude = '';
+			i += 1;
+		} else if (char === '}') {
+			scope.pop();
+			prelude = '';
+			i += 1;
+		} else if (char === ';') {
+			const declaration = prelude.trim();
+			prelude = '';
+			i += 1;
+			const match = /^(--[a-zA-Z0-9-]+):\s*([\s\S]+)$/.exec(declaration);
+			if (match && !scope.some((link) => link.includes('.dark'))) {
+				properties.set(match[1], match[2].trim());
+			}
+		} else if (char === '/' && css[i + 1] === '*') {
+			const end = css.indexOf('*/', i + 2);
+			i = end === -1 ? css.length : end + 2;
+		} else {
+			prelude += char;
+			i += 1;
 		}
 	}
 	return properties;

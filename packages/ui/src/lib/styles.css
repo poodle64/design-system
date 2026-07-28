@@ -109,6 +109,23 @@
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-input: var(--input);
+
+	/* The shell's chrome surface — the nav rail and the top bar.
+	   Deliberately NOT `sidebar`. `20-sveltekit-frontend.md` makes the
+	   `sidebar-*` set the app's own to define, and this package registers
+	   neither `sidebar-*` nor `chart-*`; painting the shell off a `sidebar`
+	   colour utility would have meant claiming a key the estate has not agreed
+	   on and that no app can then override without a stylesheet-order coin
+	   toss. (Naming the class literally here would itself trip the dead-utility
+	   gate, which reads every string this package ships.) `shell` is a
+	   name neither package claimed, so the one-owner-per-key rule holds, and it
+	   defaults to a token this package already resolves. An app that already
+	   has a chrome hue points its own token at it in one line:
+
+	       :root { --ds-shell-chrome: var(--sidebar); }
+	 */
+	--color-shell: var(--ds-shell-chrome);
+	--color-shell-foreground: var(--ds-shell-chrome-foreground);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -144,6 +161,19 @@
 	--ds-shadow-sm:
 		0 1px 2px oklch(0 0 0 / 0.1),
 		0 1px 1px oklch(0 0 0 / 0.06);
+
+	/* ── Shell geometry ──────────────────────────────────────────────────────
+	   Named custom properties rather than Tailwind theme keys, deliberately:
+	   a `--spacing-*` or `--container-*` entry with a name like `rail` would
+	   sit inside a namespace Tailwind resolves the sizing utilities against
+	   (`22-file-extensions`-adjacent trap documented in
+	   tailwind-namespace.test.ts). Outside those namespaces there is nothing
+	   to shadow, and an app still retunes the rail in one declaration.
+	   ──────────────────────────────────────────────────────────────────────── */
+	--ds-shell-chrome: var(--ds-color-surface-1);
+	--ds-shell-chrome-foreground: var(--ds-color-foreground);
+	--ds-shell-rail-width: 15.5rem;
+	--ds-shell-rail-width-collapsed: 3.5rem;
 }
 
 @layer base {
@@ -240,5 +270,172 @@
 	}
 	.ds-dot-neutral {
 		background: var(--ds-color-status-neutral);
+	}
+
+	/* ─────────────────────────────────────────────────────────────────────────
+	   The application shell (AppShell, AppNav, CommandPalette).
+
+	   These are real CSS rather than utilities on the elements because the shell
+	   renders the SAME nav link in four places — desktop rail, mobile drawer,
+	   horizontal top bar, mobile disclosure panel — and every surveyed app that
+	   had two of those had let the two drift apart. One rule set, four call
+	   sites, no drift. The tints are color-mix over the app's own --primary and
+	   --foreground, so a palette change moves them and this file holds no colour.
+	   ───────────────────────────────────────────────────────────────────────── */
+	.ds-nav-item {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		border-radius: var(--ds-radius-md);
+		padding: 0.5rem 0.625rem;
+		font-size: 0.875rem;
+		line-height: 1.25rem;
+		color: var(--muted-foreground);
+		white-space: nowrap;
+		transition:
+			color 150ms,
+			background-color 150ms;
+	}
+
+	.ds-nav-item:hover {
+		color: var(--foreground);
+		background: color-mix(in oklch, var(--foreground) 5%, transparent);
+	}
+
+	.ds-nav-item[data-active='true'] {
+		color: var(--primary);
+		background: color-mix(in oklch, var(--primary) 12%, transparent);
+		font-weight: 500;
+	}
+
+	/* Colour alone never carries the active state (WCAG 1.4.1): the rail marks it
+	   with a flush edge bar, the horizontal bar with an underline, since a
+	   left-edge bar on a horizontal row would read as a divider. */
+	.ds-nav-indicator {
+		position: absolute;
+		left: 0;
+		top: 0.375rem;
+		bottom: 0.375rem;
+		width: 0.125rem;
+		border-radius: 9999px;
+		background: var(--primary);
+	}
+
+	.ds-nav-horizontal .ds-nav-item[data-active='true']::after {
+		content: '';
+		position: absolute;
+		left: 0.625rem;
+		right: 0.625rem;
+		bottom: -0.5rem;
+		height: 0.125rem;
+		border-radius: 9999px;
+		background: var(--primary);
+	}
+
+	.ds-nav-horizontal .ds-nav-item {
+		gap: 0.5rem;
+	}
+
+	.ds-nav-heading {
+		padding: 0 0.625rem 0.25rem;
+		font-size: var(--ds-text-2xs);
+		font-weight: 500;
+		text-transform: uppercase;
+		/* Fallback is load-bearing, not belt-and-braces: Tailwind tree-shakes an
+		   @theme key whose utility nothing generates, so reading --tracking-eyebrow
+		   from plain CSS works only while some component still uses the utility
+		   form. The literal keeps this rule correct on its own; the var keeps an
+		   app's override flowing through. */
+		letter-spacing: var(--tracking-eyebrow, 0.06em);
+		color: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+	}
+
+	.ds-nav-badge {
+		margin-left: auto;
+		border-radius: 9999px;
+		padding: 0 0.375rem;
+		font-size: var(--ds-text-2xs);
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+		color: var(--primary);
+		background: color-mix(in oklch, var(--primary) 15%, transparent);
+	}
+
+	.ds-nav[data-collapsed='true'] {
+		padding-inline: 0.375rem;
+	}
+	.ds-nav[data-collapsed='true'] .ds-nav-item {
+		justify-content: center;
+		padding-inline: 0;
+	}
+
+	.ds-shell-rail {
+		width: var(--ds-shell-rail-width);
+		transition: width 200ms ease;
+	}
+	.ds-shell-rail[data-collapsed='true'] {
+		width: var(--ds-shell-rail-width-collapsed);
+	}
+
+	.ds-shell-drawer {
+		width: var(--ds-shell-rail-width);
+		animation: ds-drawer-in 200ms ease-out;
+	}
+
+	.ds-shell-panel {
+		animation: ds-panel-in 160ms ease-out;
+	}
+
+	/* The bypass link (WCAG 2.4.1): off-screen until focused, then a real target
+	   above the sticky bar. */
+	.ds-skip-link {
+		position: absolute;
+		left: 0.5rem;
+		top: -3rem;
+		z-index: 60;
+		border-radius: var(--ds-radius-md);
+		background: var(--popover);
+		color: var(--popover-foreground);
+		padding: 0.5rem 1rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		box-shadow: var(--ds-shadow-sm);
+		transition: top 150ms ease;
+	}
+	.ds-skip-link:focus {
+		top: 0.5rem;
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+
+	@keyframes ds-drawer-in {
+		from {
+			transform: translateX(-100%);
+		}
+		to {
+			transform: translateX(0);
+		}
+	}
+
+	@keyframes ds-panel-in {
+		from {
+			opacity: 0;
+			transform: translateY(-0.25rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.ds-shell-drawer,
+		.ds-shell-panel {
+			animation: none;
+		}
+		.ds-shell-rail {
+			transition: none;
+		}
 	}
 }
