@@ -4,6 +4,28 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.7.7] - 2026-07-29
+
+### Fixed
+
+- **An overlay with more rows than fit the window ran off the bottom of it, and could not be scrolled back.** Found in the first app to adopt `2026.7.6`, by opening a select with 36 options in a real browser; it reproduces on `2026.7.2` and is as old as the components. It affects the select, the dropdown menu and the popover — every app rendering any of the three over a list longer than the viewport.
+
+  The mechanism is one missing declaration and it is invisible in the class list. The select's content carried `overflow-y-auto`, correctly spelled, doing nothing: `overflow` only produces a scroll when something constrains the height, and nothing did. So a 36-option popper laid out 1008px tall in an 800px window, its last option at y=1040, with `scrollHeight` and `clientHeight` both 1008 — not scrollable, not clipped, simply gone past the fold. bits-ui mounts `SelectScrollDownButton` only while scrolling is possible, so the one affordance that would have said "there is more" was absent too. A keyboard user could still press End and commit a value blind; a mouse user could not reach it at all.
+
+  bits-ui publishes the space available as `--bits-select-content-available-height`, and the content now caps to it. The cap tracks the viewport rather than being a constant, which is asserted at two window heights so that stays true.
+
+  The dropdown menu had the identical omission and takes the identical fix. The popover was the same defect in its other form — no cap **and** no `overflow-y-auto`, so tall content was not even a scroll container; it takes both, because capping alone would have traded unreachable content for clipped content.
+
+  Command's list was checked and left alone: its `max-h-72` genuinely constrains it, it scrolls, and its last row is reachable. Tooltip carries no list. Dialogue and alert-dialogue are not on the floating layer and size themselves.
+
+  Worth recording for whoever next diffs these against upstream: this is **not** a port that drifted. shadcn-svelte carried `max-h-(--bits-select-content-available-height)` at `1.0.0` and removed it in the rewrite that moved utilities into per-style `cn-*` classes — current `cn-select-content`, `cn-dropdown-menu-content` and `cn-popover-content` carry no height cap at all. The fix restores the `1.0.0` utility; matching current `main` would reintroduce the defect.
+
+### Added
+
+- **A browser gate for the whole class** (`harness/drive.mjs`, `?surface=long-lists`). Nothing cheaper could have caught this. jsdom has no layout, so `scrollHeight` and `clientHeight` are both `0` there and `scrollHeight > clientHeight` is false on a working build and a broken one alike — a unit test asserting the real behaviour would fail on the fix. A compiled-CSS gate can prove the rule exists but not that a box obeyed it. The gate opens each overlay over 36 rows at 800px and 560px, and for each one asserts the content ends inside the window, that the rows past the fold scroll rather than being clipped, and that driving that scroll brings the last row into view. It fails 20 checks on the previous build.
+
+  It measures the element that genuinely scrolls, which for the select is not the one carrying the cap: bits-ui lays the content out as a flex column and gives the viewport `flex: 1; overflow: auto`, so the cap on the content is what gives the viewport a height, and the viewport is what moves. Read on the content, the fixed select reports 740 vs 740 and looks broken.
+
 ## [2026.7.6] - 2026-07-28
 
 Five apps migrated onto this package. What they found is below; the package
