@@ -280,7 +280,7 @@
 			`.ds-shell-rail[data-drawer]` in styles.css) rather than two branches.
 		-->
 		<aside
-			class="ds-shell-rail bg-shell border-border flex-none flex-col border-r"
+			class="ds-shell-rail bg-shell text-shell-foreground border-border flex-none flex-col border-r"
 			data-collapsed={railCollapsed ? 'true' : undefined}
 			data-drawer={mobileNavOpen ? 'true' : undefined}
 			data-testid={mobileNavOpen ? 'ds-shell-drawer' : undefined}
@@ -293,7 +293,7 @@
 				<button
 					bind:this={overlayFirstFocus}
 					onclick={closeMobileNav}
-					class="border-border text-muted-foreground hover:text-foreground absolute top-3 right-3 z-10 grid size-8 place-items-center rounded-md border md:hidden"
+					class="border-border text-shell-muted-foreground hover:text-shell-foreground absolute top-3 right-3 z-10 grid size-8 place-items-center rounded-md border md:hidden"
 					aria-label="Close menu"
 				>
 					<X class="size-4" />
@@ -312,7 +312,7 @@
 				<button
 					type="button"
 					onclick={() => (collapsed = !collapsed)}
-					class="text-muted-foreground hover:text-foreground hidden items-center gap-2.5 px-4 py-2 text-sm transition-colors md:flex"
+					class="text-shell-muted-foreground hover:text-shell-foreground hidden items-center gap-2.5 px-4 py-2 text-sm transition-colors md:flex"
 					aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
 					aria-pressed={collapsed}
 					data-testid="ds-rail-collapse"
@@ -334,13 +334,13 @@
 
 	<div class="flex min-h-0 min-w-0 flex-1 flex-col">
 		<header
-			class="ds-shell-bar bg-shell/80 border-border sticky top-0 z-20 flex h-14 flex-none items-center gap-2 border-b px-3 backdrop-blur sm:gap-3 sm:px-5"
+			class="ds-shell-bar bg-shell/80 text-shell-foreground border-border sticky top-0 z-20 flex h-14 flex-none items-center gap-2 border-b px-3 backdrop-blur sm:gap-3 sm:px-5"
 		>
 			{#if hasNav}
 				<button
 					bind:this={menuButton}
 					onclick={() => (mobileNavOpen ? closeMobileNav() : (mobileNavOpen = true))}
-					class="border-border text-muted-foreground hover:text-foreground grid size-9 flex-none place-items-center rounded-md border md:hidden"
+					class="border-border text-shell-muted-foreground hover:text-shell-foreground grid size-9 flex-none place-items-center rounded-md border md:hidden"
 					aria-label="Menu"
 					aria-expanded={mobileNavOpen}
 					data-testid="ds-shell-menu"
@@ -388,14 +388,14 @@
 			{#if onSearch}
 				<button
 					onclick={onSearch}
-					class="border-border text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors sm:w-[clamp(200px,32vw,560px)] sm:flex-none"
+					class="border-border text-shell-muted-foreground hover:text-shell-foreground flex min-w-0 flex-1 items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors sm:w-[clamp(200px,32vw,560px)] sm:flex-none"
 					data-testid="ds-shell-search"
 				>
 					<Search class="size-4 flex-none" />
 					<span class="truncate">{searchLabel}</span>
 					{#if searchShortcut}
 						<kbd
-							class="border-border bg-background text-muted-foreground text-2xs ml-auto hidden rounded border px-1.5 py-0.5 font-mono sm:block"
+							class="border-border bg-background text-shell-muted-foreground text-2xs ml-auto hidden rounded border px-1.5 py-0.5 font-mono sm:block"
 							>{searchShortcut}</kbd
 						>
 					{/if}
@@ -408,7 +408,7 @@
 				{#if themeToggle}
 					<button
 						onclick={toggleTheme}
-						class="border-border text-muted-foreground hover:text-foreground grid size-9 flex-none place-items-center rounded-md border transition-colors"
+						class="border-border text-shell-muted-foreground hover:text-shell-foreground grid size-9 flex-none place-items-center rounded-md border transition-colors"
 						aria-label="Toggle theme"
 						data-testid="ds-shell-theme"
 					>

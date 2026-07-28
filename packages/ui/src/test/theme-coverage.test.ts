@@ -216,6 +216,36 @@ describe('the shadcn semantic surface', () => {
 		}
 	});
 
+	it('registers no theme colour that nothing consumes', () => {
+		// The mirror image of the dead-utility defect above, and just as silent: a
+		// registered key with no reader is an affordance that does nothing. An app
+		// pointing --ds-shell-chrome-foreground at a contrasting value got no
+		// effect at all, because the shell painted its chrome text off --foreground
+		// and --muted-foreground and read the key it advertised nowhere — so the
+		// only way to get chrome ink that inverts against the palette was to
+		// override a package style, which is the per-app divergence this package
+		// exists to end.
+		//
+		// A key with no consumer is worse than a missing key: a missing one fails
+		// loudly at the utility, a dead one looks like a supported option.
+		const registered = registeredColourKeys(readFileSync(join(distDir, 'styles.css'), 'utf8'));
+		const shipped = distFiles.map((file) => readFileSync(file, 'utf8')).join('\n');
+
+		const unread = [...registered]
+			.filter((key) => {
+				// Either a colour utility names it, or something reads the theme
+				// variable directly. Longest-name-first matching is not needed: the
+				// utility carries the full key, so `text-shell-foreground` does not
+				// satisfy `--color-shell`.
+				const utility = new RegExp(`[\\s"'\`:]((?:bg|text|border|ring|outline|fill|stroke|decoration|caret|accent|divide|placeholder|shadow|from|via|to)-${key})(?![a-z0-9-])`);
+				return !utility.test(shipped) && !shipped.includes(`var(--color-${key})`);
+			})
+			.sort();
+
+		expect(registered.size, 'this package registers no colour keys at all').toBeGreaterThan(0);
+		expect(unread, 'theme colours registered by this package that no component reads').toEqual([]);
+	});
+
 	it('ships the stylesheet at the documented subpath', () => {
 		const exports = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8')).exports;
 		expect(exports['./styles.css']).toBe(

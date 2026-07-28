@@ -171,9 +171,27 @@
 	   has a chrome hue points its own token at it in one line:
 
 	       :root { --ds-shell-chrome: var(--sidebar); }
+
+	   The two foreground keys are the chrome's INK, and they are consumed —
+	   by the rail, the bar, every chrome control and every nav rule below.
+	   `--color-shell-foreground` was registered and read by nothing until now,
+	   which made it a trap rather than an affordance: an app pointing
+	   `--ds-shell-chrome-foreground` at a contrasting value got no effect and
+	   had to override a package style to get chrome ink that inverts against
+	   the palette. Both default to the same tokens the chrome used to hard-code
+	   (`--foreground` / `--muted-foreground`), so nothing moves until an app
+	   asks it to; two declarations then invert the whole chrome:
+
+	       :root {
+	         --ds-shell-chrome: var(--ds-color-primary);
+	         --ds-shell-chrome-foreground: var(--ds-color-primary-foreground);
+	         --ds-shell-chrome-muted-foreground: color-mix(
+	           in oklch, var(--ds-color-primary-foreground) 70%, transparent);
+	       }
 	 */
 	--color-shell: var(--ds-shell-chrome);
 	--color-shell-foreground: var(--ds-shell-chrome-foreground);
+	--color-shell-muted-foreground: var(--ds-shell-chrome-muted-foreground);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -220,6 +238,7 @@
 	   ──────────────────────────────────────────────────────────────────────── */
 	--ds-shell-chrome: var(--ds-color-surface-1);
 	--ds-shell-chrome-foreground: var(--ds-color-foreground);
+	--ds-shell-chrome-muted-foreground: var(--ds-color-muted-foreground);
 	--ds-shell-rail-width: 15.5rem;
 	--ds-shell-rail-width-collapsed: 3.5rem;
 }
@@ -330,6 +349,25 @@
 	   sites, no drift. The tints are color-mix over the app's own --primary and
 	   --foreground, so a palette change moves them and this file holds no colour.
 	   ───────────────────────────────────────────────────────────────────────── */
+	/* Nav ink is a pair of locals rather than the page's --foreground directly,
+	   because AppNav is rendered in two different kinds of surface: inside the
+	   shell's chrome (rail, drawer, disclosure panel), and — exported in its own
+	   right — as a route-scoped secondary column sitting on the ordinary page
+	   background. The default is the page's own ink, and only the chrome
+	   surfaces below re-point it, so an app that inverts its chrome moves the
+	   rail's text without dragging a secondary nav on `bg-background` with it. */
+	.ds-nav {
+		--ds-nav-ink: var(--foreground);
+		--ds-nav-ink-muted: var(--muted-foreground);
+	}
+
+	.ds-shell-rail,
+	.ds-shell-bar,
+	.ds-shell-panel {
+		--ds-nav-ink: var(--ds-shell-chrome-foreground);
+		--ds-nav-ink-muted: var(--ds-shell-chrome-muted-foreground);
+	}
+
 	.ds-nav-item {
 		position: relative;
 		display: flex;
@@ -396,7 +434,7 @@
 		   form. The literal keeps this rule correct on its own; the var keeps an
 		   app's override flowing through. */
 		letter-spacing: var(--tracking-eyebrow, 0.06em);
-		color: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+		color: color-mix(in oklch, var(--ds-nav-ink-muted) 70%, transparent);
 	}
 
 	.ds-nav-badge {
