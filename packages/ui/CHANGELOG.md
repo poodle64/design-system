@@ -4,6 +4,22 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [2026.7.4] - 2026-07-28
+
+### Fixed
+
+- **`ErrorState` announced nothing at all.** It is rendered when an async load fails, so it arrives *after* the page has settled — and it carried no live region, so a screen-reader user was told nothing: the page silently changed and the failure was invisible. Every app adopting this package inherited that, and it was found by the fourth adopter, whose own local `ErrorState` had `role="alert"` from the start and lost it on migrating here.
+
+  This was an inconsistency inside the package rather than a decision. The sibling `LoadingState` has had `role="status"` + `aria-live="polite"` since the initial release; `ErrorState` was extracted without the equivalent. It now carries `role="alert"` + `aria-live="assertive"`, and the pairing is deliberately not the sibling's: loading is not urgent and waits its turn, whereas this surface only exists because the user's task has already broken, so it interrupts. `EmptyState` is deliberately left alone — an empty result is ordinary static content the app placed, and announcing a blank list as loudly as a broken one is the over-correction, now pinned by its own assertion.
+
+  Attributes only. The class list, the prop contract and the markup are untouched, and the null visual result was measured against a pre-change build in a real engine rather than assumed: identical bounding box, background, border, radius, padding and text metrics, with `role`/`aria-live` the only difference in the whole read.
+
+### Added
+
+- **A live-region gate for the async-outcome surfaces** (`src/test/live-regions.*`). It reaches each state by *driving* a load rather than by mounting the finished markup, because the claim is not that an attribute is present — it is that the region exists at the instant the outcome lands, which is the only instant a screen reader has to announce it. Driven red first: with the attributes removed the failure surfaces as a bare paragraph and four assertions fail; with `role="alert"` restored but `aria-live` dropped, three still fail, which is what keeps the explicit pairing from silently decaying into the implicit one.
+
+- **The real-browser harness now covers those surfaces too** (`?surface=states`), because jsdom cannot make this claim either: `getByRole` there is testing-library resolving a static element→role table, so it proves the string and nothing about what the platform is handed. A real engine exposes the failure as an `alert` node carrying the message, and exposed the pre-change build as a bare paragraph. `harness/drive.md` records both.
+
 ## [2026.7.3] - 2026-07-28
 
 ### Added
