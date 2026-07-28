@@ -13,7 +13,8 @@ pnpm run test:browser        # harness:build + drive.mjs, exits non-zero on fail
 ```
 
 It covers the claims a machine can make unattended — the overlay animations, the
-shell's content-region measurements at two phone widths, and the avatar's real
+shell's content-region measurements at two phone widths, the nav's contrast
+against its chrome across three palettes and both themes, and the avatar's real
 load-state swap — and prints every observed value beside its verdict, passing or
 failing. Everything else in this file is driven by hand (the household's
 `browser-driver` MCP was used), because the claim needs a judgement a script
@@ -41,7 +42,14 @@ pnpm run harness:serve          # http://127.0.0.1:4180
 ```
 
 The page reads `?variant=rail|header` and `?collapsible=1` from the query, so a
-driver sets configuration by navigation rather than by synthesising clicks. It
+driver sets configuration by navigation rather than by synthesising clicks. The
+THEME is not a query parameter: it follows the OS preference, so a driver picks
+it with `browser.newContext({ colorScheme })`. The harness previously passed
+`defaultMode="dark"` to `ModeWatcher`, which was measurably not doing what it
+said — mode-watcher tracks the system preference and Chromium's default is
+light, so every surface here had in fact been rendering LIGHT since the day it
+was written. The contrast section below has to know which theme it is looking
+at, so the lever is now the one that actually moves. It
 imports from `../dist`, not `../src`: the claim under test is about the artefact
 a consuming app installs, and `svelte-package` rewrites import specifiers on the
 way out, so the source is not the same input. Its stylesheet is the documented
@@ -379,6 +387,104 @@ Command's list is the one that was already right, and is left alone: `max-h-72`
 genuinely constrains it, it scrolls, and its last row is reachable at both
 heights. Its cap does not track the viewport, but at 288px it does not need to —
 it is asserted at both heights precisely so that stops being an assumption.
+
+## Nav ink against the chrome (`?surface=shell`, three palettes) — #11
+
+The defect class this exists for: **a shared component painting a colour the
+CONSUMER owns as ink**. `--ds-color-primary` is the one token the package invites
+every app to override, and the only constraint stated where an app picks it is
+that it clear AA against its own `-foreground` pair — the fill case. The shell
+was additionally consuming it as text on its chrome, which is a stricter
+requirement no app was told about, and which constrains a brand hue far more
+tightly than the stated rule implies.
+
+Scripted in `drive.mjs`. Three palettes × both themes × both variants, all
+driven against the built package with the palette applied exactly as a consuming
+app applies it — an override of the sanctioned surface and nothing else.
+
+Method, because the number is only worth as much as how it was taken:
+
+- **Resolved colours, not declared ones.** Every value comes from
+  `getComputedStyle` in Chromium.
+- **Composited against the real ancestor stack**, not against the page
+  background. The active row's own background is a 12% `color-mix` over the
+  chrome, and the chrome is `bg-shell/80` over the page — so the label sits on
+  three layers, and measuring against any single one of them is wrong. The stack
+  is painted into a 1×1 canvas and read back, which makes the engine do the
+  blending; no colour-space assumption of ours can be off.
+- **Transitions off.** `.ds-nav-item` transitions `color` over 150ms, and
+  swapping a custom property STARTS that transition. The first run of this gate
+  read mid-flight interpolated colours — serialised as `oklab()`, still most of
+  the way back at the old hue — and reported the package default while believing
+  it had applied the override. Every reading here is of a settled state.
+- **The theme is waited on, never assumed.** Which one is on screen is the
+  load-bearing fact of the whole section.
+
+| Palette (light) | Active label BEFORE | AFTER | As a fill (the documented constraint) |
+| --- | --- | --- | --- |
+| package default `oklch(0.50 0.155 250)` | 4.55:1 | **12.60:1** | 5.75:1 ✓ |
+| warm amber `oklch(0.75 0.11 75)` | **1.90:1** | **13.87:1** | 7.69:1 ✓ |
+| saturated blue `oklch(0.62 0.18 250)` | **2.87:1** | **13.00:1** | 5.00:1 ✓ |
+
+Both fixtures satisfy the documented contract comfortably and were illegible
+anyway — which is the entire argument for fixing it in the package. Dark mode
+never failed (6.05–8.21:1 before) and is now 12.45–13.13:1. The nav badge was the
+worst of the three, at 1.73:1 under the amber palette and 3.72:1 on the package
+default; it is now 9.09–12.63:1.
+
+| Claim | Why jsdom cannot make it | Gated at |
+| --- | --- | --- |
+| The fixture palette clears AA as a FILL | unresolved `var(--…)` | ≥4.5:1 — if this fails the FIXTURE is wrong, not the shell |
+| The active nav label clears AA on its chrome | no stylesheet, no `color-mix` resolution | ≥4.5:1 |
+| The nav badge count clears AA on its tint | as above, over two stacked tints | ≥4.5:1 |
+| The active state does not rest on the indicator alone | no cascade, no computed weight | `aria-current="page"` **and** weight 400→500 **and** ink differs |
+| The brand indicator against the chrome | — | recorded, not gated (see below) |
+| An inverted chrome moves the nav ink | a cascade fact — needs an engine | ink ≠ the page's own, and ≥4.5:1 on the inverted chrome |
+| …and does NOT drag a secondary nav with it (`?sidebar=1`) | as above | a route-scoped column stays exactly on the page's own ink |
+| The resting nav label | — | recorded, not gated — **#13** |
+
+**Why the indicator bar is recorded and not gated.** WCAG 1.4.11 holds a state
+indicator to 3:1 only when the state is not conveyed some other way. Here it is
+conveyed three other ways, and the gate asserts that redundancy on every palette
+rather than asserting the paragraph. So the bar and the underline keep
+`--primary` at full strength and stay the one place an app's brand hue survives
+undiluted: 1.90:1 on the rail and 2.08:1 on the header underline under the amber
+palette, printed on every run.
+
+**Why the resting label is recorded and not gated.** It measures 3.62:1 in light
+mode, identically under all three palettes, because no consumer colour is
+involved: it is painted in `--ds-color-muted-foreground`, which is below the AA
+text floor on every light surface the token package defines. That is a real
+defect and a bigger one, but it belongs to the other package and correcting it
+darkens secondary text in every app — tracked as **#13**. The number prints on
+every run so it cannot go quiet, and becomes an assertion when the token moves.
+
+**What this caught, beyond the reported defect.** Driving an inverted chrome
+showed `--ds-shell-chrome-foreground` reached the nav not at all. A custom
+property declared ON an element beats one inherited INTO it, and `.ds-nav` is a
+descendant of every chrome surface — so the rail re-pointing `--ds-nav-ink` was
+overridden by `.ds-nav`'s own declaration on the very element that consumes it.
+Both declarations were correct in isolation; only their placement was wrong. No
+compiled-CSS gate could see it, and no app could see it either, because both
+sides default to the same token — the only symptom was an app inverting its
+chrome and getting silence. This is the second time this package has shipped
+that exact shape of dead affordance; `theme-coverage.test.ts` calls it "worse
+than a missing key" and it was right.
+
+The rule has to give **two opposite answers at once**, so both are asserted.
+`AppNav` is also exported in its own right, as a route-scoped secondary column
+on the ordinary page background, and that one must NOT follow the chrome — an
+inverted chrome would otherwise paint near-white ink on a near-white surface.
+`?sidebar=1` puts one on the page beside the inverted rail and pins both halves
+in the same pass. Gating only the loud half would leave the quiet half free to
+break silently, which is the shape of every defect this harness exists for.
+
+One trap worth inheriting from writing that check: **a custom property and a
+`color` resolve to the same colour and serialise differently.** `--foreground`
+reads back as `oklch(60% .012 85)` where the `color` that consumed it reads back
+as `oklch(0.6 0.012 85)`. A string compare between the two is a tautology that
+passes on the broken build as readily as the fixed one, so both sides are
+painted into the canvas and compared as pixels.
 
 ## The avatar load state (`?surface=avatar`)
 

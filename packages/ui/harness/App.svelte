@@ -18,6 +18,7 @@
 	 */
 	import { ModeWatcher } from 'mode-watcher';
 	import AppShell from '../dist/components/ui/app-shell/app-shell.svelte';
+	import AppNav from '../dist/components/ui/app-shell/app-nav.svelte';
 	import CommandPalette from '../dist/components/ui/command-palette/command-palette.svelte';
 	import LoadingState from '../dist/components/ui/loading-state/loading-state.svelte';
 	import ErrorState from '../dist/components/ui/error-state/error-state.svelte';
@@ -95,6 +96,9 @@
 	// guarantee under it (its own box stays the content box) rather than to
 	// claim an overflow that is the page's to solve.
 	const overflowContent = params.get('content') ?? 'table';
+	// `?sidebar=1` adds a route-scoped secondary AppNav on the page background,
+	// so the half of the nav-ink rule that must NOT follow the chrome is driven too.
+	const withSidebar = params.get('sidebar') === '1';
 
 	let overlayDialogOpen = $state(false);
 	// A 1x1 transparent GIF, inline: the harness serves no assets and the claim
@@ -113,9 +117,19 @@
 	let paletteOpen = $state(false);
 	let collapsed = $state(false);
 	const currentPath = '#/credentials';
+
+	// The theme follows the OS preference, and a driver picks it by emulating
+	// `prefers-color-scheme` rather than by passing a mode here.
+	//
+	// This used to read `defaultMode="dark"`, which was measurably not doing
+	// what it says: mode-watcher tracks the system preference, and Chromium's
+	// default is light, so every surface in this harness has in fact been
+	// rendering LIGHT since the day it was written. The contrast gate has to
+	// visit both themes and be certain which one it is looking at, so the lever
+	// is now the one that actually moves — `browser.newContext({ colorScheme })`.
 </script>
 
-<ModeWatcher defaultMode="dark" />
+<ModeWatcher defaultMode="system" />
 
 {#if surface === 'overlays'}
 	<div class="flex flex-col items-start gap-4 p-8">
@@ -286,6 +300,18 @@
 		{/if}
 	</div>
 {:else}
+	{#snippet secondaryNav()}
+		<!-- A route-scoped secondary nav: the OTHER surface AppNav is rendered on,
+		     the ordinary page background, OUTSIDE the shell's chrome. It has to
+		     keep the PAGE's ink at the same moment the rail follows
+		     `--ds-shell-chrome-foreground` — one rule, two opposite answers, and
+		     the half that is easy to break while the loud half still passes. So it
+		     is driven rather than argued.
+
+		     Behind `?sidebar=1` because a second nav landmark changes the landmark
+		     and tab-stop counts the hand-driven checks in `drive.md` pin. -->
+		<AppNav {nav} {currentPath} label="Section" class="w-56" />
+	{/snippet}
 	<AppShell
 		{nav}
 		{variant}
@@ -294,6 +320,7 @@
 		bind:collapsed
 		brandTitle="Harness"
 		onSearch={() => (paletteOpen = true)}
+		sidebar={withSidebar ? secondaryNav : undefined}
 	>
 		{#snippet brandMark()}
 			<span class="text-primary text-xs font-bold">H</span>

@@ -190,6 +190,36 @@ palette:
 `AppNav` used outside the chrome (the `sidebar` slot's own column) keeps the
 page's ink, so inverting the rail does not drag a secondary nav with it.
 
+### The active nav row: primary is a fill, never an ink
+
+The active row is marked with a 12% `--ds-color-primary` tint, a primary edge bar
+(rail) or underline (header), a weight step to 500, and `aria-current="page"`.
+Its **label** is painted in the chrome's own foreground, not in the brand colour.
+
+That is deliberate. `--ds-color-primary` is the one token every app overrides,
+and the only constraint stated where an app picks it is that it clear AA against
+its own `-foreground` pair: the fill case. Painting it as ink on the chrome
+would impose a second, stricter requirement that nothing states and that
+constrains a brand hue far more tightly. Measured in Chromium, a warm amber that
+is 7.69:1 as a fill was **1.90:1** as an active nav label, and a saturated blue
+that is 5:1 as a fill was **2.87:1**. Both palettes were entirely sanctioned. So
+the shell stops asking a colour it does not control to be legible text, and no
+app is ever told to repaint its brand to make the shared shell readable.
+
+An app whose primary genuinely is legible as ink on its chrome can put it back,
+and owns the contrast in doing so:
+
+```css
+:root {
+	--ds-nav-ink-active: var(--ds-color-primary);
+}
+```
+
+Check that at ≥4.5:1 against `--ds-color-surface-1` (the chrome), not against
+`--ds-color-background`; they are different surfaces, and the chrome is the
+darker of the two. `harness/drive.mjs` gates the default path across three
+palettes in both themes on every run.
+
 ### Measuring the content region
 
 `<main>` is the scrolling content region and carries

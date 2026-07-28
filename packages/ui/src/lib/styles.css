@@ -421,17 +421,34 @@
 	   right — as a route-scoped secondary column sitting on the ordinary page
 	   background. The default is the page's own ink, and only the chrome
 	   surfaces below re-point it, so an app that inverts its chrome moves the
-	   rail's text without dragging a secondary nav on `bg-background` with it. */
+	   rail's text without dragging a secondary nav on `bg-background` with it.
+
+	   The indirection through --ds-nav-chrome-ink is what makes that actually
+	   work, and it is not decoration. A custom property declared on an element
+	   beats one inherited into it, and `.ds-nav` is a DESCENDANT of every chrome
+	   surface below — so re-pointing --ds-nav-ink on the rail was overridden by
+	   `.ds-nav`'s own declaration a moment later, on the very element that
+	   consumes it. Both declarations were correct in isolation and the winner
+	   was decided by which element carried it, which is why no compiled-CSS gate
+	   could see it: it is a cascade fact, and it needs an engine. It was
+	   invisible in use too, because both sides default to the same token, so the
+	   only symptom was an app inverting its chrome and getting nothing —
+	   precisely the dead affordance `theme-coverage.test.ts` calls "worse than a
+	   missing key". `harness/drive.mjs` now drives an inverted chrome and reads
+	   the resolved ink back.
+
+	   The chrome sets a variable `.ds-nav` READS rather than one it re-declares,
+	   so the fallback chain resolves in the right order at the point of use. */
 	.ds-nav {
-		--ds-nav-ink: var(--foreground);
-		--ds-nav-ink-muted: var(--muted-foreground);
+		--ds-nav-ink: var(--ds-nav-chrome-ink, var(--foreground));
+		--ds-nav-ink-muted: var(--ds-nav-chrome-ink-muted, var(--muted-foreground));
 	}
 
 	.ds-shell-rail,
 	.ds-shell-bar,
 	.ds-shell-panel {
-		--ds-nav-ink: var(--ds-shell-chrome-foreground);
-		--ds-nav-ink-muted: var(--ds-shell-chrome-muted-foreground);
+		--ds-nav-chrome-ink: var(--ds-shell-chrome-foreground);
+		--ds-nav-chrome-ink-muted: var(--ds-shell-chrome-muted-foreground);
 	}
 
 	.ds-nav-item {
@@ -455,15 +472,61 @@
 		background: color-mix(in oklch, var(--ds-nav-ink) 5%, transparent);
 	}
 
+	/* The active row's INK is the chrome's own foreground, never --primary.
+	   (#11.)
+
+	   --ds-color-primary is the one token the package invites every app to
+	   override, and the constraint stated where an app picks it is that it clear
+	   AA against its own -foreground pair — the FILL case, primary as a button
+	   background. Consuming it as ink on the chrome is a second, stricter and
+	   entirely undocumented requirement, and an app can satisfy the stated one by
+	   a mile and fail this one badly: a warm amber that is 7.69:1 as a fill
+	   measured 1.90:1 here, and a saturated blue that is 5:1 as a fill measured
+	   2.87:1. Two real app palettes, both sanctioned, both illegible. The package
+	   default only ever cleared it by 0.05.
+
+	   So the shell stops asking a colour it does not control to be legible text.
+	   The ink is the chrome's foreground, which the app's palette is ALREADY
+	   obliged to keep AA against the chrome, and the guarantee is inherited from
+	   that existing contract rather than invented as a new one — 15.09:1 on the
+	   package default, and no app is told to repaint its brand.
+
+	   Two alternatives were measured and lost. Deriving an accessible ink by
+	   clamping lightness (`oklch(from var(--primary) min(l, X) c h)`) is not
+	   sound across the gamut — a saturated green clamped to L 0.55 still lands at
+	   3.44:1 — so it trades a visible failure for a subtler one. Mixing primary
+	   into the chrome ink IS provable (35% clears 4.5:1 for every in-gamut
+	   primary in both modes) but at that ratio the hue is so diluted it reads as
+	   warm or cool grey, which degrades every palette that was already fine to
+	   buy safety for palettes no app has.
+
+	   The brand is not lost, it moves to where it is not text: the 12% tint
+	   below, the edge bar, the underline. An app that wants its brand back ON the
+	   label sets --ds-nav-ink-active and owns the contrast knowingly:
+
+	       :root { --ds-nav-ink-active: var(--ds-color-primary); }
+
+	   It is read through a var() fallback rather than declared with a default,
+	   deliberately: declaring `--ds-nav-ink-active: var(--ds-nav-ink)` at :root
+	   would resolve where --ds-nav-ink does not exist and poison the property. */
 	.ds-nav-item[data-active='true'] {
-		color: var(--primary);
+		color: var(--ds-nav-ink-active, var(--ds-nav-ink));
 		background: color-mix(in oklch, var(--primary) 12%, transparent);
 		font-weight: 500;
 	}
 
 	/* Colour alone never carries the active state (WCAG 1.4.1): the rail marks it
 	   with a flush edge bar, the horizontal bar with an underline, since a
-	   left-edge bar on a horizontal row would read as a divider. */
+	   left-edge bar on a horizontal row would read as a divider.
+
+	   These two keep --primary at full strength, and that is a decision rather
+	   than an oversight. WCAG 1.4.11 holds a state indicator to 3:1 only when the
+	   state is not conveyed some other way; here it is conveyed three other ways
+	   — the ink lifts from muted to full, the weight goes to 500, and the row
+	   carries aria-current="page" — so the bar is free to be the one place the
+	   app's brand survives undiluted. `harness/drive.mjs` asserts that redundancy
+	   on every palette rather than trusting this paragraph, and prints the bar's
+	   own ratio beside it. */
 	.ds-nav-indicator {
 		position: absolute;
 		left: 0;
@@ -503,6 +566,11 @@
 		color: color-mix(in oklch, var(--ds-nav-ink-muted) 70%, transparent);
 	}
 
+	/* A count badge is small text on a tint, so it carries the 4.5:1 text floor
+	   with the least margin of anything in the nav — and it was the worst of the
+	   three (#11): 1.73:1 under a warm amber, and 3.72:1 even on the package
+	   default, because it sits on the active row's tint AND its own. Same fix,
+	   same reason: the ink is the chrome's, the brand stays in the chip. */
 	.ds-nav-badge {
 		margin-left: auto;
 		border-radius: 9999px;
@@ -510,7 +578,7 @@
 		font-size: var(--ds-text-2xs);
 		font-weight: 500;
 		font-variant-numeric: tabular-nums;
-		color: var(--primary);
+		color: var(--ds-nav-ink);
 		background: color-mix(in oklch, var(--primary) 15%, transparent);
 	}
 

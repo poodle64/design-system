@@ -74,8 +74,8 @@ const browser = await chromium.launch();
 
 /** A fresh context per surface: a stylesheet cached across navigations is the
  *  trap recorded in drive.md — the new JS runs against the old CSS. */
-async function open(query, viewport = { width: 1440, height: 900 }) {
-	const context = await browser.newContext({ viewport });
+async function open(query, viewport = { width: 1440, height: 900 }, colorScheme = 'light') {
+	const context = await browser.newContext({ viewport, colorScheme });
 	const page = await context.newPage();
 	const errors = [];
 	page.on('pageerror', (error) => errors.push(error.message));
@@ -385,6 +385,332 @@ async function open(query, viewport = { width: 1440, height: 900 }) {
 			check(`${where}: no page error`, errors.length === 0, JSON.stringify(errors));
 			await context.close();
 		}
+	}
+}
+
+// ── Nav ink against the chrome it is painted on (#11) ───────────────────────
+// The defect class: a SHARED component painting a CONSUMER-supplied colour as
+// ink. `--ds-color-primary` is validated across the estate as a FILL — the
+// template's stated constraint is that it clear AA against its own
+// `-foreground` pair — and the shell was additionally consuming it as text on
+// its chrome, which is a stricter requirement no app was ever told about. Two
+// real app palettes failed it (2.16:1 and 3.48:1 in light mode) while
+// satisfying the documented one comfortably.
+//
+// Nothing but an engine can see this. jsdom applies no stylesheet and hands
+// back the unresolved `var(--…)` literal, and the compiled-CSS gates prove a
+// rule exists without ever resolving `color-mix()` over a real ancestor stack.
+// So the claim is made here, from resolved computed colour, composited the way
+// the compositor does it, in both themes.
+{
+	// Two genuinely different consumer palettes plus the package default. Both
+	// fixtures satisfy the DOCUMENTED constraint (asserted below) — that is the
+	// whole point: a palette can be entirely sanctioned and still be illegible
+	// as ink, which is why the shell may not ask it to be ink.
+	const PALETTES = [
+		{ name: 'package default', light: null, dark: null },
+		{
+			// The failing shape: high-lightness warm hue. Barely moves against a
+			// near-white chrome, and is unimpeachable as a fill.
+			name: 'warm amber',
+			light: { primary: 'oklch(0.75 0.11 75)', foreground: 'oklch(0.22 0.03 75)' },
+			dark: { primary: 'oklch(0.80 0.10 75)', foreground: 'oklch(0.20 0.03 75)' }
+		},
+		{
+			name: 'saturated blue',
+			light: { primary: 'oklch(0.62 0.18 250)', foreground: 'oklch(0.20 0.03 250)' },
+			dark: { primary: 'oklch(0.72 0.16 250)', foreground: 'oklch(0.20 0.03 250)' }
+		}
+	];
+
+	// `.ds-nav-item` transitions `color` over 150ms, and a custom-property swap
+	// starts that transition. Reading `getComputedStyle` mid-flight returns the
+	// INTERPOLATED colour — serialised as oklab, and still most of the way back
+	// at the old hue — so the first run of this gate measured the package
+	// default while believing it was measuring the override. Every measurement
+	// here is of a settled resting state, so the transition is switched off
+	// rather than waited out.
+	const SETTLE = '*, *::before, *::after { transition: none !important; animation: none !important; }';
+
+	/** The override a consuming app writes: the sanctioned surface, nothing else. */
+	function paletteCss(palette) {
+		if (!palette.light) return SETTLE;
+		return [
+			SETTLE,
+			`:root { --ds-color-primary: ${palette.light.primary};`,
+			`        --ds-color-primary-foreground: ${palette.light.foreground}; }`,
+			`.dark { --ds-color-primary: ${palette.dark.primary};`,
+			`        --ds-color-primary-foreground: ${palette.dark.foreground}; }`
+		].join('\n');
+	}
+
+	// Everything the page needs to answer "what colour is actually painted
+	// here", injected as a real script tag: `page.evaluate` cannot close over
+	// module scope, and a probe the page owns can be reused by both passes below.
+	const PROBE = `
+	(() => {
+	const canvas = document.createElement('canvas');
+	canvas.width = canvas.height = 1;
+	const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+	// Composite a bottom-to-top stack of CSS colours and read the resulting
+	// opaque pixel. Letting the engine do it is the point: an oklch(), a
+	// color-mix() result and an rgba() all parse and blend exactly as they do on
+	// screen, so no colour-space or premultiplication assumption of ours can be
+	// wrong. The white base only shows through if every layer is transparent,
+	// which is the browser's own canvas default too.
+	const composite = (layers) => {
+		ctx.clearRect(0, 0, 1, 1);
+		ctx.fillStyle = '#fff';
+		ctx.fillRect(0, 0, 1, 1);
+		for (const layer of layers) {
+			ctx.fillStyle = layer;
+			ctx.fillRect(0, 0, 1, 1);
+		}
+		const d = ctx.getImageData(0, 0, 1, 1).data;
+		return [d[0] / 255, d[1] / 255, d[2] / 255];
+	};
+
+	/** Every background between <html> and \`el\`, bottom first. */
+	const stack = (el, includeSelf) => {
+		const layers = [];
+		for (let n = includeSelf ? el : el.parentElement; n; n = n.parentElement) {
+			layers.push(getComputedStyle(n).backgroundColor);
+		}
+		return layers.reverse();
+	};
+
+	const channel = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+	const luminance = ([r, g, b]) =>
+		0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+	const contrast = (a, b) => {
+		const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+		return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
+	};
+
+	/** Contrast of an element's ink against everything painted behind it. */
+	const inkRatio = (el, pseudo) => {
+		if (!el) return null;
+		const colour = getComputedStyle(el, pseudo ?? undefined).color;
+		const behind = stack(el, true);
+		return contrast(composite([...behind, colour]), composite(behind));
+	};
+
+	/** Contrast of an element's own fill against everything behind it. */
+	const fillRatio = (el, pseudo) => {
+		if (!el) return null;
+		const fill = getComputedStyle(el, pseudo ?? undefined).backgroundColor;
+		const behind = stack(el, false);
+		return contrast(composite([...behind, fill]), composite(behind));
+	};
+
+	window.__probe = { composite, stack, contrast, inkRatio, fillRatio };
+	})();
+	`;
+
+	for (const palette of PALETTES) {
+		const css = paletteCss(palette);
+		for (const mode of ['light', 'dark']) {
+			for (const variant of ['rail', 'header']) {
+				const { context, page, errors } = await open(
+					`surface=shell&variant=${variant}`,
+					{ width: 1440, height: 900 },
+					mode
+				);
+				await page.addStyleTag({ content: css });
+				await page.addScriptTag({ content: PROBE });
+				await page.waitForSelector('.ds-nav-item[data-active="true"]');
+				// Which theme is on screen is the load-bearing fact of this whole
+				// section, so it is waited on and never assumed.
+				await page.waitForFunction(
+					(want) => document.documentElement.classList.contains('dark') === (want === 'dark'),
+					mode
+				);
+
+				const measured = await page.evaluate(
+					(isHeader) => {
+						const { inkRatio, fillRatio, composite, contrast } = window.__probe;
+
+						const active = document.querySelector('.ds-nav-item[data-active="true"]');
+						const resting = document.querySelector('.ds-nav-item:not([data-active])');
+						const badge = active.querySelector('.ds-nav-badge');
+						// The rail marks the active row with a flush edge bar; the
+						// horizontal row with an underline drawn as ::after, since a
+						// left bar there would read as a divider.
+						const indicator = active.querySelector('.ds-nav-indicator');
+
+						const style = (el, pseudo) => getComputedStyle(el, pseudo ?? undefined);
+						return {
+							activeInk: inkRatio(active),
+							restingInk: inkRatio(resting),
+							badgeInk: badge ? inkRatio(badge) : null,
+							indicator: isHeader ? fillRatio(active, '::after') : fillRatio(indicator),
+							// The redundancy that licenses not holding the indicator to
+							// 1.4.11's 3:1 — asserted, never assumed.
+							ariaCurrent: active.getAttribute('aria-current'),
+							activeWeight: style(active).fontWeight,
+							restingWeight: style(resting).fontWeight,
+							activeColour: style(active).color,
+							restingColour: style(resting).color,
+							// The documented constraint the palette DOES carry, proved
+							// against the built package rather than asserted in prose.
+							fillPair: (() => {
+								const probeEl = document.createElement('span');
+								probeEl.style.background = 'var(--primary)';
+								probeEl.style.color = 'var(--primary-foreground)';
+								document.body.appendChild(probeEl);
+								const s = getComputedStyle(probeEl);
+								const ratio = contrast(
+									composite([s.backgroundColor, s.color]),
+									composite([s.backgroundColor])
+								);
+								probeEl.remove();
+								return ratio;
+							})()
+						};
+					},
+					variant === 'header'
+				);
+
+				const where = `${palette.name}/${mode}/${variant}`;
+
+				// The palette is sanctioned. If this ever fails the fixture is wrong,
+				// not the shell — and the whole argument below collapses without it.
+				check(
+					`${where}: the fixture palette clears AA as a fill, as the template requires`,
+					measured.fillPair >= 4.5,
+					`primary under primary-foreground: ${measured.fillPair}:1`
+				);
+
+				// The headline claim of #11.
+				check(
+					`${where}: the ACTIVE nav label clears AA on the chrome it sits on`,
+					measured.activeInk >= 4.5,
+					`${measured.activeInk}:1 (needs 4.5)`
+				);
+				// Recorded rather than asserted, and the distinction is the point.
+				// This is a genuine AA failure — 3.62:1 in light mode — but it is not
+				// #11's: it is identical under all three palettes because no consumer
+				// colour is involved at all. The resting label is painted in
+				// `--ds-color-muted-foreground`, which is below the text floor on
+				// every light surface the token package defines, and correcting it
+				// darkens secondary text in every app. That is a token-package look
+				// decision with estate-wide reach, tracked as #13, not an adjacent
+				// one-liner to fold in here. It is measured on every run so the number
+				// stays in front of whoever picks #13 up, and it becomes an assertion
+				// the moment the token moves.
+				checks.push({
+					name: `${where}: resting nav label (recorded — #13, not gated here)`,
+					ok: true,
+					detail: `${measured.restingInk}:1 against a 4.5 floor${measured.restingInk >= 4.5 ? '' : ' — BELOW AA, see #13'}`
+				});
+				if (measured.badgeInk !== null) {
+					// A count badge is text on a tint, so it carries the text floor too —
+					// and it sits on the active row's tint as well as its own.
+					check(
+						`${where}: the nav badge count clears AA on its tint`,
+						measured.badgeInk >= 4.5,
+						`${measured.badgeInk}:1 (needs 4.5)`
+					);
+				}
+
+				// WCAG 1.4.11 binds a state indicator at 3:1 only when the state is not
+				// available another way. Here it is, three times over — so the bar is
+				// free to carry the app's brand hue at full strength, and what gets
+				// asserted is the redundancy that earns it that freedom.
+				check(
+					`${where}: the active state does not rest on the indicator alone`,
+					measured.ariaCurrent === 'page' &&
+						Number(measured.activeWeight) > Number(measured.restingWeight) &&
+						measured.activeColour !== measured.restingColour,
+					`aria-current=${measured.ariaCurrent}, weight ${measured.restingWeight}->${measured.activeWeight}, ink ${measured.restingColour} vs ${measured.activeColour}`
+				);
+				checks.push({
+					name: `${where}: brand indicator against the chrome (recorded, not gated)`,
+					ok: true,
+					detail: `${measured.indicator}:1 — non-text, and redundant per the check above`
+				});
+
+				check(`${where}: no page error`, errors.length === 0, JSON.stringify(errors));
+				await context.close();
+			}
+		}
+	}
+
+	// The chrome-ink override has to actually reach the nav, or the shell's one
+	// documented escape hatch for an inverted chrome is a dead affordance — the
+	// exact trap `theme-coverage.test.ts` calls "worse than a missing key".
+	// A compiled-CSS gate cannot see this: both declarations exist and are
+	// correct in isolation; what decides it is which element the winning
+	// declaration sits on, which is a cascade fact only an engine resolves.
+	{
+		// `sidebar=1` puts a SECOND AppNav on the page background, outside the
+		// chrome, because the rule under test has to give two opposite answers at
+		// once: the rail follows the chrome's ink, and a route-scoped secondary
+		// column must NOT be dragged along with it. Only asserting the loud half
+		// would let the quiet half break silently — which is the shape of every
+		// defect this harness exists for.
+		const { context, page } = await open('surface=shell&variant=rail&sidebar=1');
+		await page.addStyleTag({
+			content: `${SETTLE}\n:root { --ds-shell-chrome: oklch(0.30 0.03 260); --ds-shell-chrome-foreground: oklch(0.97 0.01 260); --ds-shell-chrome-muted-foreground: oklch(0.80 0.02 260); }`
+		});
+		await page.addScriptTag({ content: PROBE });
+		await page.waitForSelector('.ds-nav-item[data-active="true"]');
+		await page.waitForSelector('nav[aria-label="Section"]');
+		const measured = await page.evaluate(() => {
+			const { inkRatio, composite } = window.__probe;
+			// Both sides have to be normalised before they can be compared. A custom
+			// property and a `color` resolve to the SAME colour and serialise
+			// differently — `oklch(60% .012 85)` against `oklch(0.6 0.012 85)` — so a
+			// string compare of the two is a tautology that would pass on the broken
+			// build too. Painting each into the canvas and reading the pixel back
+			// makes the engine answer "is this the same colour", which is the actual
+			// question.
+			const rgb = (value) => `rgb(${composite([value]).map((c) => Math.round(c * 255)).join(' ')})`;
+			const page = getComputedStyle(document.body);
+			const rail = document.querySelector('.ds-shell-rail');
+			const secondary = document.querySelector('nav[aria-label="Section"]');
+			const read = (scope, selector) => {
+				const el = scope.querySelector(selector);
+				return { rgb: rgb(getComputedStyle(el).color), ratio: inkRatio(el) };
+			};
+			return {
+				railResting: read(rail, '.ds-nav-item:not([data-active])'),
+				railActive: read(rail, '.ds-nav-item[data-active="true"]'),
+				secondaryResting: read(secondary, '.ds-nav-item:not([data-active])'),
+				secondaryActive: read(secondary, '.ds-nav-item[data-active="true"]'),
+				// What the nav WOULD have painted had it kept reading the page's own
+				// ink: the value the broken cascade was stuck on, and, for the
+				// secondary column, the value it is still supposed to be on.
+				pageMuted: rgb(page.getPropertyValue('--muted-foreground')),
+				pageInk: rgb(page.getPropertyValue('--foreground'))
+			};
+		});
+		// Two claims, and both are needed. The ratios prove the ink is legible on
+		// the inverted chrome; the inequality proves it got there by FOLLOWING the
+		// override rather than by the page's ink happening to suit — which is
+		// exactly how this stayed invisible while the two defaulted to the same
+		// token.
+		check(
+			'inverted chrome: the nav ink follows --ds-shell-chrome-foreground',
+			measured.railResting.rgb !== measured.pageMuted &&
+				measured.railActive.rgb !== measured.pageInk &&
+				measured.railResting.ratio >= 4.5 &&
+				measured.railActive.ratio >= 4.5,
+			`resting ${measured.railResting.rgb} at ${measured.railResting.ratio}:1, active ${measured.railActive.rgb} at ${measured.railActive.ratio}:1 (the page's own ink is ${measured.pageMuted} / ${measured.pageInk}, which is what the broken cascade was stuck on)`
+		);
+		// The other half of the same rule, and the half that would go quiet: a
+		// route-scoped column sits on the page background, so dragging it along
+		// with the chrome would paint near-white ink on a near-white surface. One
+		// rule has to give both answers, so both are asserted.
+		check(
+			'inverted chrome: a secondary nav outside it keeps the PAGE ink',
+			measured.secondaryResting.rgb === measured.pageMuted &&
+				measured.secondaryActive.rgb === measured.pageInk &&
+				measured.secondaryActive.ratio >= 4.5,
+			`resting ${measured.secondaryResting.rgb} at ${measured.secondaryResting.ratio}:1, active ${measured.secondaryActive.rgb} at ${measured.secondaryActive.ratio}:1 (page ink ${measured.pageMuted} / ${measured.pageInk}; the chrome's is ${measured.railActive.rgb})`
+		);
+		await context.close();
 	}
 }
 
