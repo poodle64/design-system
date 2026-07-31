@@ -442,7 +442,7 @@ default; it is now 9.09–12.63:1.
 | The brand indicator against the chrome | — | recorded, not gated (see below) |
 | An inverted chrome moves the nav ink | a cascade fact — needs an engine | ink ≠ the page's own, and ≥4.5:1 on the inverted chrome |
 | …and does NOT drag a secondary nav with it (`?sidebar=1`) | as above | a route-scoped column stays exactly on the page's own ink |
-| The resting nav label | — | recorded, not gated — **#13** |
+| The resting nav label clears AA | unresolved `var(--…)` | ≥4.5:1 |
 
 **Why the indicator bar is recorded and not gated.** WCAG 1.4.11 holds a state
 indicator to 3:1 only when the state is not conveyed some other way. Here it is
@@ -452,13 +452,18 @@ rather than asserting the paragraph. So the bar and the underline keep
 undiluted: 1.90:1 on the rail and 2.08:1 on the header underline under the amber
 palette, printed on every run.
 
-**Why the resting label is recorded and not gated.** It measures 3.62:1 in light
-mode, identically under all three palettes, because no consumer colour is
-involved: it is painted in `--ds-color-muted-foreground`, which is below the AA
-text floor on every light surface the token package defines. That is a real
-defect and a bigger one, but it belongs to the other package and correcting it
-darkens secondary text in every app — tracked as **#13**. The number prints on
-every run so it cannot go quiet, and becomes an assertion when the token moves.
+**The resting label is asserted, not recorded — since #13.** It used to measure
+3.62:1 in light mode, identically under all three palettes here because no
+consumer colour is involved: it is painted in `--ds-color-muted-foreground`,
+which was below the AA text floor on every light surface the token package
+defines (`packages/design-tokens/tokens/tokens.tokens.json`, `palette.neutral.500`,
+`0.600` → `0.520`). That was a token-package defect with estate-wide reach, not
+an adjacent one-liner, so it was fixed there (#13) rather than folded into #11.
+Now light mode measures **5.03–5.08:1** (rail/header) and dark **6.53–6.58:1**,
+against the shell chrome surface (`surface-1`); design-tokens' own
+`test/contrast.test.js` covers all four surfaces `muted-foreground` actually
+paints on, including the worst case (`surface-3`, dark: 5.56:1), which is
+narrower than this harness's single-surface reading but still clears AA.
 
 **What this caught, beyond the reported defect.** Driving an inverted chrome
 showed `--ds-shell-chrome-foreground` reached the nav not at all. A custom

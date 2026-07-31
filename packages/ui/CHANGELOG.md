@@ -4,6 +4,10 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+
+- The resting nav label's AA contrast check in `harness/drive.mjs` flips from recorded to asserted (design-system#13, fixed upstream in `@poodle64/design-tokens`'s `muted-foreground` token): now 5.03–5.08:1 in light mode, 6.53–6.58:1 in dark, against the shell chrome surface — was 3.62:1 in light mode before the token moved.
+
 ### Fixed
 
 - Scoped theming (design-system#8). `bg-card`, `bg-popover`, `bg-muted`, `bg-accent`, `bg-secondary` and `border-input` now re-resolve against a scoped `--ds-color-*` override or a scoped `.dark` wrapper, not just at the page root. Previously each utility read a bare shadcn name (`--card`, `--popover`, …) declared once at `:root`; that name froze at its root-level value and never re-evaluated for a subtree override or a scoped `.dark` class below it. Each theme registration is now a fallback chain — `--color-card: var(--card, var(--ds-color-surface-2))` — so the bare name, if an app sets it, still wins (unchanged, additive); if it is unset (the default, and every app today), the utility resolves the live `--ds-color-*` token instead of a frozen alias.

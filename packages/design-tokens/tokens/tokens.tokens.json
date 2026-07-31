@@ -42,9 +42,9 @@
         "$description": "border-strong light"
       },
       "500": {
-        "$value": "oklch(0.600 0.012 85)",
+        "$value": "oklch(0.520 0.012 85)",
         "$type": "color",
-        "$description": "muted text light"
+        "$description": "muted text light — 4.5:1 AA floor against every light surface (design-system#13); was 0.600 (3.41:1 on the worst surface)"
       },
       "600": { "$value": "oklch(0.450 0.015 85)", "$type": "color" },
       "700": { "$value": "oklch(0.320 0.018 85)", "$type": "color" },

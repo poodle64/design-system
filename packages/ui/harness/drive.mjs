@@ -588,22 +588,18 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 					measured.activeInk >= 4.5,
 					`${measured.activeInk}:1 (needs 4.5)`
 				);
-				// Recorded rather than asserted, and the distinction is the point.
-				// This is a genuine AA failure — 3.62:1 in light mode — but it is not
-				// #11's: it is identical under all three palettes because no consumer
-				// colour is involved at all. The resting label is painted in
-				// `--ds-color-muted-foreground`, which is below the text floor on
-				// every light surface the token package defines, and correcting it
-				// darkens secondary text in every app. That is a token-package look
-				// decision with estate-wide reach, tracked as #13, not an adjacent
-				// one-liner to fold in here. It is measured on every run so the number
-				// stays in front of whoever picks #13 up, and it becomes an assertion
-				// the moment the token moves.
-				checks.push({
-					name: `${where}: resting nav label (recorded — #13, not gated here)`,
-					ok: true,
-					detail: `${measured.restingInk}:1 against a 4.5 floor${measured.restingInk >= 4.5 ? '' : ' — BELOW AA, see #13'}`
-				});
+				// Asserted since #13 moved the token (was recorded-only: the resting
+				// label is painted in `--ds-color-muted-foreground`, which was below
+				// the text floor on every light surface the token package defines —
+				// identical under all three palettes here because no consumer colour
+				// is involved at all, unlike #11's active-label case above). #13
+				// corrected the token package's own value; this is what pins it so it
+				// cannot drift back.
+				check(
+					`${where}: resting nav label clears AA`,
+					measured.restingInk >= 4.5,
+					`${measured.restingInk}:1 against a 4.5 floor`
+				);
 				if (measured.badgeInk !== null) {
 					// A count badge is text on a tint, so it carries the text floor too —
 					// and it sits on the active row's tint as well as its own.
