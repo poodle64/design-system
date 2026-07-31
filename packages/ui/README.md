@@ -74,7 +74,7 @@ the one-owner-per-key note below). It becomes a candidate the day two apps want
 the same chart palette; until then a shared chart component would be a shared
 disagreement.
 
-**Composed components** (16). Primitives are not what makes an app look like an
+**Composed components** (20). Primitives are not what makes an app look like an
 app — the page chrome is. These are the cross-cutting surfaces every route
 composes from, so a household app gets its layout language from the package
 rather than rebuilding it:
@@ -89,7 +89,11 @@ rather than rebuilding it:
 | `dialog-section` | One section of a dialogue body; adjacent sections are divided automatically. |
 | `stat-card` | A single metric that earns its space (label, value, unit, sub, status dot, and `valueTone` to colour the figure itself). |
 | `stat-list` | A route's low-context integers as a label→value list. Zero-aware: `muted` keeps a healthy zero quiet. |
-| `status` / `status-badge` | The fixed five-state vocabulary (`success \| warning \| error \| info \| neutral`) and the one state chip, with `pulse` for a state still in motion and `class` for placement. |
+| `arc-gauge` | A radial capacity/percentage ring for a single 0–100 metric, in a footprint too compact for a `stat-card`. |
+| `bar-row` | A labelled horizontal bar with a trailing tabular value, for a ranked list (usage, rank, token burn). |
+| `scorecard` | A compact 0/1/2 dot-row health strip for several independent checks read at a glance. |
+| `sparkline` | An inline multi-series area+line trend for a row or card with room for a trend but not a full chart. |
+| `status` / `status-badge` | The fixed five-state vocabulary (`success \| warning \| error \| info \| neutral`) and the one state chip, with `pulse` for a state still in motion and `class` for placement. `status-badge` alone also accepts `'primary'`, a brand-emphasis extension outside the shared vocabulary — `stat-card`, `stat-list` and `data-table-toolbar` never see it. |
 | `empty-state` / `error-state` / `loading-state` | The shared blank, error and loading surfaces. Never hand-roll one. |
 | `info-tip` | One tooltip pattern: a small info trigger, or wrap an existing affordance as children. |
 | `data-table-toolbar` | Search field plus filter-chip groups for a TanStack table. Owns no state; fires callbacks. |
