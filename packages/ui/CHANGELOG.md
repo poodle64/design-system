@@ -2,13 +2,31 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
-## [Unreleased]
+## [2026.8.0] - 2026-08-01
 
 ### Removed
 
 - **BREAKING: `AppShell`'s `variant` (`'rail' | 'header'`) and `content` (`'full' | 'wide' | 'standard' | 'prose'`) props are removed.** Operator ruling, 31/07/2026: every household app renders one shell shape, a permanent side rail/drawer carrying primary navigation plus a real top navbar (search, leading/actions, theme, identity), content always full-width. A consumer passing either prop gets a `svelte-check` type error on bump; delete the prop, nothing else changes. This supersedes the `content="standard"`→`"prose"` alias work landed in 2026.7.11 — that whole content-ceiling mechanism is gone.
 - **Identity placement**: `identity` now renders exactly once, at the end of the top navbar's trailing slot (previously the `variant="header"` position). The brief for this change also listed "identity foot" as part of the rail behaviour being kept — taken literally that would render the same consumer-supplied `identity` snippet in two chrome regions at once, which conflicts with this component's own established, tested principle of never rendering a consumer slot twice (duplicated `id`s, test hooks, and interactive controls). Resolved by keeping `identity` in the top bar only and dropping it from the rail foot entirely. An app that relied on `variant="rail"` rendering identity in the rail foot will see it move to the top bar on bump.
 - The top navbar now always renders with its full border/background/chrome — previously a near-empty "ghost strip" under `variant="rail"` on desktop, since it carried no identity and no visible nav. This is a visual change for every current `variant="rail"` consumer even though no prop of theirs needs editing.
+- The two `styles.css` classes the composition change orphaned are deleted: `.ds-shell-panel` (the old header-variant mobile disclosure panel, with its `ds-panel-in` keyframes and its reduced-motion and chrome-ink selector entries) and `.ds-nav-horizontal` (the top-bar nav row's underline indicator and gap override). No component has rendered either class since the props were removed; the comment and README prose describing the horizontal underline and the disclosure panel are corrected with them. Nothing sanctioned styles against these classes, so no consumer loses behaviour it was entitled to.
+
+### Consumer impact
+
+Checked against every household frontend's actual `<AppShell` call site at release: ten call sites across nine apps (milton has two layouts). "Fix at bump" is the whole code change; everything else is behaviour the shell now provides without being asked.
+
+| App (layout) | Passes today | Fix at bump | What changes on screen |
+| --- | --- | --- | --- |
+| earworm | `variant="header"`, `content="wide"` | delete both props | nav moves into the new permanent rail; the 120rem content cap is gone (full-width) |
+| eight | `variant="rail"`, `content="full"` | delete both props | top navbar gains its full chrome (was the ghost strip); content already full-width |
+| fixxxer | `variant="header"`, `content="standard"` | delete both props | gains the rail; the 80rem cap is gone (full-width) |
+| mission-command | `variant="rail"`, `content="standard"` | delete both props | navbar gains full chrome; the 80rem cap is gone; `identity` moves from the rail foot to the top bar |
+| seshat | `variant="header"`, `content="standard"` | delete both props | gains the rail; the 80rem cap is gone (full-width) |
+| godswood (protected) | neither prop | none | navbar gains full chrome; `identity` moves from the rail foot to the top bar |
+| milton (admin) | neither prop | none | navbar gains full chrome; `identity` moves from the rail foot to the top bar |
+| milton (protected) | `variant="header"` | delete the prop | gains the rail; `identity` already in the top bar |
+| portcullis (app) | neither prop | none | navbar gains full chrome; `identity` moves from the rail foot to the top bar |
+| tapestry | `variant="rail"` | delete the prop | navbar gains full chrome; `identity` moves from the rail foot to the top bar |
 
 ## [2026.7.11] - 2026-07-31
 
