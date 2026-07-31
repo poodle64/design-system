@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Status } from '../status/index.js';
 	import type { Component } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
+	import { cn, type WithElementRef } from '$lib/utils.js';
 
 	// A single metric, reserved for a figure that earns the space with real
 	// context. A bare integer belongs in a StatList.
@@ -11,8 +13,11 @@
 		sub,
 		status,
 		valueTone,
-		icon: Icon
-	}: {
+		icon: Icon,
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		label: string;
 		value: string | number;
 		unit?: string;
@@ -39,7 +44,11 @@
 	} = $props();
 </script>
 
-<div class="bg-card border-border ds-edge flex flex-col gap-1.5 rounded-lg border p-4">
+<div
+	bind:this={ref}
+	class={cn('bg-card border-border ds-edge flex flex-col gap-1.5 rounded-lg border p-4', className)}
+	{...restProps}
+>
 	<div class="flex items-center gap-2">
 		{#if Icon}
 			<Icon class="text-muted-foreground size-4" />

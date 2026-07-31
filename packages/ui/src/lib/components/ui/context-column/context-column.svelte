@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
+	import { cn, type WithElementRef } from '$lib/utils.js';
 	import StatList from '../stat-list/stat-list.svelte';
 	import type { StatItem } from '../stat-list/stat-list.svelte';
 
@@ -22,17 +24,30 @@
 		stats,
 		statsTitle = 'At a glance',
 		statsInfo,
-		detail
-	}: {
+		detail,
+		/** The landmark's accessible name. `<aside>` with no name is exposed as
+		    "complementary" alone — set this to identify which one. */
+		ariaLabel,
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLElement>> & {
 		stats: StatItem[];
 		statsTitle?: string;
 		statsInfo?: string;
 		detail?: Snippet;
+		ariaLabel?: string;
 	} = $props();
 </script>
 
 <aside
-	class="hidden max-h-full min-h-0 w-[clamp(360px,28vw,460px)] shrink-0 flex-col gap-5 xl:flex"
+	bind:this={ref}
+	aria-label={ariaLabel}
+	class={cn(
+		'hidden max-h-full min-h-0 w-[clamp(360px,28vw,460px)] shrink-0 flex-col gap-5 xl:flex',
+		className
+	)}
+	{...restProps}
 >
 	<StatList items={stats} title={statsTitle} info={statsInfo} />
 	{#if detail}

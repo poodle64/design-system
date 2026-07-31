@@ -247,6 +247,41 @@ describe('AppShell — mobile navigation (header variant)', () => {
 	});
 });
 
+describe('AppShell — navLabel (design-system#14)', () => {
+	// #14: AppNav's own `label` defaults to "Primary" but AppShell never
+	// forwarded it, so a consumer replacing their own labelled landmark with the
+	// shared shell silently lost the name. Asserted at every place the primary
+	// nav actually renders — not just the one the existing "Primary" count check
+	// already covers — since AppShell renders it three different ways depending
+	// on variant and viewport state.
+	it('defaults to "Primary", unchanged, when not set', () => {
+		render(ShellHarness);
+		expect(document.querySelectorAll('nav[aria-label="Primary"]')).toHaveLength(1);
+	});
+
+	it('renames the rail/drawer landmark', () => {
+		render(ShellHarness, { props: { navLabel: 'Section nav' } });
+		expect(document.querySelectorAll('nav[aria-label="Section nav"]')).toHaveLength(1);
+		expect(document.querySelectorAll('nav[aria-label="Primary"]')).toHaveLength(0);
+	});
+
+	it('renames the header variant’s inline horizontal nav', () => {
+		render(ShellHarness, { props: { variant: 'header', navLabel: 'Section nav' } });
+		expect(document.querySelector('nav.ds-nav-horizontal')).toHaveAttribute(
+			'aria-label',
+			'Section nav'
+		);
+	});
+
+	it('renames the header variant’s mobile disclosure panel’s nav', async () => {
+		render(ShellHarness, { props: { variant: 'header', navLabel: 'Section nav' } });
+		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
+		const panel = await screen.findByTestId('ds-shell-panel');
+
+		expect(panel.querySelector('nav')).toHaveAttribute('aria-label', 'Section nav');
+	});
+});
+
 describe('AppShell — the toggle and the region it opens are related (#12)', () => {
 	// A fair jsdom claim, and the reason it is here rather than in the harness:
 	// this is a DOM RELATIONSHIP, not a resolved style. `aria-expanded` already

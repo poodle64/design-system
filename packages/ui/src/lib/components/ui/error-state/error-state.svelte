@@ -1,15 +1,21 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
 	import AlertCircle from '@lucide/svelte/icons/circle-alert';
-	import { cn } from '$lib/utils.js';
+	import { cn, type WithElementRef } from '$lib/utils.js';
 
-	interface Props {
+	type Props = WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		message: string;
 		action?: Snippet;
-		class?: string;
-	}
+	};
 
-	let { message, action, class: className }: Props = $props();
+	let {
+		message,
+		action,
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: Props = $props();
 </script>
 
 <!--
@@ -27,12 +33,14 @@
 	untested by that matrix — see harness/drive.md.
 -->
 <div
+	bind:this={ref}
 	class={cn(
 		'bg-card border-destructive/40 ds-edge flex flex-col items-center justify-center rounded-lg border p-8 text-center',
 		className
 	)}
 	role="alert"
 	aria-live="assertive"
+	{...restProps}
 >
 	<div class="bg-destructive/10 mb-4 rounded-full p-3">
 		<AlertCircle class="text-destructive size-6" aria-hidden="true" />

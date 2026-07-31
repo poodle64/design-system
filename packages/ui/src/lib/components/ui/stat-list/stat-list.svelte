@@ -16,6 +16,8 @@
 </script>
 
 <script lang="ts">
+	import type { HTMLAttributes } from 'svelte/elements';
+	import type { WithElementRef } from '$lib/utils.js';
 	import InfoTip from '../info-tip/info-tip.svelte';
 
 	// The standing metric card for the right-hand context column: a route's
@@ -27,12 +29,20 @@
 		items,
 		title = 'At a glance',
 		info,
-		class: klass = ''
-	}: { items: StatItem[]; title?: string; info?: string; class?: string } = $props();
+		class: klass = '',
+		ref = $bindable(null),
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLElement>> & {
+		items: StatItem[];
+		title?: string;
+		info?: string;
+	} = $props();
 </script>
 
 <section
+	bind:this={ref}
 	class="bg-card border-border ds-edge flex shrink-0 flex-col overflow-hidden rounded-lg border {klass}"
+	{...restProps}
 >
 	<header class="border-border flex items-center gap-2 border-b px-4 py-3">
 		<h2 class="text-body leading-tight font-semibold tracking-tight">{title}</h2>

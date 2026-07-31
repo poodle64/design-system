@@ -1,23 +1,33 @@
 <script lang="ts">
 	import type { Snippet, Component } from 'svelte';
-	import { cn } from '$lib/utils.js';
+	import type { HTMLAttributes } from 'svelte/elements';
+	import { cn, type WithElementRef } from '$lib/utils.js';
 
-	interface Props {
+	type Props = WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		icon?: Component<{ class?: string }>;
 		title: string;
 		description?: string;
 		action?: Snippet;
-		class?: string;
-	}
+	};
 
-	let { icon: Icon, title, description, action, class: className }: Props = $props();
+	let {
+		icon: Icon,
+		title,
+		description,
+		action,
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: Props = $props();
 </script>
 
 <div
+	bind:this={ref}
 	class={cn(
 		'bg-card border-border ds-edge flex flex-col items-center justify-center rounded-lg border p-8 text-center',
 		className
 	)}
+	{...restProps}
 >
 	{#if Icon}
 		<div class="bg-muted mb-4 rounded-full p-3">

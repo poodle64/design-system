@@ -43,6 +43,7 @@
 
 	let {
 		nav,
+		navLabel = 'Primary',
 		currentPath,
 		variant = 'rail',
 		collapsible = false,
@@ -68,6 +69,11 @@
 	}: {
 		/** Navigation: bare items, groups, or a mix. Filter for permissions first. */
 		nav?: NavSource;
+		/** The primary nav landmark's accessible name — forwarded to AppNav
+		    (rail, drawer, and the header disclosure panel) and to the inline
+		    horizontal nav under variant="header". Distinguish it from a second
+		    shell on the same page, or from a route-scoped secondary AppNav. */
+		navLabel?: string;
 		/**
 		 * The current path, for active state and for closing the mobile nav on
 		 * navigation. Apps pass `page.url.pathname`.
@@ -320,6 +326,7 @@
 				{nav}
 				{currentPath}
 				collapsed={railCollapsed}
+				label={navLabel}
 				onNavigate={() => (mobileNavOpen = false)}
 			/>
 
@@ -386,7 +393,7 @@
 			{#if !isRail && hasNav}
 				<nav
 					class="ds-nav ds-nav-horizontal hidden min-w-0 items-center gap-1 overflow-x-auto md:flex"
-					aria-label="Primary"
+					aria-label={navLabel}
 				>
 					{#each toItems(nav) as item (item.href)}
 						{@const active = isNavItemActive(item, currentPath)}
@@ -466,6 +473,7 @@
 					{nav}
 					{currentPath}
 					class="max-h-[60vh] py-2"
+					label={navLabel}
 					bind:firstLink={overlayFirstFocus}
 					onNavigate={() => (mobileNavOpen = false)}
 				/>

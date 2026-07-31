@@ -12,8 +12,14 @@
 	let {
 		variant = 'rail',
 		currentPath = $bindable('/overview'),
-		collapsible = false
-	}: { variant?: 'rail' | 'header'; currentPath?: string; collapsible?: boolean } = $props();
+		collapsible = false,
+		navLabel
+	}: {
+		variant?: 'rail' | 'header';
+		currentPath?: string;
+		collapsible?: boolean;
+		navLabel?: string;
+	} = $props();
 
 	const nav: NavSource = [
 		{ label: 'Overview', href: '/overview', icon: Package },
@@ -41,6 +47,7 @@
 
 <AppShell
 	{nav}
+	{navLabel}
 	{variant}
 	{currentPath}
 	{collapsible}

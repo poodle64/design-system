@@ -309,3 +309,42 @@ describe('PageHeader / Panel', () => {
 		expect(screen.getByText('Panel body')).toBeInTheDocument();
 	});
 });
+
+// design-system#14: an adopting app cannot name a landmark or tag an element it
+// must identify. Asserted on the root element each component actually renders,
+// not on the fact that a prop was accepted — a `class`/`id`/`data-testid` that
+// reaches the wrong element (or nowhere) would pass a shallower check.
+describe('rest props (design-system#14)', () => {
+	it('PageHeader forwards id/data-testid/class to its root, alongside its own classes', () => {
+		render(ChromeHarness);
+		const root = screen.getByTestId('page-header-root');
+		expect(root.id).toBe('page-header-root');
+		expect(root.className).toContain('ring-1');
+		// The component's own layout class survives — restProps augments, it does
+		// not replace.
+		expect(root.className).toContain('mb-6');
+	});
+
+	it('StatCard, StatList, Panel, DetailPanel, EmptyState, ErrorState and LoadingState all carry a data-testid on their actual root', () => {
+		render(ChromeHarness);
+		for (const testId of [
+			'stat-card-root',
+			'stat-list-root',
+			'panel-root',
+			'detail-panel-root',
+			'empty-state-root',
+			'error-state-root',
+			'loading-state-root'
+		]) {
+			expect(screen.getByTestId(testId)).toBeInTheDocument();
+		}
+	});
+
+	it('ContextColumn takes ariaLabel, so its <aside> is a named landmark rather than a bare "complementary"', () => {
+		render(ChromeHarness);
+		// Queryable by role+name is the actual accessibility-tree claim; a bare
+		// data-testid check would pass on an <aside> with no name at all.
+		const region = screen.getByRole('complementary', { name: 'Record context' });
+		expect(region).toHaveAttribute('data-testid', 'context-column-root');
+	});
+});

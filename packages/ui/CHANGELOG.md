@@ -4,6 +4,12 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- **`PageHeader`, `StatCard`, `StatList`, `Panel`, `DetailPanel`, `ContextColumn`, `EmptyState`, `ErrorState` and `LoadingState` now spread rest props onto their root element** (design-system#14) — `class`, `id`, `aria-*`, `data-*`, and anything else an adopting app needs to identify or style an element, exactly as the primitives (`Card`, `Button`, `Table.Root`, …) already do. `class` merges with the component's own layout classes (`cn()`) rather than replacing them; every other attribute passes straight through. Each also carries a bindable `ref` to the root element, matching the primitives' idiom. Fully additive: a caller passing nothing sees no change.
+- **`ContextColumn` takes `ariaLabel`.** Its `<aside>` had no accessible name, so it was exposed as a bare "complementary" landmark with no way for an app to distinguish it from any other. Additive; omitting it is unchanged from today.
+- **`AppShell` takes `navLabel`** (defaults to `"Primary"`, matching today's behaviour), forwarded to every place the primary nav landmark renders: the rail/drawer `AppNav`, the header variant's inline horizontal nav, and the header variant's mobile disclosure panel's `AppNav`. Previously `AppNav`'s own `label` prop existed but `AppShell` never forwarded it, so an app replacing its own labelled landmark with the shared shell silently lost the name.
+
 ### Changed
 
 - The resting nav label's AA contrast check in `harness/drive.mjs` flips from recorded to asserted (design-system#13, fixed upstream in `@poodle64/design-tokens`'s `muted-foreground` token): now 5.03–5.08:1 in light mode, 6.53–6.58:1 in dark, against the shell chrome surface — was 3.62:1 in light mode before the token moved.

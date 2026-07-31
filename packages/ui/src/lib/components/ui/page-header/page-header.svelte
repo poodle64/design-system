@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
+	import { cn, type WithElementRef } from '$lib/utils.js';
 	import InfoTip from '../info-tip/info-tip.svelte';
 
 	/**
@@ -32,8 +34,11 @@
 		title,
 		subtitle,
 		info,
-		actions
-	}: {
+		actions,
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		/** A short kicker above the title. Use this OR `breadcrumbs`, not both. */
 		eyebrow?: string;
 		/** The trail above the title — the app's own routed links. */
@@ -46,7 +51,11 @@
 	} = $props();
 </script>
 
-<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+<div
+	bind:this={ref}
+	class={cn('mb-6 flex flex-wrap items-start justify-between gap-4', className)}
+	{...restProps}
+>
 	<div class="min-w-0">
 		{#if breadcrumbs}
 			<div class="text-muted-foreground mb-1.5 flex min-w-0 items-center text-sm">

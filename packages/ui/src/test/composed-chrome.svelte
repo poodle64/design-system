@@ -32,6 +32,9 @@
 	title="Chrome harness"
 	subtitle="One line, clamped."
 	info="Explains the page."
+	id="page-header-root"
+	data-testid="page-header-root"
+	class="ring-1"
 >
 	{#snippet actions()}
 		<button type="button">Primary action</button>
@@ -63,6 +66,8 @@
 		{ label: 'Failed', value: 0, muted: true, status: 'error' }
 	]}
 	statsInfo="What these count."
+	ariaLabel="Record context"
+	data-testid="context-column-root"
 >
 	{#snippet detail()}
 		{#if showDetail}
@@ -72,6 +77,7 @@
 				status="warning"
 				statusLabel="Expiring"
 				onClose={() => (panelClosed = true)}
+				data-testid="detail-panel-root"
 			>
 				<p>Detail body</p>
 				{#snippet footer()}
@@ -90,19 +96,23 @@
 	<p>Unlabelled status body</p>
 </DetailPanel>
 
-<EmptyState title="Nothing yet" description="Add the first one.">
+<EmptyState
+	title="Nothing yet"
+	description="Add the first one."
+	data-testid="empty-state-root"
+>
 	{#snippet action()}
 		<button type="button" onclick={() => (emptyActionFired = true)}>Create</button>
 	{/snippet}
 </EmptyState>
 
-<ErrorState message="Could not load the estate.">
+<ErrorState message="Could not load the estate." data-testid="error-state-root">
 	{#snippet action()}
 		<button type="button" onclick={() => (errorActionFired = true)}>Retry</button>
 	{/snippet}
 </ErrorState>
 
-<LoadingState message="Fetching records…" />
+<LoadingState message="Fetching records…" data-testid="loading-state-root" />
 
 <InfoTip text="Standalone hint" />
 <InfoTip text="Wrapping hint">
@@ -128,7 +138,14 @@
      from "synced" without adding a sixth word to a closed vocabulary; `class` is
      placement, which only the call site knows. -->
 <StatusBadge status="info" label="Syncing" pulse class="ml-auto self-start" />
-<StatCard label="Sessions" value={12} unit="live" sub="last hour" status="info" />
+<StatCard
+	label="Sessions"
+	value={12}
+	unit="live"
+	sub="last hour"
+	status="info"
+	data-testid="stat-card-root"
+/>
 <!-- The feed is healthy (status) and the number is a loss (valueTone). Two
      different claims about the same card, which is why they are two props. -->
 <StatCard label="Realised" value="-1,204.55" unit="AUD" status="success" valueTone="error" />
@@ -138,8 +155,9 @@
 		{ label: 'Warm', value: 4, status: 'success' },
 		{ label: 'Cold', value: 0, status: 'error', muted: true }
 	]}
+	data-testid="stat-list-root"
 />
-<Panel title="Panel title" subtitle="Panel subtitle">
+<Panel title="Panel title" subtitle="Panel subtitle" data-testid="panel-root">
 	<p>Panel body</p>
 </Panel>
 

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { Snippet, Component } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
+	import type { WithElementRef } from '$lib/utils.js';
 
 	// The generic titled card. Where DetailPanel is the *entity* surface (and owns
 	// a status and a close affordance), Panel is the plain sectioning card any
@@ -12,20 +14,23 @@
 		action,
 		children,
 		pad = true,
-		class: klass = ''
-	}: {
+		class: klass = '',
+		ref = $bindable(null),
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLElement>> & {
 		title?: string;
 		subtitle?: string;
 		icon?: Component<{ class?: string }>;
 		action?: Snippet;
 		children: Snippet;
 		pad?: boolean;
-		class?: string;
 	} = $props();
 </script>
 
 <section
+	bind:this={ref}
 	class="bg-card border-border ds-edge flex flex-col overflow-hidden rounded-lg border {klass}"
+	{...restProps}
 >
 	{#if title}
 		<header class="border-border flex items-center gap-2.5 border-b px-4 py-3">

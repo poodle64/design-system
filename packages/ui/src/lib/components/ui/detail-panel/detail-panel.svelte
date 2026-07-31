@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { Snippet, Component } from 'svelte';
+	import type { HTMLAttributes } from 'svelte/elements';
+	import { cn, type WithElementRef } from '$lib/utils.js';
 	import X from '@lucide/svelte/icons/x';
 	import StatusBadge from '../status-badge/status-badge.svelte';
 	import type { Status } from '../status/index.js';
@@ -12,8 +14,11 @@
 		statusLabel,
 		children,
 		footer,
-		onClose
-	}: {
+		onClose,
+		ref = $bindable(null),
+		class: className,
+		...restProps
+	}: WithElementRef<HTMLAttributes<HTMLElement>> & {
 		eyebrow?: string;
 		title: string;
 		icon?: Component<{ class?: string }>;
@@ -28,7 +33,12 @@
 <!-- A card that fills the remaining height of the right-hand ContextColumn; the
      column owns width and placement, this owns the entity's detail. -->
 <section
-	class="bg-card border-border ds-edge flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border"
+	bind:this={ref}
+	class={cn(
+		'bg-card border-border ds-edge flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border',
+		className
+	)}
+	{...restProps}
 >
 	<header class="border-border flex items-start gap-3 border-b px-4 py-3.5">
 		{#if Icon}
