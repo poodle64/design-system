@@ -26,7 +26,7 @@ Non-negotiable across every household app. Per-app exceptions are not permitted 
 | ------------------ | ----------------------------------------------------- |
 | Corner radius base | `0.625rem` (`--ds-radius-lg`)                         |
 | Display font       | Fraunces                                              |
-| Body font          | Hanken Grotesk                                        |
+| Body font          | Avenir Next (Apple system font), else Hanken Grotesk Variable |
 | Code / data font   | JetBrains Mono                                        |
 | Status vocabulary  | `success` / `warning` / `error` / `info` / `neutral`  |
 | Eyebrow size       | `text-2xs` (`--ds-text-2xs`) — never `text-[11px]`    |
@@ -77,7 +77,7 @@ TypeScript:
 import { DS_COLOR_STATUS_SUCCESS_LIGHT } from '@poodle64/design-tokens';
 ```
 
-Fonts are self-hosted per app — add `@fontsource-variable/fraunces`, `@fontsource-variable/hanken-grotesk`, and `@fontsource-variable/jetbrains-mono` and import them in the root layout. The package declares the family stacks; the app supplies the font files.
+Fonts are self-hosted per app: add `@fontsource-variable/fraunces`, `@fontsource-variable/hanken-grotesk`, and `@fontsource-variable/jetbrains-mono` and import them in the root layout. The package declares the family stacks; the app supplies the font files. The body face leads with Avenir Next, Apple's own system font; it needs no package (never bundled, not licensable for web embedding) and simply renders on a device that already has it, falling through to the self-hosted Hanken Grotesk Variable everywhere else.
 
 ## Per-app customisation
 

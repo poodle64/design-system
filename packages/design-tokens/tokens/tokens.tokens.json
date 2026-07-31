@@ -188,9 +188,9 @@
         "$description": "Display/headings — Fraunces variable (optical-size axis). Page titles, wordmarks, empty-state headings."
       },
       "body": {
-        "$value": "'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, sans-serif",
+        "$value": "'Avenir Next', 'Hanken Grotesk', 'Hanken Grotesk Variable', ui-sans-serif, system-ui, -apple-system, sans-serif",
         "$type": "fontFamily",
-        "$description": "UI / body copy — Hanken Grotesk. Everything textual: labels, buttons, descriptions, table cells, nav."
+        "$description": "UI / body copy. Local-font-first: Avenir Next is Apple's own system face and is not licensable for web embedding, so it is never bundled or vendored here; an Apple device already has it installed and renders it directly. Every other platform has no local match for that exact name and falls through to the self-hosted Hanken Grotesk Variable (`@fontsource-variable/hanken-grotesk`), unchanged from before this token gained a local-font lead. Everything textual: labels, buttons, descriptions, table cells, nav."
       },
       "code": {
         "$value": "'JetBrains Mono', 'JetBrains Mono Variable', ui-monospace, 'SF Mono', monospace",

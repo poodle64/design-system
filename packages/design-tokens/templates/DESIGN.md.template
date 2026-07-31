@@ -11,7 +11,7 @@
 #
 # Binding invariants (no per-app exception):
 #   corner radius base: 0.625rem (--ds-radius-lg)
-#   fonts: Fraunces (display), Hanken Grotesk (body), JetBrains Mono (code)
+#   fonts: Fraunces (display), Avenir Next -> Hanken Grotesk Variable (body), JetBrains Mono (code)
 #   status vocabulary: success / warning / error / info / neutral
 #   colour space: oklch
 #   CSS namespace: --ds-*
@@ -56,13 +56,15 @@ primary:
 
 # ---------------------------------------------------------------------------
 # Typography (OPTIONAL override notes only — families are binding).
-# Families: Fraunces (display), Hanken Grotesk (body), JetBrains Mono (code).
-# These cannot be changed per app. Notes here are for scale or usage intent.
+# Families: Fraunces (display), Avenir Next -> Hanken Grotesk Variable (body),
+# JetBrains Mono (code). These cannot be changed per app. Notes here are for
+# scale or usage intent.
 # ---------------------------------------------------------------------------
 typography:
   notes: >-
     Page titles use Fraunces display-l (1.75rem/600/-0.02em).
-    Body defaults to Hanken Grotesk body (0.9375rem/1.4).
+    Body defaults to the body face at 0.9375rem/1.4: Avenir Next on Apple
+    devices, Hanken Grotesk Variable everywhere else.
     Any machine-produced value (ID, timestamp, amount) uses JetBrains Mono.
 
 # ---------------------------------------------------------------------------
@@ -165,7 +167,7 @@ Three faces, each with one job. Families are binding; do not substitute.
 | Role | Family | Used for |
 | --- | --- | --- |
 | **Display** | Fraunces | Page titles, wordmarks, empty-state headings, large readouts |
-| **Body / UI** | Hanken Grotesk | Everything textual: labels, descriptions, table cells, buttons, nav |
+| **Body / UI** | Avenir Next, else Hanken Grotesk Variable | Everything textual: labels, descriptions, table cells, buttons, nav |
 | **Data / Mono** | JetBrains Mono | Machine-produced values only: IDs, hashes, ISO dates, amounts, counts |
 
 Scale (fill in the values the app actually uses; delete roles that do not apply):

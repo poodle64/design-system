@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [Unreleased]
+
+### Changed
+
+- **`font.body` (`--ds-font-body`) leads with Avenir Next.** Operator ruling, 31/07/2026: the stack is now `'Avenir Next', 'Hanken Grotesk', 'Hanken Grotesk Variable', ui-sans-serif, system-ui, -apple-system, sans-serif`. Avenir Next is Apple's own system face and is not licensable for web embedding, so it is never bundled or vendored by this package; an Apple device already has it installed and renders it locally, with zero build cost. Every non-Apple platform has no local match for that exact name and falls straight through to the self-hosted variable font, exactly as before this change. Confirmed against Fontsource's own install docs that `@fontsource-variable/hanken-grotesk` registers the family as `Hanken Grotesk Variable`, not plain `Hanken Grotesk`; the plain name is kept ahead of it only as a fallback for a machine with the static cut installed as a system font, mirroring this same token file's existing `font.code` (`JetBrains Mono` / `JetBrains Mono Variable`) pattern.
+
 ## [2026.7.4] - 2026-07-31
 
 ### Added
