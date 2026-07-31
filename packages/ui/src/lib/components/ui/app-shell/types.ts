@@ -39,6 +39,19 @@ export interface NavItem {
 	exact?: boolean;
 	/** Open in a new tab. Renders the standard rel and an off-site affordance. */
 	external?: boolean;
+	/**
+	 * Additional path prefixes this item also owns, beyond its own `href`.
+	 *
+	 * Flat navigation has every section's children living under the section's
+	 * own path, which `href`'s prefix match already covers. It breaks for a
+	 * section whose children live under a different top-level route — a
+	 * "browse" list whose detail pages sit at their own short URL rather than
+	 * nested under the list. Each prefix here is matched exactly like `href`
+	 * is (prefix, with the same path-segment boundary), independently of
+	 * `exact` and independently of `href` being forced to exact at `/`: a root
+	 * item can still claim an additional prefix by full path match.
+	 */
+	matchPrefixes?: string[];
 }
 
 /** A titled run of items. The heading is optional — a leading group usually has none. */
@@ -92,15 +105,26 @@ export function toItems(nav: NavSource | undefined): NavItem[] {
 	return nav.flatMap((entry) => (isNavGroup(entry) ? entry.items : [entry]));
 }
 
+/** Prefix-match `path` against `prefix`, without running past a path segment. */
+function matchesPrefix(path: string, prefix: string): boolean {
+	return path === prefix || path.startsWith(prefix + '/');
+}
+
 /**
  * Whether `item` is the current page.
  *
  * Prefix matching is what makes a section root stay lit on its children; the
  * `+ '/'` is what stops `/audit` lighting up on `/audit-log`. A root href is
- * forced to exact or it would match every path in the app.
+ * forced to exact or it would match every path in the app — but that forcing
+ * applies only to `href` itself; `matchPrefixes` is always prefix-matched, so
+ * a root item can still claim a second, unrelated section by full path.
  */
 export function isNavItemActive(item: NavItem, currentPath: string | undefined): boolean {
 	if (!currentPath) return false;
-	if (item.exact || item.href === '/') return currentPath === item.href;
-	return currentPath === item.href || currentPath.startsWith(item.href + '/');
+	const ownMatch =
+		item.exact || item.href === '/'
+			? currentPath === item.href
+			: matchesPrefix(currentPath, item.href);
+	if (ownMatch) return true;
+	return (item.matchPrefixes ?? []).some((prefix) => matchesPrefix(currentPath, prefix));
 }

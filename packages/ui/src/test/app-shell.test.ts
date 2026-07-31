@@ -552,6 +552,58 @@ describe('the navigation vocabulary', () => {
 	it('marks nothing active when the app supplies no path', () => {
 		expect(isNavItemActive({ label: 'A', href: '/a' }, undefined)).toBe(false);
 	});
+
+	describe('matchPrefixes (design-system#10)', () => {
+		it('lights a root item on an additional prefix, the case exact-forcing otherwise makes unreachable', () => {
+			const root = { label: 'Home', href: '/', matchPrefixes: ['/people'] };
+			// href stays exact for itself — unaffected by the additional prefix.
+			expect(isNavItemActive(root, '/')).toBe(true);
+			expect(isNavItemActive(root, '/anything')).toBe(false);
+			// The additional prefix is prefix-matched, not exact.
+			expect(isNavItemActive(root, '/people')).toBe(true);
+			expect(isNavItemActive(root, '/people/42')).toBe(true);
+		});
+
+		it('lights a non-root item on an additional prefix too', () => {
+			const item = { label: 'Browse', href: '/browse', matchPrefixes: ['/subjects'] };
+			expect(isNavItemActive(item, '/browse/anything')).toBe(true);
+			expect(isNavItemActive(item, '/subjects')).toBe(true);
+			expect(isNavItemActive(item, '/subjects/42')).toBe(true);
+		});
+
+		it('does not let an additional prefix match run past a path segment either', () => {
+			const item = { label: 'Browse', href: '/browse', matchPrefixes: ['/subjects'] };
+			expect(isNavItemActive(item, '/subjects-archive')).toBe(false);
+		});
+
+		it('leaves an item with no matchPrefixes exactly as before', () => {
+			const item = { label: 'Audit', href: '/audit' };
+			expect(isNavItemActive(item, '/audit/42')).toBe(true);
+			expect(isNavItemActive(item, '/elsewhere')).toBe(false);
+		});
+	});
+});
+
+describe('AppShell — mobile-drawer close is unaffected by matchPrefixes (design-system#10)', () => {
+	// #10's own constraint: the trap a consumer would otherwise reach for is
+	// passing a doctored currentPath to fake the highlight, which quietly
+	// breaks this close-on-navigate effect because it reads the same prop.
+	// matchPrefixes only changes isNavItemActive's own verdict, never
+	// currentPath handling, so this must still fire on every path change,
+	// including a change onto a path an item claims only via matchPrefixes.
+	it('still closes on any currentPath change, independent of which item lights', async () => {
+		const { rerender } = render(ShellHarness, { props: { currentPath: '/overview' } });
+		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
+		await waitFor(() => expect(screen.getByTestId('ds-shell-drawer')).toBeInTheDocument());
+
+		// The harness's own nav has no matchPrefixes item, so this proves the
+		// effect fires on the prop alone, not on any active-item recomputation.
+		await rerender({ currentPath: '/identities' });
+
+		await waitFor(() => {
+			expect(screen.queryByTestId('ds-shell-drawer')).not.toBeInTheDocument();
+		});
+	});
 });
 
 /** The element inside `root` whose trimmed text is exactly `text`. */
