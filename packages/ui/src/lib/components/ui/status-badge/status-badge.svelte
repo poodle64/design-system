@@ -11,7 +11,14 @@
 		pulse = false,
 		class: className
 	}: {
-		status: Status;
+		/**
+		 * The shared five-state Status vocabulary, plus `'primary'` — a
+		 * StatusBadge-only extension for brand-emphasis chips (not a health
+		 * state), backed by `.ds-chip-primary`/`.ds-dot-primary`. The shared
+		 * `Status` type itself stays closed at five states; StatCard, StatList
+		 * and DataTableToolbar never see `'primary'`.
+		 */
+		status: Status | 'primary';
 		label: string;
 		/**
 		 * Animate the dot, for a state that is still moving.

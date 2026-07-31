@@ -323,6 +323,12 @@
 	 * Vocabulary: success | warning | error | info | neutral (see the Status type
 	 * exported from @poodle64/ui/status). Consumed by StatusBadge, StatCard,
 	 * StatList and DataTableToolbar.
+	 *
+	 * `-primary` below is the one exception: a StatusBadge-only extension for
+	 * brand-emphasis chips (not a health state), keyed off --ds-color-primary
+	 * rather than a --ds-color-status-* token. It is NOT part of the shared
+	 * five-state vocabulary above — StatCard, StatList and DataTableToolbar
+	 * never see it, and the Status type itself stays closed at five states.
 	 */
 	.ds-chip {
 		display: inline-flex;
@@ -381,6 +387,14 @@
 	}
 	.ds-dot-neutral {
 		background: var(--ds-color-status-neutral);
+	}
+
+	.ds-chip-primary {
+		color: var(--ds-color-primary);
+		background: color-mix(in oklch, var(--ds-color-primary) 14%, transparent);
+	}
+	.ds-dot-primary {
+		background: var(--ds-color-primary);
 	}
 
 	/**
