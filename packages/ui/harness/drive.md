@@ -1,9 +1,9 @@
 # Real-browser verification
 
-Eight surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
+Nine surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
 plus `states` (the async-outcome surfaces), `card` (CardTitle's heading mode),
-`overlays`, `overflow`, `avatar`, `theming` and `detail-panel` — each in its
-own section at the end.
+`overlays`, `overflow`, `avatar`, `theming`, `detail-panel` and `console` (the
+console-dashboard primitives) — each in its own section at the end.
 
 ## Two ways to drive it
 
@@ -556,6 +556,23 @@ class-name half only). Two panels, one per supported setting. Scripted in
 | Default (`titleFace` omitted) resolves the mono/code family | `"JetBrains Mono", "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace` |
 | `titleFace="display"` resolves the display family | `Fraunces, ui-serif, Georgia, serif` |
 | The two settings resolve to different families | asserted directly, not inferred from the two rows above |
+
+## Console-dashboard primitives (`?surface=console`) — design-system#15
+
+The five console-dashboard primitives promoted from mission-command:
+`ArcGauge`, `BarRow`, `Scorecard`, `Sparkline` and `StatusBadge`'s new
+`primary` extension. Most of their claims (which attribute carries which
+literal — an SVG `stroke-dashoffset`, a `.ds-dot-{status}` class, a computed
+point coordinate) need no CSS resolution and are proved under jsdom in
+`src/test/`; only the three claims below need a real cascade, so only those
+are scripted here. Scorecard and Sparkline render on this surface for visual
+completeness but carry no scripted check of their own.
+
+| Claim | Why jsdom cannot make it | Observed |
+| --- | --- | --- |
+| ArcGauge's `stroke` resolves to a real colour per tone (success/warning/error), not the unresolved `var(--ds-color-status-*)` literal | jsdom returns the literal and calls it a pass | three distinct resolved `rgb(...)` values |
+| StatusBadge's new `primary` chip/dot resolve to a real colour, distinct from every shared five-state chip's | same — and `primary` is not in the shared `Status` type, so nothing else proves it paints at all | `--ds-color-primary`'s resolved colour, different from success/warning/error/info/neutral |
+| BarRow's fill genuinely covers the percentage of its track `pct` asked for | jsdom has no layout, so "42% wide" and "0% wide with a `width: 42%` string" measure identically | fill/track `getBoundingClientRect()` ratio within 2% of 42% |
 
 ## The Svelte/bits-ui pairing (no surface — a sweep)
 

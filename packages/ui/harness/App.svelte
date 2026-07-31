@@ -38,6 +38,11 @@
 	import CardDescription from '../dist/components/ui/card/card-description.svelte';
 	import CardContent from '../dist/components/ui/card/card-content.svelte';
 	import DetailPanel from '../dist/components/ui/detail-panel/detail-panel.svelte';
+	import ArcGauge from '../dist/components/ui/arc-gauge/arc-gauge.svelte';
+	import BarRow from '../dist/components/ui/bar-row/bar-row.svelte';
+	import Scorecard from '../dist/components/ui/scorecard/scorecard.svelte';
+	import Sparkline from '../dist/components/ui/sparkline/sparkline.svelte';
+	import StatusBadge from '../dist/components/ui/status-badge/status-badge.svelte';
 	import type { NavSource } from '../dist/components/ui/app-shell/types.js';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import Package from '@lucide/svelte/icons/package';
@@ -105,6 +110,17 @@
 	// `?sidebar=1` adds a route-scoped secondary AppNav on the page background,
 	// so the half of the nav-ink rule that must NOT follow the chrome is driven too.
 	const withSidebar = params.get('sidebar') === '1';
+	// `?surface=console` (design-system#15) drives the five console-dashboard
+	// primitives promoted from mission-command. jsdom cannot resolve any
+	// --ds-color-status-*/--ds-color-primary var() chain, so ArcGauge's tone
+	// colour, StatusBadge's new `primary` extension and BarRow's fill-as-a-
+	// real-percentage-of-its-track are measured here against a real cascade;
+	// drive.mjs reads them back. Scorecard and Sparkline's claims (a dot class
+	// per score, point coordinates derived from the data) need no CSS
+	// resolution and are proved under jsdom in src/test/ — they render here
+	// only for visual completeness.
+	const ARC_TONES = ['success', 'warning', 'error'] as const;
+	const BADGE_STATUSES = ['success', 'warning', 'error', 'info', 'neutral', 'primary'] as const;
 
 	let overlayDialogOpen = $state(false);
 	// A 1x1 transparent GIF, inline: the harness serves no assets and the claim
@@ -359,6 +375,36 @@
 		{:else if phase === 'empty'}
 			<EmptyState title="No records" description="Nothing matched that filter." />
 		{/if}
+	</div>
+{:else if surface === 'console'}
+	<div class="flex flex-col gap-6 p-8">
+		<div class="flex items-center gap-4">
+			{#each ARC_TONES as tone (tone)}
+				<div data-probe="arc-{tone}">
+					<ArcGauge pct={65} {tone} size={42} showLabel label="5h" />
+				</div>
+			{/each}
+		</div>
+		<div class="flex flex-wrap items-center gap-2">
+			{#each BADGE_STATUSES as status (status)}
+				<div data-probe="badge-{status}">
+					<StatusBadge {status} label={status} />
+				</div>
+			{/each}
+		</div>
+		<div class="w-96" data-probe="bar-row">
+			<BarRow label="Lane A" value="42%" pct={42} />
+		</div>
+		<div data-probe="scorecard">
+			<Scorecard scores={[0, 1, 2, 1, 0]} />
+		</div>
+		<div data-probe="sparkline">
+			<Sparkline
+				series={[{ vals: [2, 8, 4, 10, 6], color: 'var(--ds-color-status-success)' }]}
+				width={160}
+				height={40}
+			/>
+		</div>
 	</div>
 {:else}
 	{#snippet secondaryNav()}

@@ -860,6 +860,108 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 	await context.close();
 }
 
+// ── The console-dashboard primitives (design-system#15) ────────────────────
+// jsdom cannot resolve any --ds-color-status-*/--ds-color-primary var() chain
+// — src/test/ proves the structural claims (which attribute carries which
+// literal), and these three claims need a real cascade instead: ArcGauge's
+// tone actually resolves to a distinct paint colour per tone, StatusBadge's
+// new `primary` extension resolves to a real, distinct colour rather than
+// falling through to an unstyled default, and BarRow's fill genuinely covers
+// the percentage of its track that `pct` asked for — not just a `width`
+// string that happens to say so.
+{
+	const { context, page, errors } = await open('surface=console');
+	await page.waitForSelector('[data-probe="arc-success"] svg circle');
+
+	const measured = await page.evaluate(
+		({ tones, statuses }) => {
+			const arc = Object.fromEntries(
+				tones.map((tone) => {
+					const svg = document.querySelector(`[data-probe="arc-${tone}"] svg`);
+					const fillArc = svg.querySelectorAll('circle')[1];
+					return [tone, getComputedStyle(fillArc).stroke];
+				})
+			);
+
+			const badge = Object.fromEntries(
+				statuses.map((status) => {
+					const root = document.querySelector(`[data-probe="badge-${status}"]`);
+					return [
+						status,
+						{
+							chip: getComputedStyle(root.querySelector('.ds-chip')).color,
+							dot: getComputedStyle(root.querySelector('.ds-dot')).backgroundColor
+						}
+					];
+				})
+			);
+
+			const barRoot = document.querySelector('[data-probe="bar-row"]');
+			const track = barRoot.querySelector('.grid > span:nth-child(2)');
+			const fill = track.querySelector('span');
+			const trackRect = track.getBoundingClientRect();
+			const fillRect = fill.getBoundingClientRect();
+
+			return {
+				arc,
+				badge,
+				bar: { trackWidth: trackRect.width, fillWidth: fillRect.width }
+			};
+		},
+		{ tones: ['success', 'warning', 'error'], statuses: ['success', 'warning', 'error', 'info', 'neutral', 'primary'] }
+	);
+
+	// This package's palette is OKLCH (README's non-negotiable colour space),
+	// and Chromium serialises a resolved computed colour back in whichever
+	// function the specified value used — so a genuinely resolved value here
+	// reads `oklch(...)`, not `rgb(...)`. Either is a real colour; only the
+	// literal unresolved `var(--…)` string is the failure this guards.
+	const isResolvedColour = (value) => typeof value === 'string' && !value.includes('var(');
+
+	for (const tone of ['success', 'warning', 'error']) {
+		check(
+			`ArcGauge ${tone}: stroke resolves to a real colour, not the unresolved var()`,
+			isResolvedColour(measured.arc[tone]),
+			measured.arc[tone]
+		);
+	}
+	check(
+		'ArcGauge: the three tones resolve to three visibly different colours',
+		new Set(Object.values(measured.arc)).size === 3,
+		JSON.stringify(measured.arc)
+	);
+
+	for (const status of ['success', 'warning', 'error', 'info', 'neutral', 'primary']) {
+		check(
+			`StatusBadge ${status}: chip ink resolves to a real colour`,
+			isResolvedColour(measured.badge[status].chip),
+			measured.badge[status].chip
+		);
+		check(
+			`StatusBadge ${status}: dot fill resolves to a real colour`,
+			isResolvedColour(measured.badge[status].dot),
+			measured.badge[status].dot
+		);
+	}
+	check(
+		"StatusBadge primary: resolves to a colour distinct from every shared-vocabulary state's",
+		!['success', 'warning', 'error', 'info', 'neutral'].some(
+			(status) => measured.badge[status].chip === measured.badge.primary.chip
+		),
+		JSON.stringify(measured.badge)
+	);
+
+	const ratio = measured.bar.fillWidth / measured.bar.trackWidth;
+	check(
+		'BarRow: fill width resolves to ~42% of its track for pct=42',
+		Math.abs(ratio - 0.42) < 0.02,
+		`${(ratio * 100).toFixed(1)}% (${measured.bar.fillWidth}px / ${measured.bar.trackWidth}px)`
+	);
+
+	check('console primitives: no page error', errors.length === 0, JSON.stringify(errors));
+	await context.close();
+}
+
 await browser.close();
 server.close();
 
