@@ -1,7 +1,5 @@
 <script lang="ts">
-	// Harness for the shell's driven tests. Both variants are mounted from one
-	// component so a single test file can drive rail behaviour and header
-	// behaviour without two render helpers, and the probes below are non-visual
+	// Harness for the shell's driven tests. The probes below are non-visual
 	// (text nodes read by testid) so every assertion is on an OUTCOME rather than
 	// on the fact that something drew.
 	import AppShell from '$lib/components/ui/app-shell/app-shell.svelte';
@@ -10,12 +8,10 @@
 	import Package from '@lucide/svelte/icons/package';
 
 	let {
-		variant = 'rail',
 		currentPath = $bindable('/overview'),
 		collapsible = false,
 		navLabel
 	}: {
-		variant?: 'rail' | 'header';
 		currentPath?: string;
 		collapsible?: boolean;
 		navLabel?: string;
@@ -48,7 +44,6 @@
 <AppShell
 	{nav}
 	{navLabel}
-	{variant}
 	{currentPath}
 	{collapsible}
 	bind:collapsed

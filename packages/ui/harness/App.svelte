@@ -61,10 +61,9 @@
 		{ heading: 'Activity', items: [{ label: 'Audit', href: '#/audit', icon: ScrollText }] }
 	];
 
-	// The variant and collapse state are driven from the URL query so the capture
-	// script sets them by navigation rather than by synthesising clicks.
+	// The collapse state is driven from the URL query so the capture script sets
+	// it by navigation rather than by synthesising clicks.
 	const params = new URLSearchParams(location.search);
-	const variant = (params.get('variant') as 'rail' | 'header') ?? 'rail';
 	const collapsible = params.get('collapsible') === '1';
 	// `?surface=states` swaps the shell for the async-outcome surfaces. Their
 	// announcement contract is a claim about the platform accessibility tree,
@@ -421,7 +420,6 @@
 	{/snippet}
 	<AppShell
 		{nav}
-		{variant}
 		{collapsible}
 		{currentPath}
 		bind:collapsed

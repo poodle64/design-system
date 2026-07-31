@@ -42,9 +42,9 @@ pnpm run harness:build          # vite build + real Tailwind over dist/
 pnpm run harness:serve          # http://127.0.0.1:4180
 ```
 
-The page reads `?variant=rail|header` and `?collapsible=1` from the query, so a
-driver sets configuration by navigation rather than by synthesising clicks. The
-THEME is not a query parameter: it follows the OS preference, so a driver picks
+The page reads `?collapsible=1` from the query, so a driver sets configuration
+by navigation rather than by synthesising clicks. The THEME is not a query
+parameter: it follows the OS preference, so a driver picks
 it with `browser.newContext({ colorScheme })`. The harness previously passed
 `defaultMode="dark"` to `ModeWatcher`, which was measurably not doing what it
 said — mode-watcher tracks the system preference and Chromium's default is
@@ -67,7 +67,7 @@ from a screenshot. Two viewports: **1440×900** (desktop) and **390×844** (phon
 | The chrome surface resolves to a real colour | jsdom returns `var(--ds-shell-chrome)` and calls it a pass | `oklch(0.97 0.005 85)` light / `oklch(0.175 0.018 260)` dark |
 | The rail is exactly its declared width | no layout engine | 248px = 15.5rem |
 | Active nav differs visibly from inactive | no cascade | active `oklch(0.5 0.155 250 / 0.12)` vs inactive transparent |
-| The active marker is not colour alone (WCAG 1.4.1) | pseudo-elements are not computed | rail: 2×24px bar; header: 2px `::after` underline |
+| The active marker is not colour alone (WCAG 1.4.1) | pseudo-elements are not computed | rail: 2×24px bar |
 | The theme toggle **actually flips** | no media/class-driven cascade | shell bg `oklch(0.985 0.003 85)` → `oklch(0.205 0.015 260)`, rail follows, restores on second press |
 | Exactly one theme icon shows per mode | `dark:` variants never resolve | `[block, none]` → `[none, block]` |
 | The rail collapses and re-expands | no transitions, no layout | 248 → 56 → 248px; labels drop to a 1×1 `sr-only` box; links centre |
@@ -80,8 +80,7 @@ from a screenshot. Two viewports: **1440×900** (desktop) and **390×844** (phon
 | The drawer is a dialogue only while it is one | — | `role="dialog" aria-modal="true"` on open, both gone on close |
 | No two dismiss controls share a name | — | scrim "Dismiss menu", close "Close menu", trigger "Menu" + `aria-expanded` |
 | A tap-through does not leave the drawer over the page | needs real navigation | drawer gone, hash advanced |
-| The header variant opens a panel, never a drawer | no layout | panel below the bar, full width, drawer absent |
-| Nothing overflows horizontally on a phone | no layout | `scrollWidth <= innerWidth`, both variants |
+| Nothing overflows horizontally on a phone | no layout | `scrollWidth <= innerWidth` |
 | The palette opens on ⌘K and navigates | — (also covered in jsdom) | 4 items listed, hash advanced to the selected item, palette closed |
 | The bypass link hides at rest and reveals on focus | `:focus` styling is not computed | `top: -48px` → `8px`, 3px outline, focus lands on `#ds-main` |
 
@@ -399,9 +398,9 @@ was additionally consuming it as text on its chrome, which is a stricter
 requirement no app was told about, and which constrains a brand hue far more
 tightly than the stated rule implies.
 
-Scripted in `drive.mjs`. Three palettes × both themes × both variants, all
-driven against the built package with the palette applied exactly as a consuming
-app applies it — an override of the sanctioned surface and nothing else.
+Scripted in `drive.mjs`. Three palettes × both themes, all driven against the
+built package with the palette applied exactly as a consuming app applies it —
+an override of the sanctioned surface and nothing else.
 
 Method, because the number is only worth as much as how it was taken:
 

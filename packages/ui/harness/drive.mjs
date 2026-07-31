@@ -511,125 +511,118 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 	for (const palette of PALETTES) {
 		const css = paletteCss(palette);
 		for (const mode of ['light', 'dark']) {
-			for (const variant of ['rail', 'header']) {
-				const { context, page, errors } = await open(
-					`surface=shell&variant=${variant}`,
-					{ width: 1440, height: 900 },
-					mode
-				);
-				await page.addStyleTag({ content: css });
-				await page.addScriptTag({ content: PROBE });
-				await page.waitForSelector('.ds-nav-item[data-active="true"]');
-				// Which theme is on screen is the load-bearing fact of this whole
-				// section, so it is waited on and never assumed.
-				await page.waitForFunction(
-					(want) => document.documentElement.classList.contains('dark') === (want === 'dark'),
-					mode
-				);
+			const { context, page, errors } = await open(
+				'surface=shell',
+				{ width: 1440, height: 900 },
+				mode
+			);
+			await page.addStyleTag({ content: css });
+			await page.addScriptTag({ content: PROBE });
+			await page.waitForSelector('.ds-nav-item[data-active="true"]');
+			// Which theme is on screen is the load-bearing fact of this whole
+			// section, so it is waited on and never assumed.
+			await page.waitForFunction(
+				(want) => document.documentElement.classList.contains('dark') === (want === 'dark'),
+				mode
+			);
 
-				const measured = await page.evaluate(
-					(isHeader) => {
-						const { inkRatio, fillRatio, composite, contrast } = window.__probe;
+			const measured = await page.evaluate(() => {
+				const { inkRatio, fillRatio, composite, contrast } = window.__probe;
 
-						const active = document.querySelector('.ds-nav-item[data-active="true"]');
-						const resting = document.querySelector('.ds-nav-item:not([data-active])');
-						const badge = active.querySelector('.ds-nav-badge');
-						// The rail marks the active row with a flush edge bar; the
-						// horizontal row with an underline drawn as ::after, since a
-						// left bar there would read as a divider.
-						const indicator = active.querySelector('.ds-nav-indicator');
+				const active = document.querySelector('.ds-nav-item[data-active="true"]');
+				const resting = document.querySelector('.ds-nav-item:not([data-active])');
+				const badge = active.querySelector('.ds-nav-badge');
+				// The rail marks the active row with a flush edge bar.
+				const indicator = active.querySelector('.ds-nav-indicator');
 
-						const style = (el, pseudo) => getComputedStyle(el, pseudo ?? undefined);
-						return {
-							activeInk: inkRatio(active),
-							restingInk: inkRatio(resting),
-							badgeInk: badge ? inkRatio(badge) : null,
-							indicator: isHeader ? fillRatio(active, '::after') : fillRatio(indicator),
-							// The redundancy that licenses not holding the indicator to
-							// 1.4.11's 3:1 — asserted, never assumed.
-							ariaCurrent: active.getAttribute('aria-current'),
-							activeWeight: style(active).fontWeight,
-							restingWeight: style(resting).fontWeight,
-							activeColour: style(active).color,
-							restingColour: style(resting).color,
-							// The documented constraint the palette DOES carry, proved
-							// against the built package rather than asserted in prose.
-							fillPair: (() => {
-								const probeEl = document.createElement('span');
-								probeEl.style.background = 'var(--primary)';
-								probeEl.style.color = 'var(--primary-foreground)';
-								document.body.appendChild(probeEl);
-								const s = getComputedStyle(probeEl);
-								const ratio = contrast(
-									composite([s.backgroundColor, s.color]),
-									composite([s.backgroundColor])
-								);
-								probeEl.remove();
-								return ratio;
-							})()
-						};
-					},
-					variant === 'header'
-				);
+				const style = (el, pseudo) => getComputedStyle(el, pseudo ?? undefined);
+				return {
+					activeInk: inkRatio(active),
+					restingInk: inkRatio(resting),
+					badgeInk: badge ? inkRatio(badge) : null,
+					indicator: fillRatio(indicator),
+					// The redundancy that licenses not holding the indicator to
+					// 1.4.11's 3:1 — asserted, never assumed.
+					ariaCurrent: active.getAttribute('aria-current'),
+					activeWeight: style(active).fontWeight,
+					restingWeight: style(resting).fontWeight,
+					activeColour: style(active).color,
+					restingColour: style(resting).color,
+					// The documented constraint the palette DOES carry, proved
+					// against the built package rather than asserted in prose.
+					fillPair: (() => {
+						const probeEl = document.createElement('span');
+						probeEl.style.background = 'var(--primary)';
+						probeEl.style.color = 'var(--primary-foreground)';
+						document.body.appendChild(probeEl);
+						const s = getComputedStyle(probeEl);
+						const ratio = contrast(
+							composite([s.backgroundColor, s.color]),
+							composite([s.backgroundColor])
+						);
+						probeEl.remove();
+						return ratio;
+					})()
+				};
+			});
 
-				const where = `${palette.name}/${mode}/${variant}`;
+			const where = `${palette.name}/${mode}`;
 
-				// The palette is sanctioned. If this ever fails the fixture is wrong,
-				// not the shell — and the whole argument below collapses without it.
+			// The palette is sanctioned. If this ever fails the fixture is wrong,
+			// not the shell — and the whole argument below collapses without it.
+			check(
+				`${where}: the fixture palette clears AA as a fill, as the template requires`,
+				measured.fillPair >= 4.5,
+				`primary under primary-foreground: ${measured.fillPair}:1`
+			);
+
+			// The headline claim of #11.
+			check(
+				`${where}: the ACTIVE nav label clears AA on the chrome it sits on`,
+				measured.activeInk >= 4.5,
+				`${measured.activeInk}:1 (needs 4.5)`
+			);
+			// Asserted since #13 moved the token (was recorded-only: the resting
+			// label is painted in `--ds-color-muted-foreground`, which was below
+			// the text floor on every light surface the token package defines —
+			// identical under all three palettes here because no consumer colour
+			// is involved at all, unlike #11's active-label case above). #13
+			// corrected the token package's own value; this is what pins it so it
+			// cannot drift back.
+			check(
+				`${where}: resting nav label clears AA`,
+				measured.restingInk >= 4.5,
+				`${measured.restingInk}:1 against a 4.5 floor`
+			);
+			if (measured.badgeInk !== null) {
+				// A count badge is text on a tint, so it carries the text floor too —
+				// and it sits on the active row's tint as well as its own.
 				check(
-					`${where}: the fixture palette clears AA as a fill, as the template requires`,
-					measured.fillPair >= 4.5,
-					`primary under primary-foreground: ${measured.fillPair}:1`
+					`${where}: the nav badge count clears AA on its tint`,
+					measured.badgeInk >= 4.5,
+					`${measured.badgeInk}:1 (needs 4.5)`
 				);
-
-				// The headline claim of #11.
-				check(
-					`${where}: the ACTIVE nav label clears AA on the chrome it sits on`,
-					measured.activeInk >= 4.5,
-					`${measured.activeInk}:1 (needs 4.5)`
-				);
-				// Asserted since #13 moved the token (was recorded-only: the resting
-				// label is painted in `--ds-color-muted-foreground`, which was below
-				// the text floor on every light surface the token package defines —
-				// identical under all three palettes here because no consumer colour
-				// is involved at all, unlike #11's active-label case above). #13
-				// corrected the token package's own value; this is what pins it so it
-				// cannot drift back.
-				check(
-					`${where}: resting nav label clears AA`,
-					measured.restingInk >= 4.5,
-					`${measured.restingInk}:1 against a 4.5 floor`
-				);
-				if (measured.badgeInk !== null) {
-					// A count badge is text on a tint, so it carries the text floor too —
-					// and it sits on the active row's tint as well as its own.
-					check(
-						`${where}: the nav badge count clears AA on its tint`,
-						measured.badgeInk >= 4.5,
-						`${measured.badgeInk}:1 (needs 4.5)`
-					);
-				}
-
-				// WCAG 1.4.11 binds a state indicator at 3:1 only when the state is not
-				// available another way. Here it is, three times over — so the bar is
-				// free to carry the app's brand hue at full strength, and what gets
-				// asserted is the redundancy that earns it that freedom.
-				check(
-					`${where}: the active state does not rest on the indicator alone`,
-					measured.ariaCurrent === 'page' &&
-						Number(measured.activeWeight) > Number(measured.restingWeight) &&
-						measured.activeColour !== measured.restingColour,
-					`aria-current=${measured.ariaCurrent}, weight ${measured.restingWeight}->${measured.activeWeight}, ink ${measured.restingColour} vs ${measured.activeColour}`
-				);
-				checks.push({
-					name: `${where}: brand indicator against the chrome (recorded, not gated)`,
-					ok: true,
-					detail: `${measured.indicator}:1 — non-text, and redundant per the check above`
-				});
-
-				check(`${where}: no page error`, errors.length === 0, JSON.stringify(errors));
-				await context.close();
 			}
+
+			// WCAG 1.4.11 binds a state indicator at 3:1 only when the state is not
+			// available another way. Here it is, three times over — so the bar is
+			// free to carry the app's brand hue at full strength, and what gets
+			// asserted is the redundancy that earns it that freedom.
+			check(
+				`${where}: the active state does not rest on the indicator alone`,
+				measured.ariaCurrent === 'page' &&
+					Number(measured.activeWeight) > Number(measured.restingWeight) &&
+					measured.activeColour !== measured.restingColour,
+				`aria-current=${measured.ariaCurrent}, weight ${measured.restingWeight}->${measured.activeWeight}, ink ${measured.restingColour} vs ${measured.activeColour}`
+			);
+			checks.push({
+				name: `${where}: brand indicator against the chrome (recorded, not gated)`,
+				ok: true,
+				detail: `${measured.indicator}:1 — non-text, and redundant per the check above`
+			});
+
+			check(`${where}: no page error`, errors.length === 0, JSON.stringify(errors));
+			await context.close();
 		}
 	}
 
@@ -646,7 +639,7 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 		// column must NOT be dragged along with it. Only asserting the loud half
 		// would let the quiet half break silently — which is the shape of every
 		// defect this harness exists for.
-		const { context, page } = await open('surface=shell&variant=rail&sidebar=1');
+		const { context, page } = await open('surface=shell&sidebar=1');
 		await page.addStyleTag({
 			content: `${SETTLE}\n:root { --ds-shell-chrome: oklch(0.30 0.03 260); --ds-shell-chrome-foreground: oklch(0.97 0.01 260); --ds-shell-chrome-muted-foreground: oklch(0.80 0.02 260); }`
 		});

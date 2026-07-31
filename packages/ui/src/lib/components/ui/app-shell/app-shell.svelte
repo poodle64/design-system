@@ -10,11 +10,13 @@
 	 * agreed on almost nothing structurally while looking like they were trying
 	 * to be the same thing.
 	 *
-	 * Two variants cover all five, because the only structural disagreement that
-	 * survived scrutiny is WHERE PRIMARY NAVIGATION LIVES:
-	 *
-	 *   variant="rail"    a permanent left column on md+, an overlay drawer below
-	 *   variant="header"  a horizontal row in the top bar, a disclosure panel below
+	 * There is now exactly one composition, no variant prop to choose it: a
+	 * permanent side rail on md+ (an overlay drawer below it) carrying primary
+	 * navigation, brand and the collapse toggle, PLUS a real top navbar (search,
+	 * leading/trailing slots, theme toggle, identity) — always both together, and
+	 * content that is always full-width. Operator ruling, 31/07/2026: every
+	 * household app renders one shell shape; apps do not choose variants,
+	 * content modes, or spacing.
 	 *
 	 * Everything else the surveyed apps differed on turned out to be a slot, not
 	 * a variant: the brand, the identity surface, a context switcher, a banner, a
@@ -38,14 +40,13 @@
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import AppNav from './app-nav.svelte';
-	import { isNavItemActive, toItems, type NavSource } from './types.js';
+	import { toItems, type NavSource } from './types.js';
 	import { cn } from '$lib/utils.js';
 
 	let {
 		nav,
 		navLabel = 'Primary',
 		currentPath,
-		variant = 'rail',
 		collapsible = false,
 		collapsed = $bindable(false),
 		brand,
@@ -62,17 +63,15 @@
 		searchShortcut = '⌘K',
 		themeToggle = true,
 		onToggleTheme,
-		content = 'full',
 		padded = true,
 		mainClass,
 		children
 	}: {
 		/** Navigation: bare items, groups, or a mix. Filter for permissions first. */
 		nav?: NavSource;
-		/** The primary nav landmark's accessible name — forwarded to AppNav
-		    (rail, drawer, and the header disclosure panel) and to the inline
-		    horizontal nav under variant="header". Distinguish it from a second
-		    shell on the same page, or from a route-scoped secondary AppNav. */
+		/** The primary nav landmark's accessible name — forwarded to the rail/drawer
+		    AppNav. Distinguish it from a second shell on the same page, or from a
+		    route-scoped secondary AppNav. */
 		navLabel?: string;
 		/**
 		 * The current path, for active state and for closing the mobile nav on
@@ -85,9 +84,7 @@
 		 * a component that is framework-agnostic and genuinely drivable.
 		 */
 		currentPath?: string;
-		/** Where primary navigation lives. */
-		variant?: 'rail' | 'header';
-		/** Rail only: offer an icon-only collapse toggle at the rail foot. */
+		/** Offer an icon-only collapse toggle at the rail foot. */
 		collapsible?: boolean;
 		/** Rail collapse state. Bind it to persist the choice across sessions. */
 		collapsed?: boolean;
@@ -105,11 +102,7 @@
 		context?: Snippet;
 		/** Trailing top-bar slot, before the theme toggle: app-level action buttons. */
 		actions?: Snippet;
-		/**
-		 * The signed-in user surface. Rendered in the rail foot under
-		 * variant="rail" and at the end of the top bar under variant="header",
-		 * which is where the surveyed apps already put it in each case.
-		 */
+		/** The signed-in user surface. Rendered once, at the end of the top bar. */
 		identity?: Snippet;
 		/** A secondary, route-scoped column between the nav and the page body. */
 		sidebar?: Snippet;
@@ -121,28 +114,14 @@
 		themeToggle?: boolean;
 		/** Override the theme action. Defaults to mode-watcher's toggleMode. */
 		onToggleTheme?: () => void;
-		/**
-		 * The content ceiling. Named rather than free-form because a page's
-		 * measure is a design-system decision: 'full' (the default) for the
-		 * whole viewport — right for a dense data console, where a centred
-		 * max-width column on a large display is just blank bars down each
-		 * side — 'wide' (120rem) for dashboards, 'prose' (80rem) for
-		 * reading-weight pages that genuinely want a capped measure.
-		 *
-		 * 'standard' is a deprecated alias for 'prose' (same 80rem cap,
-		 * identical rendering) kept only so a caller already passing it does
-		 * not change appearance; new call sites should use 'prose'.
-		 */
-		content?: 'full' | 'wide' | 'standard' | 'prose';
 		padded?: boolean;
 		/** Extra classes on the scrolling content container (a background texture). */
 		mainClass?: string;
 		children: Snippet;
 	} = $props();
 
-	const isRail = $derived(variant === 'rail');
 	const hasNav = $derived(toItems(nav).length > 0);
-	const railCollapsed = $derived(isRail && collapsible && collapsed);
+	const railCollapsed = $derived(collapsible && collapsed);
 
 	// The disclosure toggle and the region it opens have to be programmatically
 	// related, not merely adjacent: `aria-expanded` says the control is open,
@@ -159,9 +138,8 @@
 	const navRegionId = `${shellId}-nav`;
 
 	// The mobile nav is an overlay below `md`; on `md`+ the rail is a permanent
-	// column (or the nav is inline in the bar) and this stays false. It closes on
-	// any navigation so a tap-through never leaves it covering the page it just
-	// opened.
+	// column and this stays false. It closes on any navigation so a tap-through
+	// never leaves it covering the page it just opened.
 	let mobileNavOpen = $state(false);
 	$effect(() => {
 		// Reading `currentPath` registers this effect to re-run on every
@@ -237,14 +215,6 @@
 		if (onToggleTheme) onToggleTheme();
 		else toggleMode();
 	}
-
-	const contentWidth = $derived(
-		content === 'wide'
-			? 'mx-auto w-full max-w-[120rem]'
-			: content === 'standard' || content === 'prose'
-				? 'mx-auto w-full max-w-[80rem]'
-				: 'w-full'
-	);
 </script>
 
 <svelte:window
@@ -282,7 +252,7 @@
 	<!-- WCAG 2.4.1: every app gets the bypass link, rather than one app having it. -->
 	<a href="#ds-main" class="ds-skip-link">Skip to content</a>
 
-	{#if isRail && hasNav}
+	{#if hasNav}
 		{#if mobileNavOpen}
 			<button
 				class="bg-background/70 fixed inset-0 z-40 backdrop-blur-sm md:hidden"
@@ -353,10 +323,6 @@
 					{/if}
 				</button>
 			{/if}
-
-			{#if identity}
-				<div class="border-border border-t">{@render identity()}</div>
-			{/if}
 		</aside>
 	{/if}
 
@@ -366,20 +332,16 @@
 		>
 			{#if hasNav}
 				<!-- `aria-controls` names the region this toggle opens. It is present
-				     whenever that region is in the document, which under variant="rail"
-				     is always (the rail and the drawer are ONE element) and under
-				     variant="header" is while the disclosure panel is open, since the
-				     panel is created and destroyed with the state. Pointing at an id
-				     that is not in the document is a dangling reference assistive
-				     technology is entitled to ignore, so it is omitted rather than left
-				     hanging; closed, the `aria-expanded="false"` is the whole story. -->
+				     whenever that region is in the document, which is always — the
+				     rail and the drawer are ONE element, so the reference is live from
+				     first render and never dangles. -->
 				<button
 					bind:this={menuButton}
 					onclick={() => (mobileNavOpen ? closeMobileNav() : (mobileNavOpen = true))}
 					class="border-border text-shell-muted-foreground hover:text-shell-foreground grid size-9 flex-none place-items-center rounded-md border md:hidden"
 					aria-label="Menu"
 					aria-expanded={mobileNavOpen}
-					aria-controls={isRail || mobileNavOpen ? navRegionId : undefined}
+					aria-controls={navRegionId}
 					data-testid="ds-shell-menu"
 				>
 					{#if mobileNavOpen}
@@ -392,33 +354,9 @@
 
 			<!-- The rail carries the brand on md+; below md the rail is gone, so the
 			     bar carries it or the app loses its identity on a phone entirely. -->
-			<span class={isRail && hasNav ? 'flex md:hidden' : 'flex'}>
+			<span class={hasNav ? 'flex md:hidden' : 'flex'}>
 				{@render brandLockup(true)}
 			</span>
-
-			{#if !isRail && hasNav}
-				<nav
-					class="ds-nav ds-nav-horizontal hidden min-w-0 items-center gap-1 overflow-x-auto md:flex"
-					aria-label={navLabel}
-				>
-					{#each toItems(nav) as item (item.href)}
-						{@const active = isNavItemActive(item, currentPath)}
-						<a
-							href={item.href}
-							class="ds-nav-item"
-							data-active={active ? 'true' : undefined}
-							aria-current={active ? 'page' : undefined}
-							target={item.external ? '_blank' : undefined}
-							rel={item.external ? 'noreferrer noopener' : undefined}
-						>
-							{#if item.icon}<item.icon class="size-4 flex-none" />{/if}
-							<span class="hidden lg:inline">{item.label}</span>
-							<span class="sr-only lg:hidden">{item.label}</span>
-							{#if item.badge !== undefined}<span class="ds-nav-badge">{item.badge}</span>{/if}
-						</a>
-					{/each}
-				</nav>
-			{/if}
 
 			{#if context}{@render context()}{/if}
 
@@ -454,37 +392,9 @@
 					</button>
 				{/if}
 
-				{#if identity && !isRail}{@render identity()}{/if}
+				{#if identity}{@render identity()}{/if}
 			</div>
 		</header>
-
-		{#if !isRail && hasNav && mobileNavOpen}
-			<!-- Header variant, below md: nav opens as a disclosure panel under the
-			     bar rather than a side drawer. A drawer sliding in from the left
-			     with nothing on the left is a gesture with no origin; the panel
-			     drops from the control that opened it. -->
-			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-			<!-- The listener is a focus trap on the container, not an interaction
-			     the region itself offers: it only redirects Tab at the ends so
-			     focus cannot walk out of the open panel into the page behind it.
-			     The region stays a landmark; nothing here is click-to-activate. -->
-			<section
-				id={navRegionId}
-				class="ds-shell-panel border-border bg-shell border-b md:hidden"
-				data-testid="ds-shell-panel"
-				aria-label="Navigation"
-				onkeydown={trapTab}
-			>
-				<AppNav
-					{nav}
-					{currentPath}
-					class="max-h-[60vh] py-2"
-					label={navLabel}
-					bind:firstLink={overlayFirstFocus}
-					onNavigate={() => (mobileNavOpen = false)}
-				/>
-			</section>
-		{/if}
 
 		{#if banner}{@render banner()}{/if}
 
@@ -541,7 +451,7 @@
 				<div
 					class={cn(
 						'flex min-h-0 min-w-0 flex-1 flex-col',
-						contentWidth,
+						'w-full',
 						padded && 'px-4 py-5 sm:px-6 md:px-8 md:py-7 2xl:px-12'
 					)}
 				>

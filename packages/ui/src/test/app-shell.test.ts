@@ -21,7 +21,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import ShellHarness from './app-shell.svelte';
 import { isNavItemActive, toGroups, toItems } from '$lib/components/ui/app-shell/types.js';
 
-describe('AppShell — mobile navigation (rail variant)', () => {
+describe('AppShell — mobile navigation', () => {
 	it('opens the drawer from the menu control and closes it again', async () => {
 		render(ShellHarness);
 		expect(screen.queryByTestId('ds-shell-drawer')).not.toBeInTheDocument();
@@ -115,17 +115,6 @@ describe('AppShell — focus follows the overlay', () => {
 		await fireEvent.click(within(drawer, 'Close menu'));
 
 		await waitFor(() => expect(document.activeElement).toBe(trigger));
-	});
-
-	it('moves focus into the header variant’s panel, onto its first link', async () => {
-		render(ShellHarness, { props: { variant: 'header' } });
-		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
-		const panel = await screen.findByTestId('ds-shell-panel');
-
-		await waitFor(() => {
-			expect(panel.contains(document.activeElement)).toBe(true);
-			expect(document.activeElement).toHaveAttribute('href', '/overview');
-		});
 	});
 
 	it('keeps the scrim out of the tab order, since Escape and the close button dismiss', async () => {
@@ -222,38 +211,10 @@ describe('AppShell — the drawer is a real modal', () => {
 	});
 });
 
-describe('AppShell — mobile navigation (header variant)', () => {
-	it('opens a disclosure panel rather than a side drawer', async () => {
-		render(ShellHarness, { props: { variant: 'header' } });
-		expect(screen.queryByTestId('ds-shell-panel')).not.toBeInTheDocument();
-		expect(screen.queryByTestId('ds-shell-drawer')).not.toBeInTheDocument();
-
-		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
-
-		await waitFor(() => expect(screen.getByTestId('ds-shell-panel')).toBeInTheDocument());
-		// A left-edge drawer is the rail variant's affordance; the header variant
-		// must not also produce one, or an adopting app gets both.
-		expect(screen.queryByTestId('ds-shell-drawer')).not.toBeInTheDocument();
-	});
-
-	it('closes the panel when a link inside it is activated', async () => {
-		render(ShellHarness, { props: { variant: 'header' } });
-		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
-		const panel = await screen.findByTestId('ds-shell-panel');
-
-		await fireEvent.click(panel.querySelector<HTMLAnchorElement>('a[href="/identities"]')!);
-
-		await waitFor(() => expect(screen.queryByTestId('ds-shell-panel')).not.toBeInTheDocument());
-	});
-});
-
 describe('AppShell — navLabel (design-system#14)', () => {
 	// #14: AppNav's own `label` defaults to "Primary" but AppShell never
 	// forwarded it, so a consumer replacing their own labelled landmark with the
-	// shared shell silently lost the name. Asserted at every place the primary
-	// nav actually renders — not just the one the existing "Primary" count check
-	// already covers — since AppShell renders it three different ways depending
-	// on variant and viewport state.
+	// shared shell silently lost the name.
 	it('defaults to "Primary", unchanged, when not set', () => {
 		render(ShellHarness);
 		expect(document.querySelectorAll('nav[aria-label="Primary"]')).toHaveLength(1);
@@ -263,22 +224,6 @@ describe('AppShell — navLabel (design-system#14)', () => {
 		render(ShellHarness, { props: { navLabel: 'Section nav' } });
 		expect(document.querySelectorAll('nav[aria-label="Section nav"]')).toHaveLength(1);
 		expect(document.querySelectorAll('nav[aria-label="Primary"]')).toHaveLength(0);
-	});
-
-	it('renames the header variant’s inline horizontal nav', () => {
-		render(ShellHarness, { props: { variant: 'header', navLabel: 'Section nav' } });
-		expect(document.querySelector('nav.ds-nav-horizontal')).toHaveAttribute(
-			'aria-label',
-			'Section nav'
-		);
-	});
-
-	it('renames the header variant’s mobile disclosure panel’s nav', async () => {
-		render(ShellHarness, { props: { variant: 'header', navLabel: 'Section nav' } });
-		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
-		const panel = await screen.findByTestId('ds-shell-panel');
-
-		expect(panel.querySelector('nav')).toHaveAttribute('aria-label', 'Section nav');
 	});
 });
 
@@ -293,16 +238,13 @@ describe('AppShell — the toggle and the region it opens are related (#12)', ()
 	// `getElementById` is the assertion rather than a string compare on purpose:
 	// the id is generated per instance, so what matters is that the reference
 	// RESOLVES, not what it happens to spell.
-	it.each([
-		['rail', 'ds-shell-drawer'],
-		['header', 'ds-shell-panel']
-	] as const)('%s: the toggle points at the region it opened', async (variant, testId) => {
-		render(ShellHarness, { props: { variant } });
+	it('the toggle points at the region it opened', async () => {
+		render(ShellHarness);
 		await fireEvent.click(screen.getByTestId('ds-shell-menu'));
-		const region = await screen.findByTestId(testId);
+		const region = await screen.findByTestId('ds-shell-drawer');
 
 		const controls = screen.getByTestId('ds-shell-menu').getAttribute('aria-controls');
-		expect(controls, `${variant}: the toggle names no region`).toBeTruthy();
+		expect(controls, 'the toggle names no region').toBeTruthy();
 		expect(document.getElementById(controls!)).toBe(region);
 	});
 
@@ -315,22 +257,12 @@ describe('AppShell — the toggle and the region it opens are related (#12)', ()
 		expect(document.getElementById(controls!)).toHaveClass('ds-shell-rail');
 	});
 
-	it('header: omits the reference while closed rather than dangling it', () => {
-		// The disclosure panel is created and destroyed with the state, so naming
-		// it while closed would point at nothing. A dangling IDREF is a reference
-		// assistive technology may ignore outright, which is strictly worse than
-		// the `aria-expanded="false"` that already tells the whole story.
-		render(ShellHarness, { props: { variant: 'header' } });
-		expect(screen.getByTestId('ds-shell-menu')).not.toHaveAttribute('aria-controls');
-		expect(screen.getByTestId('ds-shell-menu')).toHaveAttribute('aria-expanded', 'false');
-	});
-
 	it('gives two shells on one page distinct regions', async () => {
 		// A literal id would collide with itself here, and `getElementById` would
 		// answer with whichever rendered first — the same coin toss the rail
 		// avoids by refusing to render its contents twice.
-		render(ShellHarness, { props: { variant: 'header' } });
-		render(ShellHarness, { props: { variant: 'header' } });
+		render(ShellHarness);
+		render(ShellHarness);
 		const toggles = screen.getAllByTestId('ds-shell-menu');
 		for (const toggle of toggles) await fireEvent.click(toggle);
 

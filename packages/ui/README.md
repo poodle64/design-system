@@ -107,21 +107,13 @@ under its own top bar, and three header-only bars that each answered the mobile
 question differently. They agreed on almost nothing structurally while trying to
 be the same thing.
 
-Two variants cover all five, because the only structural disagreement that
-survived scrutiny is **where primary navigation lives**:
-
-| `variant` | Desktop | Below `md` |
-| --- | --- | --- |
-| `"rail"` (default) | a permanent left column | an overlay drawer |
-| `"header"` | a horizontal row in the top bar | a disclosure panel under the bar |
-
-**`variant="header"` (top navbar) is the household standard.** `"rail"` stays
-the component's own default for backward compatibility: flipping nav
-orientation estate-wide on a patch bump would violate least-surprise for
-every app already relying on it, but a new app should reach for
-`variant="header"` explicitly. A `"rail"` shell is a recorded per-app
-exception, not the pattern to copy; the standard is enforced by rule and by
-each app's own explicit prop, not by the component's default.
+There is now exactly one shell shape, no prop to choose a different one.
+Operator ruling, 31/07/2026: every household app renders the same composition,
+a permanent side rail on `md`+ (an overlay drawer below it) carrying primary
+navigation, brand and the collapse toggle, **plus** a real top navbar (search,
+leading/trailing slots, theme toggle, identity), always both together, with
+content that is always full-width. Apps do not choose variants, content modes,
+or spacing.
 
 Everything the apps otherwise differed on turned out to be a slot, not a variant.
 The package therefore imports no app store, no app route and no app brand:
@@ -150,15 +142,15 @@ That is the whole minimum. Everything below is optional.
 | --- | --- |
 | `nav` | Bare `NavItem`s, `NavGroup`s, or a mix. Consecutive bare items collapse into one run; an emptied group renders nothing. |
 | `currentPath` | Active state, and closing the mobile nav on navigation. |
-| `variant`, `collapsible`, `collapsed` | Rail vs header; an icon-only rail toggle whose state binds out so an app can persist it. |
+| `collapsible`, `collapsed` | An icon-only rail collapse toggle whose state binds out so an app can persist it. |
 | `brand` / `brandTitle` + `brandMark` / `homeHref` | Full control of the lockup, or the wordmark-plus-mark shorthand. |
-| `identity` | The signed-in surface. Rendered in the rail foot (`rail`) or at the end of the bar (`header`), which is where the surveyed apps already put it in each case. |
+| `identity` | The signed-in surface. Rendered once, at the end of the top bar. |
 | `context`, `actions` | Leading and trailing top-bar slots: a store/tenant switcher, app-level action buttons. |
 | `banner` | Full-width region under the bar: reconnect notices, trial warnings. |
 | `sidebar` | A secondary, route-scoped column between the nav and the page body. |
 | `onSearch`, `searchLabel`, `searchShortcut` | Provide `onSearch` to render the search affordance at all. |
 | `themeToggle`, `onToggleTheme` | Defaults to `mode-watcher`. Set `themeToggle={false}` when the app puts theming inside its own user menu. |
-| `content`, `padded`, `mainClass` | Content ceiling (`full` (default) \| `wide` \| `prose`; `standard` is a deprecated alias for `prose`), padding, and a background texture class. |
+| `padded`, `mainClass` | Padding, and a background texture class. Content is always full-width. |
 
 `NavItem` / `NavGroup` are exported so an app types its own config against them.
 They carry **no notion of who may see an item**: two surveyed apps gate

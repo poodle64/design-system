@@ -2,10 +2,10 @@
 	/**
 	 * The vertical navigation list.
 	 *
-	 * Rendered in three places by AppShell — the desktop rail, the mobile drawer,
-	 * and the header variant's mobile disclosure panel — and exported in its own
-	 * right so an app with a SECOND, route-scoped navigation column (a per-module
-	 * sidebar) uses the same affordance rather than hand-building a near-copy.
+	 * Rendered by AppShell in the rail/drawer (one element, two states — see
+	 * app-shell.svelte) and exported in its own right so an app with a SECOND,
+	 * route-scoped navigation column (a per-module sidebar) uses the same
+	 * affordance rather than hand-building a near-copy.
 	 * That was the concrete shape of the drift in the estate: one app's inner
 	 * sidebar had reimplemented the active indicator, the group separators and
 	 * the collapse behaviour independently of its own top bar.

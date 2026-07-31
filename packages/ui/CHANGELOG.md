@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [Unreleased]
+
+### Removed
+
+- **BREAKING: `AppShell`'s `variant` (`'rail' | 'header'`) and `content` (`'full' | 'wide' | 'standard' | 'prose'`) props are removed.** Operator ruling, 31/07/2026: every household app renders one shell shape, a permanent side rail/drawer carrying primary navigation plus a real top navbar (search, leading/actions, theme, identity), content always full-width. A consumer passing either prop gets a `svelte-check` type error on bump; delete the prop, nothing else changes. This supersedes the `content="standard"`→`"prose"` alias work landed in 2026.7.11 — that whole content-ceiling mechanism is gone.
+- **Identity placement**: `identity` now renders exactly once, at the end of the top navbar's trailing slot (previously the `variant="header"` position). The brief for this change also listed "identity foot" as part of the rail behaviour being kept — taken literally that would render the same consumer-supplied `identity` snippet in two chrome regions at once, which conflicts with this component's own established, tested principle of never rendering a consumer slot twice (duplicated `id`s, test hooks, and interactive controls). Resolved by keeping `identity` in the top bar only and dropping it from the rail foot entirely. An app that relied on `variant="rail"` rendering identity in the rail foot will see it move to the top bar on bump.
+- The top navbar now always renders with its full border/background/chrome — previously a near-empty "ghost strip" under `variant="rail"` on desktop, since it carried no identity and no visible nav. This is a visual change for every current `variant="rail"` consumer even though no prop of theirs needs editing.
+
 ## [2026.7.11] - 2026-07-31
 
 ### Changed
