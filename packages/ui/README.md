@@ -196,8 +196,8 @@ page's ink, so inverting the rail does not drag a secondary nav with it.
 
 ### The active nav row: primary is a fill, never an ink
 
-The active row is marked with a 12% `--ds-color-primary` tint, a primary edge bar
-(rail) or underline (header), a weight step to 500, and `aria-current="page"`.
+The active row is marked with a 12% `--ds-color-primary` tint, a primary edge
+bar on the rail, a weight step to 500, and `aria-current="page"`.
 Its **label** is painted in the chrome's own foreground, not in the brand colour.
 
 That is deliberate. `--ds-color-primary` is the one token every app overrides,

@@ -446,15 +446,14 @@
 	   The application shell (AppShell, AppNav, CommandPalette).
 
 	   These are real CSS rather than utilities on the elements because the shell
-	   renders the SAME nav link in four places — desktop rail, mobile drawer,
-	   horizontal top bar, mobile disclosure panel — and every surveyed app that
-	   had two of those had let the two drift apart. One rule set, four call
-	   sites, no drift. The tints are color-mix over the app's own --primary and
+	   renders the SAME nav link in two places — desktop rail, mobile drawer —
+	   and every surveyed app that had two nav call sites had let the two drift
+	   apart. One rule set, two call sites, no drift. The tints are color-mix over the app's own --primary and
 	   --foreground, so a palette change moves them and this file holds no colour.
 	   ───────────────────────────────────────────────────────────────────────── */
 	/* Nav ink is a pair of locals rather than the page's --foreground directly,
 	   because AppNav is rendered in two different kinds of surface: inside the
-	   shell's chrome (rail, drawer, disclosure panel), and — exported in its own
+	   shell's chrome (rail, drawer), and — exported in its own
 	   right — as a route-scoped secondary column sitting on the ordinary page
 	   background. The default is the page's own ink, and only the chrome
 	   surfaces below re-point it, so an app that inverts its chrome moves the
@@ -482,8 +481,7 @@
 	}
 
 	.ds-shell-rail,
-	.ds-shell-bar,
-	.ds-shell-panel {
+	.ds-shell-bar {
 		--ds-nav-chrome-ink: var(--ds-shell-chrome-foreground);
 		--ds-nav-chrome-ink-muted: var(--ds-shell-chrome-muted-foreground);
 	}
@@ -553,10 +551,9 @@
 	}
 
 	/* Colour alone never carries the active state (WCAG 1.4.1): the rail marks it
-	   with a flush edge bar, the horizontal bar with an underline, since a
-	   left-edge bar on a horizontal row would read as a divider.
+	   with a flush edge bar.
 
-	   These two keep --primary at full strength, and that is a decision rather
+	   The bar keeps --primary at full strength, and that is a decision rather
 	   than an oversight. WCAG 1.4.11 holds a state indicator to 3:1 only when the
 	   state is not conveyed some other way; here it is conveyed three other ways
 	   — the ink lifts from muted to full, the weight goes to 500, and the row
@@ -572,21 +569,6 @@
 		width: 0.125rem;
 		border-radius: 9999px;
 		background: var(--primary);
-	}
-
-	.ds-nav-horizontal .ds-nav-item[data-active='true']::after {
-		content: '';
-		position: absolute;
-		left: 0.625rem;
-		right: 0.625rem;
-		bottom: -0.5rem;
-		height: 0.125rem;
-		border-radius: 9999px;
-		background: var(--primary);
-	}
-
-	.ds-nav-horizontal .ds-nav-item {
-		gap: 0.5rem;
 	}
 
 	.ds-nav-heading {
@@ -679,10 +661,6 @@
 		width: var(--ds-shell-rail-width-collapsed);
 	}
 
-	.ds-shell-panel {
-		animation: ds-panel-in 160ms ease-out;
-	}
-
 	/* The bypass link (WCAG 2.4.1): off-screen until focused, then a real target
 	   above the sticky bar. */
 	.ds-skip-link {
@@ -714,20 +692,8 @@
 		}
 	}
 
-	@keyframes ds-panel-in {
-		from {
-			opacity: 0;
-			transform: translateY(-0.25rem);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
 	@media (prefers-reduced-motion: reduce) {
 		.ds-shell-rail[data-drawer='true'],
-		.ds-shell-panel,
 		.ds-dot-pulse {
 			animation: none;
 		}
