@@ -1,9 +1,9 @@
 # Real-browser verification
 
-Seven surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
+Eight surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
 plus `states` (the async-outcome surfaces), `card` (CardTitle's heading mode),
-`overlays`, `overflow`, `avatar` and `theming` — each in its own section at the
-end.
+`overlays`, `overflow`, `avatar`, `theming` and `detail-panel` — each in its
+own section at the end.
 
 ## Two ways to drive it
 
@@ -541,6 +541,21 @@ reason. The fix ends the freeze — see `packages/design-tokens/sd.config.js`
 `packages/ui/src/lib/styles.css` (the `@theme inline` fallback chains) — and
 this is the only gate that can tell the difference between "the rule exists"
 and "the rule re-resolves where an app actually scopes it".
+
+## DetailPanel's title face (`?surface=detail-panel`) — #9
+
+`titleFace` swaps a class (`font-mono` / `font-display`), and a class name is
+not the claim: this package's other gates exist precisely because a Tailwind
+utility can sit in the DOM with no compiled rule behind it, and jsdom cannot
+resolve a `font-family` at all (`src/test/composed-chrome.test.ts` covers the
+class-name half only). Two panels, one per supported setting. Scripted in
+`drive.mjs`.
+
+| Claim | Observed |
+| --- | --- |
+| Default (`titleFace` omitted) resolves the mono/code family | `"JetBrains Mono", "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace` |
+| `titleFace="display"` resolves the display family | `Fraunces, ui-serif, Georgia, serif` |
+| The two settings resolve to different families | asserted directly, not inferred from the two rows above |
 
 ## The Svelte/bits-ui pairing (no surface — a sweep)
 

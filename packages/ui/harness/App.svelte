@@ -37,6 +37,7 @@
 	import CardTitle from '../dist/components/ui/card/card-title.svelte';
 	import CardDescription from '../dist/components/ui/card/card-description.svelte';
 	import CardContent from '../dist/components/ui/card/card-content.svelte';
+	import DetailPanel from '../dist/components/ui/detail-panel/detail-panel.svelte';
 	import type { NavSource } from '../dist/components/ui/app-shell/types.js';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import Package from '@lucide/svelte/icons/package';
@@ -136,7 +137,26 @@
 
 <ModeWatcher defaultMode="system" />
 
-{#if surface === 'theming'}
+{#if surface === 'detail-panel'}
+	<!-- design-system#9: DetailPanel's title face is a class-name choice
+	     (font-mono vs font-display), which is exactly the shape of dead
+	     utility this package's other gates guard against — the class can be
+	     present in the DOM with no compiled rule behind it. Two panels, one
+	     per supported titleFace, so the CLAIM (a resolved computed
+	     font-family, not a class string) is measured. -->
+	<div class="flex flex-col gap-4 p-8">
+		<div data-probe="mono">
+			<DetailPanel title="record-42">
+				<p>Default (mono) body</p>
+			</DetailPanel>
+		</div>
+		<div data-probe="display">
+			<DetailPanel title="Jordan Rivers" titleFace="display">
+				<p>Display body</p>
+			</DetailPanel>
+		</div>
+	</div>
+{:else if surface === 'theming'}
 	<!-- design-system#8: scoped theming. jsdom cannot make either claim here —
 	     it applies no stylesheet, so it never resolves a var() chain at all,
 	     and it has no cascade to distinguish "declared at :root" from

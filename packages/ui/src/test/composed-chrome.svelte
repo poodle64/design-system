@@ -96,6 +96,15 @@
 	<p>Unlabelled status body</p>
 </DetailPanel>
 
+<!-- titleFace (design-system#9): the class-name half of the claim, paired
+     with the resolved-font-family half in harness/drive.mjs. -->
+<DetailPanel title="record-default-face" data-testid="detail-panel-face-default">
+	<p>Default face body</p>
+</DetailPanel>
+<DetailPanel title="Jordan Rivers" titleFace="display" data-testid="detail-panel-face-display">
+	<p>Display face body</p>
+</DetailPanel>
+
 <EmptyState
 	title="Nothing yet"
 	description="Add the first one."

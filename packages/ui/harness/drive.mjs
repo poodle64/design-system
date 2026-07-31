@@ -761,6 +761,35 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 	await context.close();
 }
 
+// ── DetailPanel's title face (#9) ────────────────────────────────────────────
+// A class name is not the claim: font-mono / font-display are Tailwind
+// utilities, and this package's other gates exist precisely because a
+// utility can be present in the DOM with no compiled rule behind it. The
+// claim is the RESOLVED computed font-family.
+{
+	const { context, page } = await open('surface=detail-panel');
+	await page.waitForSelector('[data-probe="mono"] h2');
+
+	const fonts = await page.evaluate(() => ({
+		mono: getComputedStyle(document.querySelector('[data-probe="mono"] h2')).fontFamily,
+		display: getComputedStyle(document.querySelector('[data-probe="display"] h2')).fontFamily
+	}));
+
+	check(
+		'DetailPanel: default titleFace resolves the mono (code) family',
+		fonts.mono.includes('JetBrains Mono'),
+		fonts.mono
+	);
+	check(
+		'DetailPanel: titleFace="display" resolves the display (Fraunces) family',
+		fonts.display.includes('Fraunces'),
+		fonts.display
+	);
+	check('DetailPanel: the two settings resolve to different families', fonts.mono !== fonts.display, `mono: ${fonts.mono} | display: ${fonts.display}`);
+
+	await context.close();
+}
+
 // ── Scoped theming (#8) ──────────────────────────────────────────────────────
 // The claim jsdom cannot make: it never resolves a var() chain, so it cannot
 // tell "resolved once at :root, then inherited unchanged below it" apart from

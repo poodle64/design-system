@@ -9,6 +9,7 @@
 	let {
 		eyebrow,
 		title,
+		titleFace = 'mono',
 		icon: Icon,
 		status,
 		statusLabel,
@@ -21,6 +22,13 @@
 	}: WithElementRef<HTMLAttributes<HTMLElement>> & {
 		eyebrow?: string;
 		title: string;
+		/**
+		 * The title's type face. `'mono'` (default, unchanged) reads as an
+		 * identifier — a hostname, a key, a machine value. `'display'` reads as
+		 * a heading first, for a title that is a name or a label rather than a
+		 * machine-produced value (design-system#9).
+		 */
+		titleFace?: 'mono' | 'display';
 		icon?: Component<{ class?: string }>;
 		status?: Status;
 		statusLabel?: string;
@@ -54,7 +62,14 @@
 					{eyebrow}
 				</div>
 			{/if}
-			<h2 class="text-body truncate font-mono font-semibold">{title}</h2>
+			<h2
+				class={cn(
+					'text-body truncate font-semibold',
+					titleFace === 'display' ? 'font-display' : 'font-mono'
+				)}
+			>
+				{title}
+			</h2>
 			{#if status && statusLabel}
 				<div class="mt-1.5"><StatusBadge {status} label={statusLabel} /></div>
 			{/if}

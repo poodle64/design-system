@@ -348,3 +348,27 @@ describe('rest props (design-system#14)', () => {
 		expect(region).toHaveAttribute('data-testid', 'context-column-root');
 	});
 });
+
+describe('DetailPanel titleFace (design-system#9)', () => {
+	// The class-name half only — jsdom cannot resolve a computed font-family
+	// (rules-library/core/73-verification.md §"Behaviour vs Appearance"), and a
+	// class present with no rule behind it is exactly the silent failure this
+	// package's other gates exist to catch. The resolved-font-family half is
+	// the real assertion, in harness/drive.mjs's "DetailPanel's title face"
+	// section — this only pins that the default is unchanged and the prop
+	// reaches the right class.
+	it('defaults to the mono face, unchanged', () => {
+		render(ChromeHarness);
+		const title = screen.getByTestId('detail-panel-face-default').querySelector('h2')!;
+		expect(title.className).toContain('font-mono');
+		expect(title.className).not.toContain('font-display');
+	});
+
+	it('titleFace="display" switches the class, not just accepts the prop', () => {
+		render(ChromeHarness);
+		const title = screen.getByTestId('detail-panel-face-display').querySelector('h2')!;
+		expect(title.className).toContain('font-display');
+		expect(title.className).not.toContain('font-mono');
+		expect(title).toHaveTextContent('Jordan Rivers');
+	});
+});
