@@ -101,6 +101,7 @@ tokens.tokens.json
        spacing/         xs / sm / md / lg / xl / 2xl  (CSS vars only — see below)
        text/            2xs (eyebrow / column head)
        font/            display / body / code
+       font-size/       base (root html font-size, CSS var only, see below)
        colour/          surface ladder + status + primary + destructive
                         Each colour has .light and .dark sub-values,
                         emitted as :root + .dark blocks

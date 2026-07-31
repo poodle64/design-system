@@ -199,6 +199,15 @@
       }
     },
 
+    "font-size": {
+      "$description": "The root element's font-size override point. A consuming app sets the html element's font-size to var(--ds-font-size-base). Never registered as a Tailwind theme key — see THEME_EXCLUDED_NAMESPACES in sd.config.js.",
+      "base": {
+        "$value": "100%",
+        "$type": "dimension",
+        "$description": "Ratified 31/07/2026. 100% equals the browser default (nominally 16px) while still scaling with a reader's own changed browser text-size preference — a fixed px value would silently override that preference instead."
+      }
+    },
+
     "colour": {
       "$description": "Mode-sensitive semantic tokens. Each token has a light and dark sub-value; Style Dictionary emits them as :root (light) and .dark overrides.",
 

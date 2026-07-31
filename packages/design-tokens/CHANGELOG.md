@@ -4,6 +4,10 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- **`--ds-font-size-base`** (semantic.font-size.base), ratified 31/07/2026. Value `100%`: equals the browser default (nominally 16px) while still scaling with a reader's own changed browser text-size preference — a fixed px value would silently override that preference instead. An app sets `html { font-size: var(--ds-font-size-base); }`. Ships in `tokens.css` (`:root`, mode-independent) and the JS/TS constants (`DS_FONT_SIZE_BASE`), like every other token; deliberately excluded from the Tailwind `@theme` block (`THEME_EXCLUDED_NAMESPACES`) since it is a root-element override point, never a utility class, and Tailwind generates a font-family utility from any `--font-<name>` theme key — left unexcluded, `--font-size-base` would register a nonsensical `.font-size-base { font-family: … }`. `templates/DESIGN.md.template` §8 adds the `html { font-size: … }` wiring line.
+
 ### Fixed
 
 - **`muted-foreground` was below the WCAG AA text floor (4.5:1) against every light surface** (design-system#13). `palette.neutral.500` (`oklch(0.600 0.012 85)`) measured 3.95:1 on `surface-2`, 3.78:1 on `background`, 3.62:1 on `surface-1`, and 3.41:1 on `surface-3` — the darkest and binding constraint. Since `muted-foreground` is the package's secondary-text colour (descriptions, captions, timestamps, helper copy) this was every app's secondary text, in light mode, on the default palette, no override involved. Lowered to `oklch(0.520 0.012 85)` (chroma/hue unchanged): 4.76–5.28:1 across the four light surfaces, a genuine margin above the floor rather than a bare pass, and still a clear step down from `foreground` (`neutral.800`, L 0.240). Dark mode (`neutral.970`) was already clear — 5.56–6.59:1 across the same four surfaces — and is unchanged. Ratios computed from the built tokens (oklch → linear sRGB → WCAG relative luminance) and cross-checked against design-system#13's own Chromium-measured figures before the fix (exact match to 2dp); asserted going forward in `test/contrast.test.js`.

@@ -24,6 +24,7 @@
  *   semantic.spacing.X             → --ds-spacing-X
  *   semantic.text.X                → --ds-text-X
  *   semantic.font.X                → --ds-font-X
+ *   semantic.font-size.X           → --ds-font-size-X (never a Tailwind theme key)
  *   palette.*                      → --ds-palette-* (primitives; not for components)
  *   meta.*                         → omitted from CSS output
  */
@@ -91,7 +92,12 @@ StyleDictionary.registerFormat({
 // ---------------------------------------------------------------------------
 
 /**
- * Tailwind namespaces this package must never register in @theme.
+ * Namespace prefixes this package must never register in @theme — checked
+ * against the FULL derived name (`prefix` itself, or `prefix-` as a leading
+ * segment run), not just its first hyphen-split segment: `font-size` and
+ * `font` share a first segment, and a first-segment-only check would either
+ * miss `font-size-base` or wrongly also exclude `font-display`/`font-body`/
+ * `font-code`.
  *
  * spacing: Tailwind resolves the sizing utilities (w-*, max-w-*, min-w-*,
  * basis-*) against --spacing-* BEFORE --container-*, so a named --spacing-<key>
@@ -104,10 +110,21 @@ StyleDictionary.registerFormat({
  * The --ds-spacing-* custom properties in tokens.css are unaffected: they stay
  * the way to consume the named rhythm from hand-written CSS.
  *
+ * font-size: --ds-font-size-base is a root-element override point an app
+ * consumes directly (`html { font-size: var(--ds-font-size-base) }`), never a
+ * Tailwind utility. Left unexcluded it would still collide: Tailwind's
+ * font-family utilities are generated from any `--font-<name>` theme key, so
+ * `--font-size-base` would register a nonsensical `.font-size-base { font-family: … }`
+ * utility Tailwind can't tell apart from a real family alias.
+ *
  * Guarded by test/tailwind-namespace.test.js, which compiles real Tailwind and
  * asserts the sizing scale means the same with and without this package.
  */
-const THEME_EXCLUDED_NAMESPACES = new Set(['spacing']);
+const THEME_EXCLUDED_NAMESPACES = new Set(['spacing', 'font-size']);
+
+/** Whether `name` falls under one of `THEME_EXCLUDED_NAMESPACES`. */
+const isThemeExcluded = (name) =>
+  [...THEME_EXCLUDED_NAMESPACES].some((prefix) => name === prefix || name.startsWith(`${prefix}-`));
 
 /**
  * Colour registration is `@theme inline`; radius/text/font stay plain `@theme`
@@ -145,7 +162,7 @@ StyleDictionary.registerFormat({
     for (const [parts] of leaves(dictionary.tokens)) {
       if (parts[0] !== 'semantic') continue; // palette primitives stay out of @theme
       const { name } = dsName(parts);
-      if (THEME_EXCLUDED_NAMESPACES.has(name.split('-')[0])) continue;
+      if (isThemeExcluded(name)) continue;
       if (seen.has(name)) continue; // light/dark pairs collapse to one alias
       seen.add(name);
 

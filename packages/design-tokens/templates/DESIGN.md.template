@@ -270,6 +270,14 @@ Icons: `@lucide/svelte`, deep imports, `size-4` inline / `size-5` standalone /
 /* @poodle64/ui ships in node_modules, outside Tailwind's default src/ scan. */
 @source "../node_modules/@poodle64/ui/dist";
 
+/* Root font-size: 100% keeps the browser/OS default (nominally 16px) while
+   still scaling with a reader's own changed browser text-size preference.
+   Never a fixed px value here -- that would silently override that
+   preference instead of honouring it. */
+html {
+  font-size: var(--ds-font-size-base);
+}
+
 /* Per-app primary override — the ONLY change from shared defaults. */
 :root {
   --ds-color-primary: oklch(0.50 0.155 XXX);

@@ -102,6 +102,22 @@ test('@theme registers nothing in the spacing namespace', () => {
   );
 });
 
+test('@theme registers nothing under font-size — it is a root override point, never a Tailwind utility', () => {
+  // Left unexcluded it would collide for real: Tailwind generates a
+  // font-family utility from any --font-<name> theme key, so --font-size-base
+  // would register a nonsensical .font-size-base { font-family: … } utility.
+  assert.doesNotMatch(
+    readFileSync(themeBlock, 'utf8'),
+    /^\s*--font-size-/m,
+    'a --font-size-* entry in @theme would collide with font-family utility generation',
+  );
+});
+
+test('--ds-font-size-base ships in tokens.css for an app to set html { font-size: … } against', () => {
+  const tokensCss = readFileSync(join(repoRoot, 'dist', 'tokens.css'), 'utf8');
+  assert.match(tokensCss, /--ds-font-size-base:\s*100%;/);
+});
+
 test('the design-system namespaces still reach their utilities', () => {
   const css = compile(['bg-primary', 'text-2xs', 'rounded-lg', 'font-sans', 'p-4'], { tokens: true });
 
