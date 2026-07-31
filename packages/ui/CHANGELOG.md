@@ -2,7 +2,7 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
-## [Unreleased]
+## [2026.7.11] - 2026-07-31
 
 ### Changed
 
