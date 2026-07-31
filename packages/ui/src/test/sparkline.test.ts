@@ -86,6 +86,41 @@ describe('Sparkline tracks the series values, not a shape frozen at mount', () =
 	});
 });
 
+describe('Sparkline degenerate series', () => {
+	// design-system#15 code review: a single-point or empty series divides by
+	// zero in the width-spread ratio (i / (n - 1)), and an all-zero series
+	// divides by zero in the value-range ratio — both real inputs (a
+	// freshly-created lane, a metric that hasn't moved), not malformed ones.
+	// The fix degrades to a flat/empty render; this pins that no NaN reaches
+	// the DOM either way.
+	it('renders a single-point series without NaN coordinates', () => {
+		render(SparklineHarness, {
+			props: { series: [{ vals: [7], color: '#22c55e' }], width: WIDTH, height: HEIGHT, pad: PAD }
+		});
+		const circle = seriesCircles()[0];
+		expect(circle.getAttribute('cx')).not.toContain('NaN');
+		expect(circle.getAttribute('cy')).not.toContain('NaN');
+	});
+
+	it('renders an empty series without NaN coordinates', () => {
+		render(SparklineHarness, {
+			props: { series: [{ vals: [], color: '#22c55e' }], width: WIDTH, height: HEIGHT, pad: PAD }
+		});
+		const circle = seriesCircles()[0];
+		expect(circle.getAttribute('cx')).not.toContain('NaN');
+		expect(circle.getAttribute('cy')).not.toContain('NaN');
+	});
+
+	it('renders an all-zero series without NaN coordinates', () => {
+		render(SparklineHarness, {
+			props: { series: [{ vals: [0, 0, 0], color: '#22c55e' }], width: WIDTH, height: HEIGHT, pad: PAD }
+		});
+		const circle = seriesCircles()[0];
+		expect(circle.getAttribute('cx')).not.toContain('NaN');
+		expect(circle.getAttribute('cy')).not.toContain('NaN');
+	});
+});
+
 describe('Sparkline sizing', () => {
 	it('sets the viewBox from width and height', () => {
 		render(SparklineHarness, {

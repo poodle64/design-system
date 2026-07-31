@@ -31,10 +31,19 @@
 	} = $props();
 
 	function buildPaths(vals: number[], w: number, h: number, p: number) {
-		const max = Math.max(...vals) * 1.12;
-		const min = 0;
+		// A series with 0 or 1 points has no interval to spread across the
+		// width, and an all-zero series has no range to spread across the
+		// height — both zero denominators a real caller can legitimately hand
+		// in (a freshly-created lane, a metric that hasn't moved yet), so they
+		// degrade to a flat/empty render rather than emitting NaN coordinates
+		// into the path data.
 		const n = vals.length;
-		const xFn = (i: number) => p + (i / (n - 1)) * (w - 2 * p);
+		if (n === 0) {
+			return { line: '', area: '', lastX: p, lastY: h - p };
+		}
+		const max = Math.max(...vals) * 1.12 || 1;
+		const min = 0;
+		const xFn = (i: number) => (n === 1 ? p : p + (i / (n - 1)) * (w - 2 * p));
 		const yFn = (v: number) => h - p - ((v - min) / (max - min)) * (h - 2 * p);
 
 		let line = '';
@@ -45,8 +54,8 @@
 		const area =
 			line +
 			`L ${xFn(n - 1).toFixed(1)},${(h - p).toFixed(1)} L ${xFn(0).toFixed(1)},${(h - p).toFixed(1)} Z`;
-		const lastX = xFn(vals.length - 1);
-		const lastY = yFn(vals[vals.length - 1]);
+		const lastX = xFn(n - 1);
+		const lastY = yFn(vals[n - 1]);
 		return { line, area, lastX, lastY };
 	}
 

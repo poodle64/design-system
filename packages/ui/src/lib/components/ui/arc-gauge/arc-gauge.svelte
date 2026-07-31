@@ -49,7 +49,7 @@
 	const r = $derived(size / 2 - 4);
 	const circumference = $derived(2 * Math.PI * r);
 	const offset = $derived(circumference * (1 - clampedPct / 100));
-	const color = $derived(toneVar[tone]);
+	const color = $derived(toneVar[tone] ?? toneVar.success);
 	const big = $derived(size >= 40);
 	const strokeWidth = 4;
 </script>

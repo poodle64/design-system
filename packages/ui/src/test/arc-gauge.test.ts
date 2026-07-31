@@ -72,6 +72,14 @@ describe('ArcGauge tone maps to the status token, not always the default', () =>
 		render(ArcGaugeHarness, { props: { pct: 50 } });
 		expect(fillArc().getAttribute('stroke')).toBe('var(--ds-color-status-success)');
 	});
+
+	it('falls back to success for a runtime tone outside the typed union, rather than an unpainted stroke', () => {
+		// `tone` is compile-time-closed to GaugeTone, but a caller deriving it
+		// from an untyped API response can still hand in something else at
+		// runtime; the map lookup must not silently resolve to `undefined`.
+		render(ArcGaugeHarness, { props: { pct: 50, tone: 'not-a-real-tone' as never } });
+		expect(fillArc().getAttribute('stroke')).toBe('var(--ds-color-status-success)');
+	});
 });
 
 describe('ArcGauge label', () => {
