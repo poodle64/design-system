@@ -1,8 +1,9 @@
 # Real-browser verification
 
-Six surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
+Seven surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
 plus `states` (the async-outcome surfaces), `card` (CardTitle's heading mode),
-`overlays`, `overflow` and `avatar` — each in its own section at the end.
+`overlays`, `overflow`, `avatar` and `theming` — each in its own section at the
+end.
 
 ## Two ways to drive it
 
@@ -500,6 +501,41 @@ that decodes, and no source at all. Scripted in `drive.mjs`.
 jsdom loads no resources, so its half of this (`src/test/avatar.test.ts`) stubs
 `Image` to fire the events bits-ui listens for. This is the leg where the request
 genuinely fails and the picture genuinely decodes.
+
+## Scoped theming (`?surface=theming`) — #8
+
+The compiled-CSS gates in `src/test/theme-coverage.test.ts` prove a colour
+utility resolves to the right value at the page root. They cannot prove it
+resolves correctly in a SCOPED subtree, or under a SCOPED `.dark` wrapper,
+because that is a cascade fact — which element a `var()` chain re-resolves
+against — and neither a static compile nor jsdom's unresolved-`var()` stub can
+see it. Only a real engine, with a real DOM and a real element to scope the
+override on, can.
+
+Three identical probe sets (`bg-background`, `bg-card`, `bg-popover`,
+`bg-muted`, `bg-accent`, `bg-secondary`, `border-input`,
+`text-muted-foreground` — covering both packages' halves of the surface): the
+page default, a subtree overriding every `--ds-color-*` key those utilities
+read to one colour, and a subtree carrying a scoped `.dark` class. Scripted in
+`drive.mjs`.
+
+| Claim | Observed |
+| --- | --- |
+| The scoped `--ds-color-*` override reaches every utility in the subtree, uniformly | all eight slots resolve to the one override colour |
+| That is a genuine move, not a coincidence | none of the eight match the unscoped page default |
+| A scoped `.dark` wrapper moves the whole surface within it | none of the eight stay at the light root's value |
+
+### What this caught
+
+Before #8's fix, this surface would have failed the first and third rows: a
+subtree redeclaring `--ds-color-background` moved nothing (the utility read a
+theme-name alias frozen at `:root`, one level removed from the token), and a
+scoped `.dark` class moved nothing on either half of the surface for the same
+reason. The fix ends the freeze — see `packages/design-tokens/sd.config.js`
+(`css/tailwind-v4-theme`, `@theme inline`) and
+`packages/ui/src/lib/styles.css` (the `@theme inline` fallback chains) — and
+this is the only gate that can tell the difference between "the rule exists"
+and "the rule re-resolves where an app actually scopes it".
 
 ## The Svelte/bits-ui pairing (no surface — a sweep)
 

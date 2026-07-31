@@ -765,6 +765,76 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 	await context.close();
 }
 
+// ── Scoped theming (#8) ──────────────────────────────────────────────────────
+// The claim jsdom cannot make: it never resolves a var() chain, so it cannot
+// tell "resolved once at :root, then inherited unchanged below it" apart from
+// "resolved live at the element the class sits on" — only a real cascade can.
+// Three identical probe sets (see App.svelte): the page default, a subtree
+// overriding --ds-color-* only, and a subtree carrying a scoped .dark class.
+{
+	const { context, page } = await open('surface=theming');
+	await page.waitForSelector('[data-probe="root"] [data-slot="bg-background"]');
+
+	const SLOTS = [
+		['bg-background', 'backgroundColor'],
+		['bg-card', 'backgroundColor'],
+		['bg-popover', 'backgroundColor'],
+		['bg-muted', 'backgroundColor'],
+		['bg-accent', 'backgroundColor'],
+		['bg-secondary', 'backgroundColor'],
+		['border-input', 'borderTopColor'],
+		['text-muted-foreground', 'color']
+	];
+
+	const measured = await page.evaluate((slots) => {
+		const read = (probe) => {
+			const root = document.querySelector(`[data-probe="${probe}"]`);
+			return Object.fromEntries(
+				slots.map(([slot, prop]) => [
+					slot,
+					getComputedStyle(root.querySelector(`[data-slot="${slot}"]`))[prop]
+				])
+			);
+		};
+		return { root: read('root'), scopedDsColor: read('scoped-ds-color'), scopedDark: read('scoped-dark') };
+	}, SLOTS);
+
+	// The scoped subtree set every --ds-color-* key these utilities read to the
+	// SAME single colour, so every slot inside it must resolve to that one
+	// value — both packages' halves of the surface, one documented lever.
+	const overrideValues = new Set(Object.values(measured.scopedDsColor));
+	check(
+		'scoped --ds-color-* override: every shadcn utility in the subtree resolves to it',
+		overrideValues.size === 1,
+		JSON.stringify(measured.scopedDsColor)
+	);
+	// And it must actually have moved something, not coincidentally matched
+	// the page default (which would pass the check above for the wrong reason).
+	const unmoved = SLOTS.filter(([slot]) => measured.scopedDsColor[slot] === measured.root[slot]).map(
+		([slot]) => slot
+	);
+	check(
+		'scoped --ds-color-* override: differs from the unscoped page default',
+		unmoved.length === 0,
+		`unchanged from root: ${JSON.stringify(unmoved)} (root ${JSON.stringify(measured.root)}, scoped ${JSON.stringify(measured.scopedDsColor)})`
+	);
+
+	// A scoped .dark wrapper must move the WHOLE surface within it — every
+	// slot, both packages' keys — not just the half that happened to work
+	// before #8 (bg-card's bare-name lever) or none of it (bg-background's
+	// frozen theme-name lever).
+	const stillLight = SLOTS.filter(([slot]) => measured.scopedDark[slot] === measured.root[slot]).map(
+		([slot]) => slot
+	);
+	check(
+		'scoped .dark wrapper: moves every shadcn utility in the subtree',
+		stillLight.length === 0,
+		`unchanged from the light root: ${JSON.stringify(stillLight)} (root ${JSON.stringify(measured.root)}, scoped-dark ${JSON.stringify(measured.scopedDark)})`
+	);
+
+	await context.close();
+}
+
 await browser.close();
 server.close();
 

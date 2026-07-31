@@ -10,8 +10,13 @@
  * Three platforms:
  *   css → dist/tokens.css    (:root light tokens + .dark overrides, --ds-* namespace)
  *   js  → dist/tokens.js + dist/tokens.d.ts  (DS_* constants)
- *   tw  → dist/tokens.tw.css (@theme block for Tailwind v4; every semantic
- *                             group except THEME_EXCLUDED_NAMESPACES below)
+ *   tw  → dist/tokens.tw.css (two @theme blocks for Tailwind v4, every semantic
+ *                             group except THEME_EXCLUDED_NAMESPACES below:
+ *                             colour registers `@theme inline` so a scoped
+ *                             subtree or a scoped .dark wrapper can re-theme
+ *                             it — see the css/tailwind-v4-theme format below
+ *                             and design-system#8; radius/text/font stay
+ *                             plain `@theme`)
  *
  * Emitted-name contract (what every consuming app relies on):
  *   semantic.colour.X.{light,dark} → --ds-color-X in :root and .dark
@@ -104,11 +109,37 @@ StyleDictionary.registerFormat({
  */
 const THEME_EXCLUDED_NAMESPACES = new Set(['spacing']);
 
+/**
+ * Colour registration is `@theme inline`; radius/text/font stay plain `@theme`
+ * (design-system#8).
+ *
+ * A plain `@theme { --color-x: var(--ds-color-x); }` registers `--color-x` as
+ * a REAL custom property, declared once at `:root`. Tailwind's generated
+ * utility then reads `var(--color-x)`, not `var(--ds-color-x)` directly — two
+ * levels of indirection. CSS resolves that indirection ONCE, at the element
+ * where `--color-x` is declared (`:root`), and inherits the already-resolved
+ * result unchanged from there. A `.dark` class or a `--ds-color-x` override
+ * on anything BELOW `:root` never reaches it: `--color-x`'s value was fixed
+ * before the override existed. `@theme inline` collapses the indirection —
+ * the utility reads `var(--ds-color-x)` directly — so the live token, not a
+ * frozen alias, is what the cascade re-resolves at every element. Root-level
+ * `.dark` and root-level overrides were never affected (both scopes resolve
+ * at the same element `:root` either way); only a SCOPED subtree wrapper was
+ * broken, which is what #8 reports.
+ *
+ * This trades away `--color-x`-by-name override (never documented — the
+ * README's only documented lever is `--ds-color-*`) for a working scoped
+ * lever. Radius/text/font stay plain `@theme`: the package's own binding
+ * constraints (README §"Binding constraints") make per-app radius/font
+ * override unsanctioned already, so there is nothing to gain by moving them
+ * and no reason to touch their (working) by-name lever.
+ */
 StyleDictionary.registerFormat({
   name: 'css/tailwind-v4-theme',
   format: async ({ dictionary, file }) => {
     const header = await fileHeader({ file });
-    const lines = [];
+    const colourLines = [];
+    const otherLines = [];
     const seen = new Set();
 
     for (const [parts] of leaves(dictionary.tokens)) {
@@ -118,19 +149,22 @@ StyleDictionary.registerFormat({
       if (seen.has(name)) continue; // light/dark pairs collapse to one alias
       seen.add(name);
 
-      // Alias the live --ds-* custom property so .dark toggling flows through
-      // @theme utilities automatically. The normalised name already carries its
-      // Tailwind namespace (color-*, radius-*, spacing-*, text-*, font-*).
-      lines.push(`  --${name}: var(--ds-${name});`);
+      // Alias the live --ds-* custom property so .dark toggling and a scoped
+      // subtree override both flow through @theme utilities automatically.
+      // The normalised name already carries its Tailwind namespace
+      // (color-*, radius-*, text-*, font-*).
+      const line = `  --${name}: var(--ds-${name});`;
+      if (parts[1] === 'colour') colourLines.push(line);
+      else otherLines.push(line);
     }
 
     // Default Tailwind family hooks so font-sans / font-serif / font-mono
     // resolve to the binding families without per-app wiring.
-    lines.push('  --font-sans: var(--ds-font-body);');
-    lines.push('  --font-serif: var(--ds-font-display);');
-    lines.push('  --font-mono: var(--ds-font-code);');
+    otherLines.push('  --font-sans: var(--ds-font-body);');
+    otherLines.push('  --font-serif: var(--ds-font-display);');
+    otherLines.push('  --font-mono: var(--ds-font-code);');
 
-    return `${header}@theme {\n${lines.join('\n')}\n}\n`;
+    return `${header}@theme {\n${otherLines.join('\n')}\n}\n\n@theme inline {\n${colourLines.join('\n')}\n}\n`;
   },
 });
 

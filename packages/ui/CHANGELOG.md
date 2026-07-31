@@ -4,6 +4,15 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed
+
+- Scoped theming (design-system#8). `bg-card`, `bg-popover`, `bg-muted`, `bg-accent`, `bg-secondary` and `border-input` now re-resolve against a scoped `--ds-color-*` override or a scoped `.dark` wrapper, not just at the page root. Previously each utility read a bare shadcn name (`--card`, `--popover`, …) declared once at `:root`; that name froze at its root-level value and never re-evaluated for a subtree override or a scoped `.dark` class below it. Each theme registration is now a fallback chain — `--color-card: var(--card, var(--ds-color-surface-2))` — so the bare name, if an app sets it, still wins (unchanged, additive); if it is unset (the default, and every app today), the utility resolves the live `--ds-color-*` token instead of a frozen alias.
+- `.ds-skip-link` and `Sonner`'s CSS-variable bridge (`--normal-bg`/`--normal-text`) read `--popover`/`--popover-foreground` through the same fallback, for the same reason — they consume those names directly, outside the Tailwind theme mapping.
+
+### Changed
+
+- `--card`, `--card-foreground`, `--popover`, `--popover-foreground`, `--secondary`, `--secondary-foreground`, `--muted`, `--accent`, `--accent-foreground` and `--input` no longer carry a default declaration in `:root`; they are pure by-name override hooks now, consumed only via the fallback chains above. An app that never set these is unaffected (the fallback supplies the same default value as before); an app that already overrides one by name is unaffected (still wins). See `@poodle64/design-tokens`'s own changelog for the companion, **breaking** change to `--color-*`-by-name override on the keys that package registers (`--color-background`, `--color-primary`, etc.) — this package's own bare-name levers (`--card` etc.) are unaffected by that.
+
 ## [2026.7.8] - 2026-07-29
 
 ### Fixed

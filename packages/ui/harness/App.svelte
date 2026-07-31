@@ -83,6 +83,11 @@
 	// and needs its own case.
 	// `?surface=avatar` drives the real load-state swap over the network: a URL
 	// that cannot resolve, one that can, and no source at all.
+	// `?surface=theming` drives scoped theming (#8): the same probe set at the
+	// page root, inside a subtree overriding --ds-color-* only, and inside a
+	// subtree carrying a scoped .dark class. Neither jsdom nor a compiled-CSS
+	// gate can tell "resolved once at :root, then inherited unchanged" apart
+	// from "resolved live at this element" — only a real cascade can.
 	// `?surface=long-lists` opens each floating overlay over a list longer than
 	// the viewport. Nothing short of an engine can make this claim: whether
 	// `overflow-y-auto` does anything depends entirely on whether a height
@@ -131,7 +136,43 @@
 
 <ModeWatcher defaultMode="system" />
 
-{#if surface === 'overlays'}
+{#if surface === 'theming'}
+	<!-- design-system#8: scoped theming. jsdom cannot make either claim here —
+	     it applies no stylesheet, so it never resolves a var() chain at all,
+	     and it has no cascade to distinguish "declared at :root" from
+	     "declared on this element's ancestor". Three identical probe sets:
+	     the page default, a subtree overriding --ds-color-* only, and a
+	     subtree carrying a scoped .dark class — proving the ONE documented
+	     lever (--ds-color-*) reaches every shadcn colour utility this
+	     package ships, in a scope smaller than the page, on both halves of
+	     the surface (bg-background/text-muted-foreground/border-input are
+	     @poodle64/design-tokens' own keys; bg-card/bg-popover/bg-muted/
+	     bg-accent/bg-secondary are @poodle64/ui's). -->
+	{#snippet probes(probe: string)}
+		<div data-probe={probe} class="flex flex-wrap gap-2 p-2">
+			<div data-slot="bg-background" class="bg-background p-2">background</div>
+			<div data-slot="bg-card" class="bg-card p-2">card</div>
+			<div data-slot="bg-popover" class="bg-popover p-2">popover</div>
+			<div data-slot="bg-muted" class="bg-muted p-2">muted</div>
+			<div data-slot="bg-accent" class="bg-accent p-2">accent</div>
+			<div data-slot="bg-secondary" class="bg-secondary p-2">secondary</div>
+			<div data-slot="border-input" class="border-input border-4 p-2">input</div>
+			<div data-slot="text-muted-foreground" class="text-muted-foreground p-2">muted-foreground</div>
+		</div>
+	{/snippet}
+	<div class="flex flex-col gap-4 p-8">
+		<div data-probe="root">{@render probes('root')}</div>
+		<div
+			data-probe="scoped-ds-color"
+			style="--ds-color-background: oklch(0.55 0.2 30); --ds-color-surface-1: oklch(0.55 0.2 30); --ds-color-surface-2: oklch(0.55 0.2 30); --ds-color-surface-3: oklch(0.55 0.2 30); --ds-color-border: oklch(0.55 0.2 30); --ds-color-muted-foreground: oklch(0.55 0.2 30);"
+		>
+			{@render probes('scoped-ds-color')}
+		</div>
+		<div data-probe="scoped-dark" class="dark">
+			{@render probes('scoped-dark')}
+		</div>
+	</div>
+{:else if surface === 'overlays'}
 	<div class="flex flex-col items-start gap-4 p-8">
 		<button type="button" onclick={() => (overlayDialogOpen = true)}>Open dialog</button>
 		<AppDialog bind:open={overlayDialogOpen} title="Overlay dialogue">

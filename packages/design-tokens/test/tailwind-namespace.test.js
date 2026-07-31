@@ -105,7 +105,10 @@ test('@theme registers nothing in the spacing namespace', () => {
 test('the design-system namespaces still reach their utilities', () => {
   const css = compile(['bg-primary', 'text-2xs', 'rounded-lg', 'font-sans', 'p-4'], { tokens: true });
 
-  assert.equal(declaration(css, 'bg-primary', 'background-color'), 'var(--color-primary)');
+  // Colour registers @theme inline (design-system#8): the utility reads the
+  // --ds-* token directly, not the --color-* theme alias, so a scoped
+  // subtree or a scoped .dark wrapper can re-theme it.
+  assert.equal(declaration(css, 'bg-primary', 'background-color'), 'var(--ds-color-primary)');
   assert.equal(declaration(css, 'text-2xs', 'font-size'), 'var(--text-2xs)');
   assert.equal(declaration(css, 'rounded-lg', 'border-radius'), 'var(--radius-lg)');
   assert.equal(declaration(css, 'font-sans', 'font-family'), 'var(--font-sans)');

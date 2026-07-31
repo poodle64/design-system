@@ -171,11 +171,24 @@ describe('the shadcn semantic surface', () => {
 		// The whole point of #3: the contract ships beside the components that
 		// depend on it. If this moved back out to per-app CSS, the next app to
 		// adopt the package inherits the same broken surface.
+		//
+		// The mapping is a fallback chain (design-system#8), not a single
+		// reference: --color-card: var(--card, var(--ds-color-surface-2)). The
+		// bare name (--card) carries no default of its own — see the scoped-
+		// override tests below — so this asserts the chain shape rather than a
+		// direct --name: var(--ds- pairing.
+		//
+		// text-muted-foreground is excluded: --ds-color-muted-foreground is a
+		// design-tokens-owned key registered by that package's own @theme
+		// inline block (asserted in design-tokens' own test suite), never by
+		// this one — CASES covers it for the compile-and-resolve test above,
+		// not for this package-ownership assertion.
 		const stylesheet = readFileSync(join(distDir, 'styles.css'), 'utf8');
 		for (const [utility] of CASES) {
+			if (utility === 'text-muted-foreground') continue;
 			const name = colourNameOf(utility);
 			expect(stylesheet, `--${name} is not mapped in the shipped stylesheet`).toMatch(
-				new RegExp(`--${name}\\s*:\\s*var\\(--ds-`)
+				new RegExp(`--color-${name}\\s*:\\s*var\\(--${name},\\s*var\\(--ds-`)
 			);
 		}
 	});
