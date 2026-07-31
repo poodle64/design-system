@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [Unreleased]
+
+### Changed
+
+- **`AppShell`'s `content="standard"` is renamed `content="prose"`.** Operator ruling, 31/07/2026: `"standard"` read as though it were the default, but it was always the 80rem-capped, reading-weight mode; `"prose"` says what it actually is. `"standard"` is kept as a deprecated alias mapping to the identical `mx-auto w-full max-w-[80rem]` class, purely so an existing caller's rendering does not change until it opts into the new name. The **default stays `content="full"`** (`w-full`, no max-width cap): it always has been, since the shell's very first commit (`c43cc60`) — this was never a fluid-vs-capped default flip, only the capped mode's name catching up to what it is. `"wide"` (120rem) is unchanged.
+
+  Consumer impact, checked against every household frontend that renders `AppShell`: every one is unaffected by this release. `earworm` (`content="wide"`) and `eight` (`content="full"`) pass an explicit value untouched by the rename. `fixxxer`, `mission-command` and `seshat` pass `content="standard"`, which keeps rendering the identical 80rem cap via the alias. `godswood`, `milton` (both layouts), `portcullis` and `tapestry` pass no `content` prop at all and have always rendered full-width, unchanged by this release. `mission-command`'s own capped rendering, the one that prompted the ruling, is its own explicit choice and stays exactly as it is until `mission-command` itself chooses to switch to `content="full"` or drop the prop; that is a change for `mission-command`'s repo, not this package.
+
 ## [2026.7.10] - 2026-07-31
 
 ### Added

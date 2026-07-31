@@ -150,7 +150,7 @@ That is the whole minimum. Everything below is optional.
 | `sidebar` | A secondary, route-scoped column between the nav and the page body. |
 | `onSearch`, `searchLabel`, `searchShortcut` | Provide `onSearch` to render the search affordance at all. |
 | `themeToggle`, `onToggleTheme` | Defaults to `mode-watcher`. Set `themeToggle={false}` when the app puts theming inside its own user menu. |
-| `content`, `padded`, `mainClass` | Content ceiling (`full` \| `wide` \| `standard`), padding, and a background texture class. |
+| `content`, `padded`, `mainClass` | Content ceiling (`full` (default) \| `wide` \| `prose`; `standard` is a deprecated alias for `prose`), padding, and a background texture class. |
 
 `NavItem` / `NavGroup` are exported so an app types its own config against them.
 They carry **no notion of who may see an item**: two surveyed apps gate

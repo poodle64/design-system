@@ -123,11 +123,17 @@
 		onToggleTheme?: () => void;
 		/**
 		 * The content ceiling. Named rather than free-form because a page's
-		 * measure is a design-system decision: 'full' for a dense console that
-		 * earns the whole viewport, 'wide' (120rem) for dashboards, 'standard'
-		 * (80rem) for reading-weight pages.
+		 * measure is a design-system decision: 'full' (the default) for the
+		 * whole viewport — right for a dense data console, where a centred
+		 * max-width column on a large display is just blank bars down each
+		 * side — 'wide' (120rem) for dashboards, 'prose' (80rem) for
+		 * reading-weight pages that genuinely want a capped measure.
+		 *
+		 * 'standard' is a deprecated alias for 'prose' (same 80rem cap,
+		 * identical rendering) kept only so a caller already passing it does
+		 * not change appearance; new call sites should use 'prose'.
 		 */
-		content?: 'full' | 'wide' | 'standard';
+		content?: 'full' | 'wide' | 'standard' | 'prose';
 		padded?: boolean;
 		/** Extra classes on the scrolling content container (a background texture). */
 		mainClass?: string;
@@ -235,7 +241,7 @@
 	const contentWidth = $derived(
 		content === 'wide'
 			? 'mx-auto w-full max-w-[120rem]'
-			: content === 'standard'
+			: content === 'standard' || content === 'prose'
 				? 'mx-auto w-full max-w-[80rem]'
 				: 'w-full'
 	);
