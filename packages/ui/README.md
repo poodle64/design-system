@@ -115,6 +115,14 @@ survived scrutiny is **where primary navigation lives**:
 | `"rail"` (default) | a permanent left column | an overlay drawer |
 | `"header"` | a horizontal row in the top bar | a disclosure panel under the bar |
 
+**`variant="header"` (top navbar) is the household standard.** `"rail"` stays
+the component's own default for backward compatibility: flipping nav
+orientation estate-wide on a patch bump would violate least-surprise for
+every app already relying on it, but a new app should reach for
+`variant="header"` explicitly. A `"rail"` shell is a recorded per-app
+exception, not the pattern to copy; the standard is enforced by rule and by
+each app's own explicit prop, not by the component's default.
+
 Everything the apps otherwise differed on turned out to be a slot, not a variant.
 The package therefore imports no app store, no app route and no app brand:
 

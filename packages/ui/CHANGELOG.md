@@ -10,6 +10,10 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
   Consumer impact, checked against every household frontend that renders `AppShell`: every one is unaffected by this release. `earworm` (`content="wide"`) and `eight` (`content="full"`) pass an explicit value untouched by the rename. `fixxxer`, `mission-command` and `seshat` pass `content="standard"`, which keeps rendering the identical 80rem cap via the alias. `godswood`, `milton` (both layouts), `portcullis` and `tapestry` pass no `content` prop at all and have always rendered full-width, unchanged by this release. `mission-command`'s own capped rendering, the one that prompted the ruling, is its own explicit choice and stays exactly as it is until `mission-command` itself chooses to switch to `content="full"` or drop the prop; that is a change for `mission-command`'s repo, not this package.
 
+### Docs
+
+- **`README.md` records `variant="header"` (top navbar) as the household standard** for `AppShell`, with `variant="rail"` a recorded per-app exception. The component's own default stays `"rail"` (unchanged): flipping every app's nav orientation on a patch bump would violate least-surprise for everything already relying on the current default. The standard is enforced by rule and by each app's own explicit prop, not by the component default.
+
 ## [2026.7.10] - 2026-07-31
 
 ### Added
