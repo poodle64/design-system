@@ -1,6 +1,6 @@
 # design-system — `@poodle64/design-tokens`
 
-The household web design-language factory. One DTCG token source, built by Style Dictionary v4, published to GitHub Packages, consumed by every SvelteKit app.
+The household web design-language factory. One DTCG token source, built by Style Dictionary v4, published to public npm, consumed by every SvelteKit app.
 
 ## What is here
 
@@ -37,21 +37,9 @@ Non-negotiable across every household app. Per-app exceptions are not permitted 
 
 ## Consuming the package
 
-GitHub Packages requires authentication for every install, public packages included.
-
-**Project `.npmrc`** (committed):
-
-```ini
-@poodle64:registry=https://npm.pkg.github.com
-```
-
-**Local dev** (once per machine, in `~/.npmrc` — any GitHub token with `read:packages`):
-
-```ini
-//npm.pkg.github.com/:_authToken=YOUR_TOKEN
-```
-
-**CI** (GitHub Actions): pass a token as `NODE_AUTH_TOKEN` (or use `actions/setup-node` with `registry-url`, which wires it). For workflows under the `poodle64` account the job's own `GITHUB_TOKEN` works (verified); a workflow elsewhere needs a PAT with `read:packages` — GitHub Packages authenticates every install, public packages included.
+Published to public npm under the `@poodle64` scope. No registry config, no
+`.npmrc`, and no auth token needed to install — an app just adds it like any
+other npm dependency.
 
 **Install and wire** (Tailwind v4 app):
 
@@ -139,7 +127,7 @@ reintroduce the collision unnoticed.
 1. Edit `tokens/tokens.tokens.json` only.
 2. `pnpm test` (builds, then checks the emitted contract against real Tailwind) and check `dist/`.
 3. Bump `version` in `package.json` and `meta.version` in the token file (CalVer), update `CHANGELOG.md`.
-4. Commit, tag `design-tokens-v<version>`, push the tag — CI publishes to GitHub Packages.
+4. Commit, tag `design-tokens-v<version>`, push the tag — CI publishes to public npm.
 5. Renovate raises the bump PR in each consuming app.
 
 Never edit `dist/` by hand; it is generated and gitignored.

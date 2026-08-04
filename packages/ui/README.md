@@ -488,8 +488,8 @@ idiom.
 
 ## Consuming the package
 
-Same registry and auth story as `@poodle64/design-tokens` (see the workspace root
-README and that package's README for the `.npmrc` / CI token setup).
+Published to public npm under the `@poodle64` scope, same as `@poodle64/design-tokens`
+— no registry config, no `.npmrc`, and no auth token needed to install.
 
 ```bash
 pnpm add @poodle64/ui @poodle64/design-tokens
@@ -610,4 +610,4 @@ non-zero and naming the field on any difference.
 
 1. Change a component; bump `version` in `package.json` (CalVer).
 2. `pnpm build`, which runs `svelte-package` then `publint` (package.json/exports sanity).
-3. Commit, tag `ui-v<version>`, push the tag; CI publishes to GitHub Packages.
+3. Commit, tag `ui-v<version>`, push the tag; CI publishes to public npm.

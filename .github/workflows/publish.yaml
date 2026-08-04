@@ -1,9 +1,20 @@
 name: Publish Package
 
-# Publishes one workspace package to GitHub Packages on a package-scoped tag
-# push: design-tokens-v<version> for @poodle64/design-tokens, ui-v<version>
-# for @poodle64/ui. Scoped tags let each package release on its own cadence
-# without forcing a version bump on the other (WP-51 Lane WP, 2026-07-22).
+# Publishes one workspace package to public npm (registry.npmjs.org, the
+# @poodle64 scope) on a package-scoped tag push: design-tokens-v<version> for
+# @poodle64/design-tokens, ui-v<version> for @poodle64/ui. Scoped tags let
+# each package release on its own cadence without forcing a version bump on
+# the other (WP-51 Lane WP, 2026-07-22).
+#
+# Moved off GitHub Packages 2026-08-04: GitHub Packages' npm registry
+# requires an authenticated request for every install, public packages
+# included, so a consumer with no configured token cannot `pnpm add` these
+# packages even though the repo and package are both public. Public npm
+# needs no token to install.
+#
+# Requires the NPM_TOKEN repository secret (an npm automation token scoped
+# to the @poodle64 org) — the "Require NPM_TOKEN" step below fails fast with
+# a clear message if it is missing.
 #
 # Deviation from 10-ci-workflow-standard (jobs on [self-hosted, atlas]),
 # dated 2026-07-03: this repo is PUBLIC, and exposing a self-hosted runner
@@ -19,10 +30,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Require NPM_TOKEN
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NPM_TOKEN" ]; then
+            echo "::error::NPM_TOKEN secret is not set on this repository. An npm automation token for the @poodle64 org must be added as the NPM_TOKEN repository secret before this workflow can publish — ask the repo owner (poodle64) to add it." >&2
+            exit 1
+          fi
 
       - name: Resolve package from tag
         id: pkg
@@ -50,7 +69,7 @@ jobs:
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: '22'
-          registry-url: 'https://npm.pkg.github.com'
+          registry-url: 'https://registry.npmjs.org'
           scope: '@poodle64'
 
       - name: Install
@@ -82,4 +101,4 @@ jobs:
         working-directory: ${{ steps.pkg.outputs.dir }}
         run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
