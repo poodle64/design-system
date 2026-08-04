@@ -804,6 +804,101 @@
 		max-width: var(--ds-shell-measure-wide);
 	}
 
+	/* The content texture: the house atmosphere, painted once by the shell on its
+	   own scrolling content region.
+
+	   Two apps had built this picture separately — a faint dot-grid floor plus a
+	   soft accent vignette in the top-right — under two names, in two app.css
+	   files, and one applied it as a helper class per route so it reached four
+	   routes out of about fifteen. It is the same drift the nav rules above were
+	   hoisted to end, one layer down.
+
+	   A BACKGROUND, not a layer, and that is the design. Both apps first reached
+	   for an absolutely positioned `::before` inside the scroller, which is wrong
+	   three ways at once: at `z-index: auto` a positioned box paints above
+	   non-positioned content, so the atmosphere tints the page rather than sitting
+	   under it (invisible only because it is faint); `z-index: -1` trades that for
+	   sinking behind an ancestor's background, since neither `<main>` nor
+	   `.ds-shell` opens a stacking context; and it has to be excused from
+	   hit-testing by hand. A background layer cannot be hit-tested, always paints
+	   beneath every descendant, adds no box to the flex column, and opens no
+	   stacking context — every one of those properties for free.
+
+	   `background-attachment: local` is what makes it the page's FLOOR rather than
+	   a backdrop behind a moving page. A scroll container's background defaults to
+	   `scroll`, which pins it to the border box: the dots would hang motionless
+	   while the content slid over them. `local` resolves the painting and
+	   positioning areas against the scrollable area instead, so the texture
+	   travels with the content that sits on it. The vignette's height is therefore
+	   a length rather than a percentage — under `local` a percentage would resolve
+	   against the whole scroll height and stretch one corner glow down a 5000px
+	   page.
+
+	   The four knobs are read through var() fallbacks at the point of use rather
+	   than declared at :root, for the reason the @theme inline block above states
+	   (design-system#8): a :root alias holding a var() reference resolves once, at
+	   :root, and a scoped override or a scoped .dark wrapper below it can never
+	   reach the result. Read here, they resolve live on the element that paints
+	   them. It also means this feature adds nothing at all to a consumer's :root —
+	   a shell that never asks for a texture receives one rule set whose selector
+	   matches nothing.
+
+	   An app retunes any of them in one declaration:
+
+	       :root {
+	         --ds-shell-texture-grid-ink: oklch(0.68 0.02 250 / 0.5);
+	         --ds-shell-texture-vignette-ink: color-mix(in oklch, var(--primary) 8%, transparent);
+	         --ds-shell-texture-grid-pitch: 24px;
+	         --ds-shell-texture-vignette-at: 15% -10%;
+	       }
+
+	   The corner is a knob rather than a fixed 85% because it is the one value an
+	   app cannot otherwise reach without redeclaring this whole rule, and because
+	   a radial-gradient position is PHYSICAL — there is no logical form of `at
+	   85%`, so an RTL app wanting the glow at the reading-start corner has to be
+	   able to say so. Driven at `dir=rtl` alongside a 24px root size and
+	   `forced-colors: active`, none of which move the texture on their own.
+
+	   A plain wash rather than a grid is that same declaration with the grid ink
+	   set to `transparent`, which is why `grid` is the only named texture: the
+	   apps differed on values, not on pictures. */
+	.ds-shell-texture[data-texture='grid'] {
+		background-image:
+			radial-gradient(
+				120% 70% at var(--ds-shell-texture-vignette-at, 85% -10%),
+				var(--ds-shell-texture-vignette-ink, color-mix(in oklch, var(--primary) 6%, transparent)),
+				transparent 60%
+			),
+			radial-gradient(
+				circle at 1px 1px,
+				var(--ds-shell-texture-grid-ink, color-mix(in oklch, var(--foreground) 14%, transparent))
+					1px,
+				transparent 0
+			);
+		background-repeat: no-repeat, repeat;
+		background-position: 0 0;
+		background-size:
+			100% var(--ds-shell-texture-vignette-height, 100dvh),
+			var(--ds-shell-texture-grid-pitch, 30px) var(--ds-shell-texture-grid-pitch, 30px);
+		background-attachment: local, local;
+	}
+
+	/* Not on paper. A 30px dot grid prints as banding on any real printer, and a
+	   vignette prints as a smudge in one corner — both apps that built this had
+	   independently learned that and written the same suppression into their own
+	   print rules, which is the copy this package is here to take over.
+
+	   Later in the file than the rule above and in the same layer, so it wins
+	   without `!important`; an app's own print rules are unlayered and still beat
+	   it, which is the right way round. The white is the content region's, not the
+	   document's — `html`/`body` stay the app's to decide. */
+	@media print {
+		.ds-shell-texture[data-texture='grid'] {
+			background-image: none;
+			background-color: #fff;
+		}
+	}
+
 	/* The bypass link (WCAG 2.4.1): off-screen until focused, then a real target
 	   above the sticky bar. */
 	.ds-skip-link {

@@ -31,6 +31,14 @@
 	 * properties an app retunes without a release; and it exists to REPLACE
 	 * per-page width decisions rather than to offer an app a look.
 	 *
+	 * Content TEXTURE came back the same way, on the same kind of evidence. Two
+	 * apps had separately built one picture — a faint dot-grid floor with a soft
+	 * accent vignette — under two names in two app.css files, and one of them
+	 * applied it as a helper class per route, so it reached four routes out of
+	 * about fifteen. Which pages wore the house atmosphere was decided by which
+	 * pages someone had happened to touch. `texture` is one named picture the
+	 * SHELL paints once, off by default, its inks tuned by custom properties.
+	 *
 	 * Everything else the surveyed apps differed on turned out to be a slot, not
 	 * a variant: the brand, the identity surface, a context switcher, a banner, a
 	 * secondary column. Those are snippets, so this package imports no app store,
@@ -45,6 +53,7 @@
 	 */
 	import type { Snippet } from 'svelte';
 	import type { ShellMeasure } from './measure.js';
+	import type { ShellTexture } from './texture.js';
 	import { toggleMode } from 'mode-watcher';
 	import Menu from '@lucide/svelte/icons/menu';
 	import X from '@lucide/svelte/icons/x';
@@ -79,6 +88,7 @@
 		onToggleTheme,
 		padded = true,
 		measure = 'full',
+		texture = 'none',
 		mainClass,
 		children
 	}: {
@@ -142,7 +152,19 @@
 		 * spends its padding inside the measure.
 		 */
 		measure?: ShellMeasure;
-		/** Extra classes on the scrolling content container (a background texture). */
+		/**
+		 * The house atmosphere on the content region: `grid` (a dot-grid floor
+		 * plus a corner vignette) or `none`.
+		 *
+		 * Defaults to `none`, so a shell that does not mention it is unchanged.
+		 * Set it in the layout, once — that the SHELL paints it is the whole
+		 * point, because a helper class apps apply per route is how one consumer
+		 * ended up wearing the house texture on four routes out of fifteen. The
+		 * inks and the pitch are `--ds-shell-texture-*` custom properties an app
+		 * retunes in one declaration.
+		 */
+		texture?: ShellTexture;
+		/** Extra classes on the scrolling content container. */
 		mainClass?: string;
 		children: Snippet;
 	} = $props();
@@ -158,6 +180,11 @@
 	// matching rule. Harmless to look at, but it breaks the DOM contract the
 	// additivity gate states, and a guarantee with a hole in it is not one.
 	const capped = $derived(measure != null && measure !== 'full' ? measure : null);
+
+	// The texture resolves the same way, and for the same reason: one answer
+	// feeding both the class and the attribute, so `texture={null}` from a
+	// loosely-typed prop bag cannot produce a class with no matching rule.
+	const textured = $derived(texture != null && texture !== 'none' ? texture : null);
 
 	// The disclosure toggle and the region it opens have to be programmatically
 	// related, not merely adjacent: `aria-expanded` says the control is open,
@@ -467,11 +494,44 @@
 				exposes. `harness/drive.mjs` measures this element at 375px and 320px
 				and prints the document-level number beside it, blind, for contrast.
 			-->
+			<!--
+				`texture` paints the house atmosphere HERE, on the scroller itself,
+				through `.ds-shell-texture` in styles.css. It is this element rather
+				than the content box below because the texture is the FLOOR the page
+				sits on: capped by `measure`, that box is narrower than the region, and
+				a floor that stopped at the measure would be a stripe.
+
+				It is a background rather than a layer, and that is the whole design
+				rather than an implementation detail. An absolutely positioned child
+				inside a scroller is the shape both surveyed apps reached for first and
+				it is subtly wrong three ways: at `z-index: auto` a positioned box
+				paints ABOVE non-positioned content, so the "atmosphere" tints the page
+				(invisible only because it is faint); `z-index: -1` fixes that by
+				sinking it behind an ancestor's background instead, since neither this
+				element nor `.ds-shell` opens a stacking context; and it needs
+				`pointer-events: none` to stop eating clicks. A background layer has
+				none of those problems by construction — it cannot be hit-tested, it
+				always paints beneath every descendant, it adds no box to the flex
+				column, and it opens no stacking context. The one app that had already
+				moved to a background did so after hitting exactly the first failure.
+
+				`background-attachment: local` is what makes it the page's floor rather
+				than a backdrop: the default (`scroll`) pins a scroll container's
+				background to its border box, so the dots would sit frozen while the
+				content slid over them. `harness/drive.mjs` proves the difference by
+				scrolling half a grid pitch and comparing pixels, with `scroll` forced
+				on as the control.
+			-->
 			<main
 				id="ds-main"
 				data-slot="app-shell-content"
 				tabindex="-1"
-				class={cn('relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto', mainClass)}
+				class={cn(
+					'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto',
+					textured && 'ds-shell-texture',
+					mainClass
+				)}
+				data-texture={textured ?? undefined}
 			>
 				<!--
 					`min-w-0` on a flex child, for the same reason `<main>` and both

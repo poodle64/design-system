@@ -6,13 +6,16 @@
 	import CommandPalette from '$lib/components/ui/command-palette/command-palette.svelte';
 	import type { NavSource } from '$lib/components/ui/app-shell/types.js';
 	import type { ShellMeasure } from '$lib/components/ui/app-shell/measure.js';
+	import type { ShellTexture } from '$lib/components/ui/app-shell/texture.js';
 	import Package from '@lucide/svelte/icons/package';
 
 	let {
 		currentPath = $bindable('/overview'),
 		collapsible = false,
 		navLabel,
-		measure
+		measure,
+		texture,
+		mainClass
 	}: {
 		currentPath?: string;
 		collapsible?: boolean;
@@ -20,6 +23,11 @@
 		/** Left undefined by default, so the additivity gate drives the shell
 		    exactly as a consumer who never heard of the prop does. */
 		measure?: ShellMeasure;
+		/** Undefined by default, for the same reason `measure` is. */
+		texture?: ShellTexture;
+		/** The pre-existing seam, so the texture is driven composed with an app's
+		    own class rather than only on its own. */
+		mainClass?: string;
 	} = $props();
 
 	const nav: NavSource = [
@@ -52,6 +60,8 @@
 	{currentPath}
 	{collapsible}
 	{measure}
+	{texture}
+	{mainClass}
 	bind:collapsed
 	brandTitle="Harness"
 	onSearch={() => (paletteOpen = true)}

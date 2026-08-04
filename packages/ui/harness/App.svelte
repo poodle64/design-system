@@ -45,6 +45,7 @@
 	import StatusBadge from '../dist/components/ui/status-badge/status-badge.svelte';
 	import type { NavSource } from '../dist/components/ui/app-shell/types.js';
 	import { SHELL_MEASURES, type ShellMeasure } from '../dist/components/ui/app-shell/measure.js';
+	import { SHELL_TEXTURES, type ShellTexture } from '../dist/components/ui/app-shell/texture.js';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import Package from '@lucide/svelte/icons/package';
 	import KeySquare from '@lucide/svelte/icons/key-square';
@@ -157,6 +158,23 @@
 	// string renders the default instead of a class with no rule behind it.
 	const measureParam: ShellMeasure =
 		SHELL_MEASURES.find((m) => m === params.get('measure')) ?? 'full';
+	// `?surface=texture&texture=<grid|none>` drives the content texture. Every
+	// claim it makes needs an engine and most need a compositor: the gradients are
+	// `color-mix()` over the app's own palette, the picture is a resolved
+	// background rather than an element, `background-attachment: local` is a
+	// painting behaviour with no DOM trace at all, and "does not print" is a media
+	// state. jsdom returns an empty string for `background-image` whether the
+	// stylesheet was imported or not.
+	//
+	// The page body is deliberately taller than any viewport driven here, because
+	// the load-bearing claim — the texture travels with the content instead of
+	// hanging frozen behind it — can only be observed by scrolling and looking
+	// twice. `?blank=1` suppresses the copy so the driver can photograph a strip
+	// of bare floor either side of a scroll, where the only thing that can differ
+	// is the texture itself.
+	const textureParam: ShellTexture =
+		SHELL_TEXTURES.find((t) => t === params.get('texture')) ?? 'none';
+	const textureBlank = params.get('blank') === '1';
 	// `?surface=console` (design-system#15) drives the five console-dashboard
 	// primitives promoted from mission-command. jsdom cannot resolve any
 	// --ds-color-status-*/--ds-color-primary var() chain, so ArcGauge's tone
@@ -481,6 +499,32 @@
 			up with six different answers to the same question and no way to tell which was
 			deliberate.
 		</p>
+	</AppShell>
+{:else if surface === 'texture'}
+	<!-- One shell, one very tall page, the texture the only variable. The body is
+	     3200px so the content region genuinely scrolls at every viewport driven,
+	     and under `?blank=1` it holds nothing but that height — a strip
+	     photographed at two scroll offsets then contains only floor, so a
+	     difference between the two photographs can only be the texture moving. -->
+	<AppShell {nav} currentPath="#/overview" brandTitle="Harness" texture={textureParam}>
+		{#if !textureBlank}
+			<h1 class="font-display text-display font-semibold">Texture</h1>
+			<p class="text-muted-foreground mt-2 text-sm">
+				The shell paints the house atmosphere once, on the region that scrolls, so an app cannot
+				end up wearing it on some routes and not others.
+			</p>
+			<div class="bg-card border-border ds-edge mt-6 rounded-lg border p-4" data-probe="texture-card">
+				<p class="text-sm">A card on the floor: content paints over the texture, never under it.</p>
+				<button class="border-border mt-3 rounded-md border px-3 py-1.5 text-sm" data-probe="texture-button">
+					A control the texture must not swallow
+				</button>
+			</div>
+		{/if}
+		<!-- `flex: none` is load-bearing, not tidiness: the content box is a flex
+		     column, and an empty child's min-content height is zero, so a bare
+		     `height` shrinks straight back to nothing and the page never scrolls.
+		     The first run of the driver caught exactly that. -->
+		<div data-probe="texture-spacer" style="height: 3200px; flex: none"></div>
 	</AppShell>
 {:else}
 	{#snippet secondaryNav()}

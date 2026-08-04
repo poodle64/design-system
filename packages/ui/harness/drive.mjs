@@ -1547,6 +1547,418 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 	}
 }
 
+// ── The content texture ─────────────────────────────────────────────────────
+// Almost nothing this feature claims survives outside an engine. The picture is
+// a resolved `background-image` — two `color-mix()` gradients over the app's own
+// palette — so jsdom reports an empty string for it whether the stylesheet was
+// imported or not. "Sits behind content" is a paint order. "Travels with the
+// scroll" is `background-attachment`, which has no DOM trace whatsoever and can
+// only be seen by scrolling and looking twice. "Does not print" is a media
+// state. Every one of those is measured here.
+{
+	/** Read what the browser actually resolved on the shell's content region. */
+	const readTexture = (page) =>
+		page.evaluate(() => {
+			const main = document.querySelector('#ds-main');
+			const box = main.firstElementChild;
+			const style = getComputedStyle(main);
+			return {
+				backgroundImage: style.backgroundImage,
+				backgroundColor: style.backgroundColor,
+				backgroundAttachment: style.backgroundAttachment,
+				backgroundRepeat: style.backgroundRepeat,
+				backgroundSize: style.backgroundSize,
+				overflowY: style.overflowY,
+				position: style.position,
+				hasClass: main.classList.contains('ds-shell-texture'),
+				attribute: main.getAttribute('data-texture'),
+				children: main.children.length,
+				boxBackgroundImage: getComputedStyle(box).backgroundImage,
+				boxHasTexture: box.classList.contains('ds-shell-texture'),
+				scrollable: main.scrollHeight - main.clientHeight,
+				sideways: main.scrollWidth - main.clientWidth
+			};
+		});
+
+	// ── It paints, and it paints on the region that scrolls ──────────────────
+	{
+		const { context, page } = await open('surface=texture&texture=grid');
+		await page.waitForSelector('#ds-main');
+		const on = await readTexture(page);
+
+		check(
+			'texture: a named texture resolves to two real gradient layers on the content region',
+			on.backgroundImage !== 'none' &&
+				(on.backgroundImage.match(/radial-gradient/g) ?? []).length === 2,
+			`background-image ${on.backgroundImage.slice(0, 120)}…`
+		);
+
+		// The dead-affordance failure this package gates for everywhere else, in
+		// its CSS-custom-property form: a var() chain that resolves to nothing
+		// leaves the declaration invalid at computed-value time, and the element
+		// silently paints no background at all. So the claim is that the inks
+		// RESOLVED — no `var(` and no `color-mix(` survive in the computed value.
+		check(
+			'texture: both inks resolve through their var()/color-mix() fallbacks',
+			!on.backgroundImage.includes('var(') && !on.backgroundImage.includes('color-mix('),
+			`computed still contains var( ${on.backgroundImage.includes('var(')}, color-mix( ${on.backgroundImage.includes('color-mix(')}`
+		);
+
+		check(
+			'texture: it travels with the content, not with the box (attachment: local, local)',
+			on.backgroundAttachment === 'local, local',
+			`background-attachment ${on.backgroundAttachment}, repeat ${on.backgroundRepeat}, size ${on.backgroundSize}`
+		);
+
+		// Which element carries it is the feature. `measure` caps the box below,
+		// so a texture painted there would stop at the measure and read as a
+		// stripe rather than as the floor the page sits on.
+		check(
+			'texture: the scroller carries it and the measured box does not',
+			on.hasClass &&
+				on.attribute === 'grid' &&
+				!on.boxHasTexture &&
+				on.boxBackgroundImage === 'none',
+			`main class ${on.hasClass}/attr ${on.attribute}, box class ${on.boxHasTexture}/image ${on.boxBackgroundImage}`
+		);
+
+		// A background rather than a layer: nothing was added to the flex column,
+		// and the region is still the scroller it was.
+		check(
+			'texture: no element is added to the content region, and it still scrolls',
+			on.children === 1 && on.overflowY === 'auto' && on.scrollable > 0,
+			`${on.children} child, overflow-y ${on.overflowY}, ${on.scrollable}px of scroll`
+		);
+
+		await context.close();
+	}
+
+	// ── An app retunes the inks in one declaration ───────────────────────────
+	// The whole reason the four knobs are read through var() fallbacks at the
+	// point of use rather than aliased at :root (design-system#8): an alias
+	// resolves once, at :root, and a later or scoped override never reaches the
+	// result. Read live, one declaration moves the picture.
+	{
+		const { context, page } = await open('surface=texture&texture=grid');
+		await page.waitForSelector('#ds-main');
+		const before = await readTexture(page);
+		await page.addStyleTag({
+			content: ':root { --ds-shell-texture-grid-ink: rgb(11, 22, 33); }'
+		});
+		const after = await readTexture(page);
+
+		check(
+			'texture: an app override of --ds-shell-texture-grid-ink reaches the painted grid',
+			after.backgroundImage !== before.backgroundImage &&
+				after.backgroundImage.includes('rgb(11, 22, 33)'),
+			`override present in computed value: ${after.backgroundImage.includes('rgb(11, 22, 33)')}`
+		);
+
+		await page.addStyleTag({ content: ':root { --ds-shell-texture-grid-pitch: 48px; }' });
+		const pitched = await readTexture(page);
+		check(
+			'texture: an app override of --ds-shell-texture-grid-pitch reaches the tile size',
+			pitched.backgroundSize.includes('48px'),
+			`background-size ${pitched.backgroundSize}`
+		);
+
+		// The corner is a knob because a radial-gradient position is PHYSICAL —
+		// there is no logical form of `at 85%` — so an RTL app that wants the glow
+		// at the reading-start corner has no other way to reach it short of
+		// redeclaring the whole rule.
+		await page.addStyleTag({ content: ':root { --ds-shell-texture-vignette-at: 15% -10%; }' });
+		const moved = await readTexture(page);
+		check(
+			'texture: an app override of --ds-shell-texture-vignette-at moves the corner glow',
+			moved.backgroundImage.includes('at 15%') && !moved.backgroundImage.includes('at 85%'),
+			`vignette position in the computed value: ${moved.backgroundImage.slice(0, 60)}…`
+		);
+
+		await context.close();
+	}
+
+	// ── Configurations a real user reaches ───────────────────────────────────
+	// `73-verification.md` names RTL and the largest font scale explicitly, and
+	// forced-colors is where a decorative background is most likely to be
+	// stripped by the UA rather than by anything in this package. None of the
+	// three may cost the region its texture, its scroll, or its horizontal
+	// containment.
+	for (const [label, options, setup] of [
+		['RTL', {}, (page) => page.evaluate(() => document.documentElement.setAttribute('dir', 'rtl'))],
+		['a 24px root font size', {}, (page) => page.addStyleTag({ content: 'html { font-size: 24px }' })],
+		['forced-colors: active', { forcedColors: 'active' }, null]
+	]) {
+		const { context, page } = await open('surface=texture&texture=grid', {
+			width: 1280,
+			height: 800,
+			...options
+		});
+		await page.waitForSelector('#ds-main');
+		if (setup) await setup(page);
+		const under = await readTexture(page);
+		const scrolls = await page.evaluate(() => {
+			const main = document.querySelector('#ds-main');
+			main.scrollTop = 400;
+			const moved = main.scrollTop;
+			main.scrollTop = 0;
+			return moved;
+		});
+
+		check(
+			`texture under ${label}: still painted, still scrolling, still contained`,
+			under.backgroundImage !== 'none' && under.sideways <= 0 && scrolls === 400,
+			`image ${under.backgroundImage === 'none' ? 'none' : 'present'}, sideways ${under.sideways}px, scrollTop ${scrolls}`
+		);
+		await context.close();
+	}
+
+	// ── It travels with the content, observed rather than asserted ───────────
+	// The failure this is here to rule out is the one both surveyed apps have
+	// shipped at some point: a texture pinned to the scroll container's border
+	// box, hanging motionless while the page slides over it. That is invisible to
+	// every other check in this repo — the DOM is identical either way and so is
+	// the class — so it is observed at TWO instants, by photographing a strip of
+	// bare floor before and after scrolling half a grid pitch.
+	//
+	// The control is the point. The same two photographs are taken again with
+	// `background-attachment: scroll` forced on, where they MUST come back
+	// identical; without it, "the buffers differ" would be an unfalsifiable claim
+	// about a probe that might simply be noisy.
+	{
+		const STRIP = { x: 400, y: 400, width: 600, height: 200 };
+		const HALF_PITCH = 15;
+
+		/** Photograph a strip of floor, scroll half a pitch, photograph it again. */
+		const shootAcrossScroll = async (page) => {
+			await page.evaluate(() => {
+				document.querySelector('#ds-main').scrollTop = 0;
+			});
+			await page.waitForTimeout(50);
+			const atRest = await page.screenshot({ clip: STRIP });
+			await page.evaluate((by) => {
+				document.querySelector('#ds-main').scrollTop = by;
+			}, HALF_PITCH);
+			await page.waitForTimeout(50);
+			const scrolled = await page.screenshot({ clip: STRIP });
+			return { atRest, scrolled };
+		};
+
+		const { context, page } = await open('surface=texture&texture=grid&blank=1');
+		await page.waitForSelector('#ds-main');
+		const travelling = await shootAcrossScroll(page);
+		check(
+			`texture: the floor moves when the page is scrolled ${HALF_PITCH}px (half a grid pitch)`,
+			!travelling.atRest.equals(travelling.scrolled),
+			`strip ${STRIP.width}×${STRIP.height} of bare floor, ${travelling.atRest.length} vs ${travelling.scrolled.length} bytes, identical: ${travelling.atRest.equals(travelling.scrolled)}`
+		);
+
+		// The control, on the same page, same strip, same scroll.
+		await page.addStyleTag({
+			content: `.ds-shell-texture[data-texture='grid'] { background-attachment: scroll, scroll; }`
+		});
+		const frozen = await shootAcrossScroll(page);
+		check(
+			'texture: the same probe reports NO movement once attachment is forced back to `scroll`',
+			frozen.atRest.equals(frozen.scrolled),
+			`control with background-attachment: scroll — identical: ${frozen.atRest.equals(frozen.scrolled)}`
+		);
+		await context.close();
+	}
+
+	// ── It sits behind content, and eats no events ───────────────────────────
+	// The sharpest form of "behind": a card with an opaque surface must
+	// photograph IDENTICALLY with the texture on and off, while the floor beside
+	// it must not. An absolutely positioned `::before` — the shape both surveyed
+	// apps reached for first — paints above non-positioned content at `z-index:
+	// auto` and would tint the card too, faintly enough that nobody notices by
+	// eye and not at all faintly enough to be identical.
+	{
+		const shootRegions = async (texture) => {
+			const { context, page } = await open(`surface=texture&texture=${texture}`);
+			await page.waitForSelector('[data-probe="texture-card"]');
+			await page.evaluate(() => document.fonts.ready);
+			const rect = await page.evaluate(() => {
+				const r = document.querySelector('[data-probe="texture-card"]').getBoundingClientRect();
+				return { x: r.x, y: r.y, width: r.width, height: r.height };
+			});
+			const inside = await page.screenshot({
+				clip: { x: rect.x + 4, y: rect.y + 4, width: rect.width - 8, height: rect.height - 8 }
+			});
+			const beside = await page.screenshot({
+				clip: { x: rect.x + 4, y: rect.y + rect.height + 20, width: rect.width - 8, height: 120 }
+			});
+			await context.close();
+			return { inside, beside };
+		};
+
+		const off = await shootRegions('none');
+		const on = await shootRegions('grid');
+
+		check(
+			'texture: an opaque card renders identically with the texture on — it is BEHIND content',
+			off.inside.equals(on.inside),
+			`card interior identical: ${off.inside.equals(on.inside)} (${off.inside.length} vs ${on.inside.length} bytes)`
+		);
+		check(
+			'texture: the floor beside that card does change — the comparison above can see a texture',
+			!off.beside.equals(on.beside),
+			`floor beside the card identical: ${off.beside.equals(on.beside)}`
+		);
+
+		// A background cannot be hit-tested at all, which is what buys
+		// `pointer-events: none` for free rather than as a declaration someone has
+		// to remember. Asserted at the point that matters: the control the texture
+		// runs underneath.
+		const { context, page } = await open('surface=texture&texture=grid');
+		await page.waitForSelector('[data-probe="texture-button"]');
+		const hit = await page.evaluate(() => {
+			const button = document.querySelector('[data-probe="texture-button"]');
+			const r = button.getBoundingClientRect();
+			const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+			const main = document.querySelector('#ds-main');
+			const floor = document.elementFromPoint(r.x + 10, r.y + r.height + 80);
+			return {
+				overButton: el === button || button.contains(el),
+				overFloorTag: floor?.tagName.toLowerCase() ?? 'none',
+				floorIsInMain: main.contains(floor)
+			};
+		});
+		check(
+			'texture: the texture intercepts no pointer events over a control or over bare floor',
+			hit.overButton && hit.floorIsInMain,
+			`over the button: ${hit.overButton}; over floor hit <${hit.overFloorTag}> inside main: ${hit.floorIsInMain}`
+		);
+		await context.close();
+	}
+
+	// ── It does not print ────────────────────────────────────────────────────
+	// A 30px dot grid prints as banding and a vignette as a corner smudge. Both
+	// surveyed apps had learned that and written the suppression into their own
+	// print rules; the package takes that copy over, so the claim is checked in
+	// the media state it is made about rather than by reading the stylesheet.
+	{
+		const { context, page } = await open('surface=texture&texture=grid');
+		await page.waitForSelector('#ds-main');
+		const onScreen = await readTexture(page);
+		await page.emulateMedia({ media: 'print' });
+		const onPaper = await readTexture(page);
+		await page.emulateMedia({ media: 'screen' });
+		const backOnScreen = await readTexture(page);
+
+		check(
+			'texture: on paper the grid and the vignette are suppressed and the region goes white',
+			onScreen.backgroundImage !== 'none' &&
+				onPaper.backgroundImage === 'none' &&
+				onPaper.backgroundColor === 'rgb(255, 255, 255)',
+			`screen ${onScreen.backgroundImage.slice(0, 40)}… → print image ${onPaper.backgroundImage}, colour ${onPaper.backgroundColor}`
+		);
+		check(
+			'texture: the print suppression is a media state, not a one-way trip',
+			backOnScreen.backgroundImage === onScreen.backgroundImage,
+			`restored on screen: ${backOnScreen.backgroundImage === onScreen.backgroundImage}`
+		);
+		await context.close();
+	}
+
+	// ── No scroll-containment or stacking regression ─────────────────────────
+	// A texture on a box carrying `overflow-y: auto` is easy to get subtly wrong,
+	// and #5 established that this region's sideways scroll is invisible at the
+	// document level. So it is measured on the region itself, at the width where
+	// it bites, and the drawer — the one thing that must paint OVER the content
+	// region — is opened on top of a textured page to prove the paint order is
+	// untouched.
+	for (const width of [1440, 360]) {
+		const { context, page } = await open(`surface=texture&texture=grid`, { width, height: 780 });
+		await page.waitForSelector('#ds-main');
+		const measured = await readTexture(page);
+
+		check(
+			`texture @${width}px: the content region gains no sideways scroll`,
+			measured.sideways <= 0,
+			`main scrollWidth − clientWidth = ${measured.sideways}px`
+		);
+
+		const scrolls = await page.evaluate(() => {
+			const main = document.querySelector('#ds-main');
+			main.scrollTop = 500;
+			const moved = main.scrollTop;
+			main.scrollTop = 0;
+			return moved;
+		});
+		check(
+			`texture @${width}px: the content region still scrolls under the texture`,
+			scrolls === 500,
+			`scrollTop settled at ${scrolls} after asking for 500`
+		);
+		await context.close();
+	}
+	{
+		const { context, page } = await open('surface=texture&texture=grid', {
+			width: 360,
+			height: 780
+		});
+		await page.getByTestId('ds-shell-menu').click();
+		await page.waitForSelector('[data-testid="ds-shell-drawer"]');
+		// The drawer slides in over 200ms (`ds-drawer-in`), and mid-animation it is
+		// still translated off-screen — hit-testing it before it lands reports it
+		// as missing rather than as behind the texture. The first run of this
+		// driver failed here for exactly that reason and not for a paint-order one.
+		await page.waitForTimeout(300);
+		const overDrawer = await page.evaluate(() => {
+			const drawer = document.querySelector('[data-testid="ds-shell-drawer"]');
+			const r = drawer.getBoundingClientRect();
+			const el = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+			return drawer.contains(el);
+		});
+		check(
+			'texture: the nav drawer still paints over a textured content region',
+			overDrawer,
+			`a point inside the open drawer hit-tests inside it: ${overDrawer}`
+		);
+		await context.close();
+	}
+
+	// ── Additivity, in the browser ───────────────────────────────────────────
+	// The operator's hard constraint, the same shape `measure` is held to:
+	// `surface=shell` names no texture — it is the shell every existing consumer
+	// already has — so it must carry no class, no attribute and no background, at
+	// every width.
+	for (const width of [2560, 1440, 360]) {
+		const { context, page } = await open('surface=shell', { width, height: 900 });
+		await page.waitForSelector('#ds-main');
+		const bare = await readTexture(page);
+		await context.close();
+
+		check(
+			`texture @${width}px: a shell that never names texture paints none`,
+			!bare.hasClass &&
+				bare.attribute === null &&
+				bare.backgroundImage === 'none' &&
+				bare.children === 1,
+			`class ${bare.hasClass}, attribute ${bare.attribute}, background-image ${bare.backgroundImage}, ${bare.children} child`
+		);
+	}
+
+	// `none` passed explicitly has to land exactly where omitting it lands, or an
+	// app adopting the texture and then deciding one layout wants none of it gets
+	// something subtly different from where it started.
+	{
+		const { context, page } = await open('surface=texture&texture=none');
+		await page.waitForSelector('#ds-main');
+		const explicit = await readTexture(page);
+		await context.close();
+
+		check(
+			'texture: texture="none" paints where omitting it paints',
+			explicit.backgroundImage === 'none' &&
+				explicit.attribute === null &&
+				!explicit.hasClass &&
+				explicit.children === 1,
+			`background-image ${explicit.backgroundImage}, attribute ${explicit.attribute}, class ${explicit.hasClass}`
+		);
+	}
+}
+
 await browser.close();
 server.close();
 

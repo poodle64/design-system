@@ -695,6 +695,106 @@ going back to writing its own width. `prose` is stated in `ch` rather than `rem`
 for the same reason: a reading measure is a count of characters, so it has to
 track whatever face and size the app actually set.
 
+## The content texture (`?surface=texture&texture=<grid|none>`)
+
+One shell, one 3200px page body, the texture the only variable. Scripted in
+`drive.mjs`; `?blank=1` strips the copy so the driver can photograph bare floor.
+
+Almost nothing this feature claims survives outside an engine, and more of it
+needs a compositor than a layout. The picture is a resolved `background-image` —
+two `color-mix()` gradients over the app's own palette — and jsdom returns an
+empty string for that whether the stylesheet was imported or not. "Sits behind
+content" is a paint order. "Travels with the scroll" is `background-attachment`,
+which has **no DOM trace whatsoever**: the markup, the class and every attribute
+are identical whether the floor moves with the page or hangs motionless behind
+it. "Does not print" is a media state.
+
+| Claim                                                                      | Why jsdom cannot make it                                            | Observed                                                           |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| A named texture resolves to two real gradient layers on the content region | `background-image` is empty in jsdom whether or not the CSS loaded  | 2 `radial-gradient` layers                                         |
+| Both inks resolve through their `var()`/`color-mix()` fallbacks            | no cascade; an unresolvable chain is silently invalid, not an error | no `var(` and no `color-mix(` survive: `oklch(0.5 0.155 250/0.06)` |
+| The floor travels with the content, not with the box                       | `background-attachment` has no DOM trace at all                     | `local, local`; measured by photograph below                       |
+| The scroller carries it; the measured box does not                         | needs the resolved background on each element                       | `main` class+`data-texture`, box `background-image: none`          |
+| No element is added, and the region still scrolls                          | jsdom has no layout, so it reports 0 scroll either way              | 1 child, `overflow-y: auto`, 2570px of scroll                      |
+| An app override of `--ds-shell-texture-grid-ink` reaches the painted grid  | custom-property resolution at the point of use is a cascade fact    | `rgb(11, 22, 33)` present in the computed value                    |
+| An override of `--ds-shell-texture-grid-pitch` reaches the tile size       | same                                                                | `background-size: … 48px 48px`                                     |
+| An override of `--ds-shell-texture-vignette-at` moves the corner glow      | same                                                                | `at 15% -10%`, with no `at 85%` left                               |
+| RTL, a 24px root font size and `forced-colors: active` cost it nothing     | no layout, no media emulation, no direction resolution              | painted, `scrollTop` 400, 0px sideways in all three                |
+| An opaque card renders **identically** with the texture on                 | paint order; only a compositor knows what is above what             | card interior byte-identical (8891 vs 8891 bytes)                  |
+| …while the floor beside that card does change                              | the control for the row above                                       | differs                                                            |
+| The texture intercepts no pointer events                                   | jsdom's `elementFromPoint` has no boxes to hit                      | the button hit-tests as itself; bare floor hits inside `main`      |
+| On paper the texture is suppressed and the region goes white               | a media state, and a resolved background                            | print: `background-image: none`, `rgb(255, 255, 255)`              |
+| …and comes back on screen                                                  | same                                                                | restored identical                                                 |
+| No sideways scroll is introduced at 1440px or 360px                        | the content region is its own scroller (see `#5`)                   | `main` overflow 0px at both                                        |
+| The region still scrolls under the texture                                 | no layout                                                           | `scrollTop` settles at 500 at both widths                          |
+| The nav drawer still paints over a textured content region                 | stacking order                                                      | a point inside the open drawer hit-tests inside it                 |
+
+### The floor moves, observed at two instants — with a control
+
+The failure this exists to rule out is the one both surveyed apps have shipped at
+some point: a texture pinned to the scroll container's border box, hanging
+motionless while the page slides over it. A scroll container's background
+defaults to `background-attachment: scroll`, which does exactly that, so this is
+the easy mistake rather than an exotic one — and **every other check in this repo
+is blind to it**, because the DOM is identical either way.
+
+So it is observed rather than asserted. A 600×200 strip of bare floor is
+photographed, the content region is scrolled by 15px (half the 30px grid pitch,
+where the dot rows land exactly between their previous positions), and the same
+strip is photographed again. The two buffers differ.
+
+The **control** is the half that makes that mean anything. `background-attachment:
+scroll` is then forced back on, on the same page, and the same two photographs
+are taken again: identical. Without it, "the buffers differ" would be an
+unfalsifiable claim about a probe that might simply be noisy; with it, the probe
+is shown to distinguish the two states it exists to distinguish.
+
+### Behind content, proved by a card that does not move
+
+`pointer-events: none` is the guarantee everyone remembers to ask for, and it is
+the weaker half. The failure that actually shipped is a texture painting **above**
+content: an absolutely positioned `::before` inside the scroller — the shape both
+surveyed apps reached for first — is a positioned box at `z-index: auto`, so it
+paints over every non-positioned descendant. At 6% ink nobody catches that by
+eye, which is precisely why it survived in two codebases.
+
+The assertion is therefore a photograph of an opaque card's interior with the
+texture on and off: **byte-identical, 8891 bytes both**. The floor beside the same
+card, photographed in the same pass, differs — so the comparison is demonstrably
+capable of seeing a texture when there is one. A background layer earns that
+result by construction rather than by declaration: it cannot be hit-tested, it
+always paints beneath every descendant, it adds no box to the flex column, and it
+opens no stacking context.
+
+### Additivity, measured against the pre-change build
+
+The operator's hard constraint, the same one `measure` was held to: no consumer
+that does not ask for a texture may render one pixel differently. Asserted
+permanently in `src/test/app-shell-texture.test.ts` (the DOM half) and in the
+three `a shell that never names texture paints none` checks above (the resolved-
+background half), but neither can compare against a build that no longer exists,
+so the cross-build diff was done out of band.
+
+`dist` and the harness were built at the pre-change commit and five surfaces —
+`shell`, `shell&sidebar=1`, `overflow`, `nested` and `measure&measure=page` —
+captured at 2560px, 1440px and 360px; the capture was then repeated on this
+build. Compared per surface/viewport pair: the whole `<main>` subtree's
+`outerHTML`, its full attribute set, the content box's attribute set, `<main>`'s
+computed `background-image`, `background-color`, `background-size`,
+`background-repeat`, `background-attachment`, `background-position`, `position`,
+`overflow-x`, `overflow-y`, `display`, `flex-direction`, `isolation` and
+`z-index`, the box's computed `max-width`, margins and padding, seven geometry
+numbers — **and the rendered PNG, compared byte-for-byte**.
+
+**All 15 pairs identical on all 120 compared fields, screenshots included.** Not
+"no visible difference": the same bytes.
+
+The feature also adds nothing to a consumer's `:root`. All four knobs are read
+through `var()` fallbacks at the point of use rather than aliased at `:root`
+(design-system#8 — an alias holding a `var()` reference resolves once, at
+`:root`, where a scoped override can never reach it), so what a non-adopting
+consumer's stylesheet gains is two rule sets whose selector matches nothing.
+
 ## The Svelte/bits-ui pairing (no surface — a sweep)
 
 A report reached this package that **every** bits-ui overlay was silently dead on

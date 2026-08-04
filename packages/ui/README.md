@@ -151,7 +151,8 @@ That is the whole minimum. Everything below is optional.
 | `onSearch`, `searchLabel`, `searchShortcut`       | Provide `onSearch` to render the search affordance at all.                                                              |
 | `themeToggle`, `onToggleTheme`                    | Defaults to `mode-watcher`. Set `themeToggle={false}` when the app puts theming inside its own user menu.               |
 | `measure`                                         | How wide the page body may get, from a named scale. Defaults to `full` (no cap).                                        |
-| `padded`, `mainClass`                             | Padding, and a background texture class.                                                                                |
+| `texture`                                         | The house atmosphere on the content region. Defaults to `none`.                                                         |
+| `padded`, `mainClass`                             | Padding, and extra classes on the scrolling content container.                                                          |
 
 ### Nested navigation
 
@@ -330,6 +331,89 @@ Two things worth knowing before you set it:
 Set it in the layout, not the page. A page reaching for `measure` is the habit
 this replaces; a route group that genuinely differs (a docs section inside an
 app of dashboards) gets its own layout, which is where a shared decision belongs.
+
+### The content texture
+
+The house atmosphere — a faint dot-grid floor with a soft accent vignette in the
+top-right — painted once, by the shell, on the region that scrolls:
+
+```svelte
+<AppShell {nav} currentPath={page.url.pathname} texture="grid">
+	{@render children()}
+</AppShell>
+```
+
+| Value  | What it paints                                          | Reach for it when                                                        |
+| ------ | ------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `grid` | a dot-grid floor plus one accent vignette in the corner | the app wants the house "instrument-grade" surface rather than flat page |
+| `none` | nothing at all                                          | the default                                                              |
+
+`none` is the default, so a shell that does not mention `texture` renders exactly
+as it did before the prop existed. Verified, not assumed: five surfaces were
+captured at three viewports on the pre-change build and on this one, and all 15
+pairs are identical on all 120 compared fields **including the rendered PNG
+compared byte-for-byte** (`harness/drive.md`). Adoption is deliberate, one app at
+a time.
+
+**Why it lives on the shell rather than being a class an app applies.** Because
+that is the entire defect it fixes. Two apps had built this same picture
+separately, under two names, in two `app.css` files, and one of them shipped it
+as a helper class routes opt into, which reached four routes out of about
+fifteen. Whether a given page wore the house atmosphere therefore came down to
+which pages someone had happened to touch, and no amount of care at the call site
+fixes that: a texture an app has to _remember_ to apply is not a texture, it is a
+coin toss with a stylesheet. On the shell there is one place to say it and no
+per-route decision left to get wrong.
+
+It is one texture rather than a menu. The two apps wanted the same picture and
+differed only on values: how dark the dots are, how the vignette is tinted, how
+far apart the dots sit. Those are custom properties, retuned in one
+declaration without waiting on a release of this package:
+
+```css
+:root {
+	--ds-shell-texture-grid-ink: oklch(0.68 0.02 250 / 0.5);
+	--ds-shell-texture-vignette-ink: color-mix(in oklch, var(--primary) 8%, transparent);
+	--ds-shell-texture-grid-pitch: 24px;
+	--ds-shell-texture-vignette-height: 40rem;
+	--ds-shell-texture-vignette-at: 15% -10%;
+}
+```
+
+The defaults derive from the app's own `--foreground` and `--primary`, so the
+grid inverts between light and dark with no per-mode override and the vignette
+carries the app's brand rather than a colour this package picked. A plain wash
+instead of a grid is the same declaration with `--ds-shell-texture-grid-ink: transparent`.
+
+Three things worth knowing before you set it:
+
+- **It is a background, not a layer.** Both apps that built this first reached for
+  an absolutely positioned `::before` inside the scroller, which is subtly wrong
+  three ways: at `z-index: auto` a positioned box paints _above_ non-positioned
+  content, so the atmosphere tints the page instead of sitting under it (invisible
+  only because it is faint); `z-index: -1` trades that for sinking behind an
+  ancestor's background; and it has to be excused from hit-testing by hand. A
+  background cannot be hit-tested, always paints beneath every descendant, adds no
+  box to the flex column and opens no stacking context. Proved rather than
+  claimed: an opaque card photographs byte-identically with the texture on and
+  off, while the floor beside it does not.
+- **It does not print.** A 30px dot grid prints as banding and a vignette as a
+  corner smudge, so on paper the texture is suppressed and the content region goes
+  white. That lives here rather than in each app's print rules; it is the same
+  copy both apps had already written for themselves. `html`/`body` stay the app's
+  to decide.
+- **It travels with the content.** A scroll container's background defaults to
+  being pinned to its own box, which would leave the dots hanging motionless while
+  the page slid over them; `background-attachment: local` makes it the floor the
+  page sits on. Driven by photographing bare floor either side of a half-pitch
+  scroll, with the frozen behaviour forced on as a control.
+- **The corner is a knob because a gradient position is physical.** There is no
+  logical form of `at 85%`, so an RTL app wanting the glow at the reading-start
+  corner sets `--ds-shell-texture-vignette-at`. Driven at `dir=rtl`, at a 24px
+  root size, and under `forced-colors: active`; none of those move the texture on
+  their own.
+
+Set it in the layout, once. That is the whole point of the prop.
 
 ### The active nav row: primary is a fill, never an ink
 
