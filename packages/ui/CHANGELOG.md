@@ -2,6 +2,20 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.8.2] - 2026-08-04
+
+### Fixed
+
+- **A nested child that IS the current page no longer leaves its parent claiming to be the current page too.** In the commonest nesting shape there is — a parent at `/education` with a child at `/education/two` — the parent's own prefix match fired as well, so both rows carried `data-active`, both rendered a `.ds-nav-indicator` edge bar, and both carried `aria-current="page"`. Two elements with `aria-current="page"` is an ARIA defect on its own, and visually the rail could no longer say where you were. Shipped in 2026.8.1; **any consumer adopting `children` should take 2026.8.2 instead**. Consumers with no `children` were never affected — `hasActiveNavChild` is false for a childless item, so the flat rendering is byte-identical either way, and the additivity gate holds.
+
+  `within` is now computed first and suppresses `active`. What the parent keeps is exactly the section-root behaviour prefix matching was added for: on its own page, or on a page beneath it that no child row claims, it is still the active row.
+
+  Found by adversarial review rather than by the suite, and both gates that should have caught it had been written to and missed — recorded here because the miss is the more useful half. The jsdom test only exercised children living at their own top-level routes, where the parent's prefix never matched and the bug could not fire; the browser check counted `aria-current` inside the disclosure panel, so it was structurally incapable of seeing the parent link outside it. Both are fixed and both were driven red against the 2026.8.1 build before being kept: three jsdom cases (a child that is the page, a page beneath the parent that no child claims, and the parent's own page), and a browser check counting `aria-current`, `data-active` and indicators across the whole nav.
+
+### Changed
+
+- Keyboard activation of the disclosure control is now driven in a real browser (Enter and Space, both asserted), along with Escape returning focus to the control from inside an open group. jsdom implements no activation behaviour for a `<button>`, so the unit test there had been dressing a synthesised click as a keyboard test; it now asserts only what that environment can actually prove — that the control is a real, focusable `<button>`.
+
 ## [2026.8.1] - 2026-08-04
 
 ### Added
@@ -13,7 +27,7 @@ All notable changes to this package are documented here. Format follows [Keep a 
   - **A collapsed rail renders no tree and no disclosure control** — 3.5rem of icons cannot hold one, and the alternative (a hover flyout) is a second interaction surface with its own positioning, touch and focus story. The children are absent from the document rather than `sr-only`, which would be the dead affordance this package treats as worse than a missing one; the parent stays an icon-only link to its own page, and the way back is the Collapse control the user just used.
   - **Escape closes the group focus is inside** and returns focus to the chevron, and is swallowed only when it actually closed something — so Escape elsewhere still reaches the shell and shuts the mobile drawer.
   - `toItems` now flattens children too, each parent followed by its own, so a nested page is reachable from `CommandPalette`. A nav with no children flattens exactly as before. `navChildren` and `hasActiveNavChild` are exported alongside it.
-  - A parent whose section holds the current page but whose own `href` does not match carries `data-within="true"`, lifting its ink only. The tint, the weight and the edge bar stay reserved for the row that IS the page, so two rows never both claim to be current. This only fires where a section's children live at their own top-level routes; the ordinary nested-path case was already covered by prefix matching.
+  - A parent whose section holds the current page but whose own `href` does not match carries `data-within="true"`, lifting its ink only. The tint, the weight and the edge bar stay reserved for the row that IS the page, so two rows never both claim to be current. This only fires where a section's children live at their own top-level routes. **The claim that "two rows never both claim to be current" was false as shipped in this release, and the reasoning that follows it is the mistake:** the ordinary nested-path case was NOT covered — prefix matching lit the parent alongside its own active child. Corrected in 2026.8.2.
 
 ### Fixed
 
