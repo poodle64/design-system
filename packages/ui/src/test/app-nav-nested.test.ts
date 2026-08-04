@@ -18,6 +18,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/svelte';
 import NestedHarness from './app-nav-nested.svelte';
+import FlatHarness from './app-shell.svelte';
 import {
 	hasActiveNavChild,
 	navChildren,
@@ -270,6 +271,29 @@ describe('nested nav — the collapsed rail', () => {
 		await waitFor(() =>
 			expect(screen.getByRole('link', { name: 'Topic one' })).toBeInTheDocument()
 		);
+	});
+});
+
+describe('nested nav — the childless case is untouched', () => {
+	// The additive guarantee, as a gate rather than a claim. The flat harness is
+	// the one the pre-existing `app-shell` suite drives, and its nav carries no
+	// `children` anywhere; rendering the component before and after this change
+	// and diffing the DOM showed the two identical apart from Svelte's own
+	// invisible block-marker comments. This pins the half of that a test can hold
+	// permanently: none of the nesting machinery may appear in a nav that asked
+	// for none of it.
+	it('renders no branch, no disclosure control and no nesting attributes', () => {
+		const { container } = render(FlatHarness);
+
+		expect(container.querySelector('.ds-nav-branch')).toBeNull();
+		expect(container.querySelector('[data-ds-nav-disclosure]')).toBeNull();
+		expect(container.querySelector('.ds-nav-children')).toBeNull();
+		expect(container.querySelector('[data-child]')).toBeNull();
+		expect(container.querySelector('[data-within]')).toBeNull();
+		expect(container.querySelector('[data-branch]')).toBeNull();
+		// The rows themselves are still there, so this is not passing by rendering
+		// nothing at all.
+		expect(container.querySelectorAll('.ds-nav-item').length).toBeGreaterThan(0);
 	});
 });
 
