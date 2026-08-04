@@ -14,7 +14,7 @@ differs by palette only (`master-project#174`, WP-51). `@poodle64/design-tokens`
 - `pnpm install`, then `pnpm build` / `pnpm test` / `pnpm check` fan out with `pnpm -r`. Scope to one package with `pnpm --filter @poodle64/ui run test`
 - `packages/design-tokens/`: `tokens/tokens.tokens.json` is the single DTCG source; `sd.config.js` is the Style Dictionary v4 config; `templates/DESIGN.md.template` is the per-app North Star template consuming apps copy in; build emits `dist/tokens.{css,tw.css,js,d.ts}`
 - `packages/ui/`: `svelte-package` build (`dist/components/ui/<name>/index.js` per component, plus `dist/utils.js`), `svelte-check` type gate, `vitest` + `@testing-library/svelte` interaction tests, `publint` on the emitted package
-- No lint/format tooling is configured yet (no ESLint, no Prettier) — do not assume either is wired into CI or pre-commit
+- No lint tooling is configured yet (no ESLint) — do not assume it is wired into CI or pre-commit. `.prettierrc` exists only to RECORD the house style (tabs, printWidth 100, single quotes); nothing runs it in CI or pre-commit either. It is there because a prettier invoked without it walks up to the master-project root's 2-space config and reindents whole files
 
 ## Publishing
 
