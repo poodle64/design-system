@@ -106,6 +106,44 @@ describe('nested nav — expansion follows the path, until it is told otherwise'
 		expect(chevron('Education')).toHaveAttribute('aria-expanded', 'false');
 	});
 
+	it('lets a child that IS the page win over its parent’s prefix match', () => {
+		// The commonest shape there is, and the one the first cut of this feature
+		// got wrong: `/education` prefix-matches `/education/two`, so BOTH rows
+		// claimed to be the current page — two tints, two edge bars, and two
+		// elements carrying aria-current="page", which is an ARIA defect on its own.
+		// The sibling test below covers the unrelated-route case, where the parent's
+		// prefix never matched and the bug could not fire; that is exactly why it
+		// passed throughout.
+		const { container } = render(NestedHarness, { props: { currentPath: '/education/two' } });
+
+		expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+		expect(container.querySelectorAll('[data-active="true"]')).toHaveLength(1);
+		expect(container.querySelectorAll('.ds-nav-indicator')).toHaveLength(1);
+
+		expect(screen.getByRole('link', { name: 'Topic two' })).toHaveAttribute('aria-current', 'page');
+		const parent = screen.getByRole('link', { name: 'Education' });
+		expect(parent).not.toHaveAttribute('aria-current');
+		expect(parent).toHaveAttribute('data-within', 'true');
+	});
+
+	it('keeps the parent active on a page beneath it that no child claims', () => {
+		// The other half of the same rule. Suppressing the parent whenever the path
+		// merely sits under it would throw away the section-root behaviour that
+		// earned prefix matching, so the suppression is scoped to a DECLARED child.
+		const { container } = render(NestedHarness, { props: { currentPath: '/education/unlisted' } });
+
+		const parent = screen.getByRole('link', { name: 'Education' });
+		expect(parent).toHaveAttribute('aria-current', 'page');
+		expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+	});
+
+	it('keeps the parent active on its own page', () => {
+		render(NestedHarness, { props: { currentPath: '/education' } });
+
+		expect(screen.getByRole('link', { name: 'Education' })).toHaveAttribute('aria-current', 'page');
+		expect(screen.getByRole('link', { name: 'Topic one' })).not.toHaveAttribute('aria-current');
+	});
+
 	it('marks a parent whose section you are in but whose own href does not match', () => {
 		render(NestedHarness, { props: { currentPath: '/archive' } });
 		const records = screen.getByRole('link', { name: 'Records' });
@@ -156,17 +194,22 @@ describe('nested nav — expansion follows the path, until it is told otherwise'
 });
 
 describe('nested nav — keyboard', () => {
-	it('opens from the keyboard, because the control is a real button', async () => {
+	it('is a real button, so the platform gives it Enter and Space', () => {
+		// Precisely the claim this environment can make, and no more. jsdom does
+		// not implement a button's activation behaviour, so pressing Enter here
+		// proves nothing either way — a keydown test would fail against a correct
+		// implementation. What CAN be pinned is that the control is a submit-safe
+		// real `<button>` and focusable, which is what earns the platform's own
+		// keyboard handling. The activation itself is driven in a real engine
+		// instead: `harness/drive.mjs`, Enter and Space, both asserted.
 		render(NestedHarness, { props: { currentPath: '/overview' } });
 		const control = chevron('Education');
+
+		expect(control.tagName).toBe('BUTTON');
+		expect(control).toHaveAttribute('type', 'button');
+		expect(control.tabIndex).toBeGreaterThanOrEqual(0);
 		control.focus();
-
-		// A <button> gets Enter and Space from the platform. Driving the click the
-		// platform would synthesise is the honest test of that; what is actually
-		// being asserted is that nothing here suppressed it.
-		await fireEvent.click(control);
-
-		await waitFor(() => expect(chevron('Education')).toHaveAttribute('aria-expanded', 'true'));
+		expect(document.activeElement).toBe(control);
 	});
 
 	it('closes on Escape from inside, and puts focus back on the control', async () => {

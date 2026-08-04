@@ -992,7 +992,14 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 				childLabelLeft: childLabel.getBoundingClientRect().left,
 				childRight: child.getBoundingClientRect().right,
 				railRight: document.querySelector('.ds-shell-rail').getBoundingClientRect().right,
-				activeChildren: panel.querySelectorAll('[aria-current="page"]').length
+				activeChildren: panel.querySelectorAll('[aria-current="page"]').length,
+				// Scoped to the WHOLE nav, deliberately. The panel-scoped count above
+				// cannot see the parent link, which sits outside it — so it was
+				// structurally incapable of catching the parent and its own child both
+				// claiming to be the page, which is exactly what shipped in 2026.8.1.
+				activeRows: document.querySelectorAll('.ds-nav [aria-current="page"]').length,
+				activeTints: document.querySelectorAll('.ds-nav [data-active="true"]').length,
+				indicators: document.querySelectorAll('.ds-nav .ds-nav-indicator').length
 			};
 		});
 
@@ -1006,6 +1013,14 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 			'nested: exactly one child is marked the current page',
 			measured.activeChildren === 1,
 			`${measured.activeChildren} rows carry aria-current`
+		);
+		// The claim the panel-scoped check above cannot make. Two elements carrying
+		// aria-current="page" is an ARIA defect on its own, and two tints plus two
+		// edge bars leave the rail unable to say where you are.
+		check(
+			'nested: exactly ONE row in the whole nav claims to be the page',
+			measured.activeRows === 1 && measured.activeTints === 1 && measured.indicators === 1,
+			`aria-current ${measured.activeRows}, data-active ${measured.activeTints}, indicators ${measured.indicators}`
 		);
 		// The rotation IS the open state for a sighted user. A class-name check
 		// passes while the transform is dead; the resolved matrix cannot.
@@ -1106,6 +1121,57 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 			ok: true,
 			detail: `documentElement.scrollWidth ${measured.documentScroll} vs innerWidth ${measured.innerWidth}`
 		});
+		await context.close();
+	}
+
+	// Keyboard activation, driven for real. jsdom does not implement a button's
+	// activation behaviour, so no unit test there can prove Enter or Space opens
+	// the group — it can only assert the element is a `<button>` and trust the
+	// platform. This is where the platform actually is.
+	for (const key of ['Enter', 'Space']) {
+		const { context, page } = await open('surface=nested');
+		await page.waitForSelector('.ds-nav-branch');
+		// The second branch is the one that starts CLOSED, so an open is observable.
+		const control = page.locator('[data-ds-nav-disclosure]').nth(1);
+		await control.focus();
+		const before = await control.getAttribute('aria-expanded');
+		await page.keyboard.press(key);
+		await page.waitForTimeout(100);
+		const after = await control.getAttribute('aria-expanded');
+
+		check(
+			`nested: ${key} on the chevron opens the group`,
+			before === 'false' && after === 'true',
+			`aria-expanded ${before} → ${after}`
+		);
+		await context.close();
+	}
+
+	// Escape from inside an open group, in a real engine: it must close the group
+	// and put focus back on the control, not strand the caret on a row that has
+	// just been hidden. jsdom agrees, but jsdom also has no notion of what is
+	// actually focusable, so the claim is worth making where it is real.
+	{
+		const { context, page } = await open('surface=nested');
+		await page.waitForSelector('.ds-nav-children:not([hidden]) .ds-nav-item');
+		await page.locator('.ds-nav-children:not([hidden]) .ds-nav-item').first().focus();
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(100);
+
+		const measured = await page.evaluate(() => ({
+			expanded: document
+				.querySelector('.ds-nav-branch [data-ds-nav-disclosure]')
+				?.getAttribute('aria-expanded'),
+			focusIsControl:
+				document.activeElement === document.querySelector('.ds-nav-branch [data-ds-nav-disclosure]'),
+			focusTag: document.activeElement?.tagName.toLowerCase()
+		}));
+
+		check(
+			'nested: Escape inside an open group closes it and returns focus to the control',
+			measured.expanded === 'false' && measured.focusIsControl,
+			`aria-expanded ${measured.expanded}, focus on <${measured.focusTag}>`
+		);
 		await context.close();
 	}
 

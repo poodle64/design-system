@@ -139,8 +139,25 @@
 	item: NavItem | NavChildItem,
 	opts: { child?: boolean; first?: boolean; labelId?: string } = {}
 )}
-	{@const active = isNavItemActive(item, currentPath)}
-	{@const within = !active && hasActiveNavChild(item, currentPath)}
+	<!--
+		A declared child that IS the page WINS over its parent's prefix match, and
+		this ordering is the whole of that rule.
+
+		The obvious way round was wrong, and wrong in the commonest shape there is:
+		a parent at `/education` prefix-matches `/education/two`, so a parent whose
+		own child was the current page lit up as the current page too — two rows
+		carrying `aria-current="page"`, two tints, two edge bars. Fine while nav was
+		flat, because the child row did not exist to disagree with; incoherent the
+		moment it does, and an ARIA defect besides.
+
+		`within` is therefore computed FIRST and suppresses `active`. What the parent
+		keeps is the section-root behaviour that earned prefix matching in the first
+		place: on its own page, or on a page under it that no child row claims, it is
+		still the active row. A childless item never reaches this at all —
+		`hasActiveNavChild` is false for it — so the flat case is untouched.
+	-->
+	{@const within = hasActiveNavChild(item, currentPath)}
+	{@const active = !within && isNavItemActive(item, currentPath)}
 	<a
 		bind:this={
 			() => firstLink,
