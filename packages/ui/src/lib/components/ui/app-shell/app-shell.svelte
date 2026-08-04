@@ -149,6 +149,16 @@
 
 	const hasNav = $derived(toItems(nav).length > 0);
 
+	// The measure is resolved ONCE, and the class and the attribute both read
+	// that one answer. Two independently-worded conditionals looked symmetric
+	// and were not: Svelte omits an attribute whose value is `null`, while a
+	// class token under the same test survives, so `measure={null}` — which the
+	// type forbids but a loosely-typed prop bag or a nullable route field can
+	// still deliver — produced the class with no attribute and therefore no
+	// matching rule. Harmless to look at, but it breaks the DOM contract the
+	// additivity gate states, and a guarantee with a hole in it is not one.
+	const capped = $derived(measure != null && measure !== 'full' ? measure : null);
+
 	// The disclosure toggle and the region it opens have to be programmatically
 	// related, not merely adjacent: `aria-expanded` says the control is open,
 	// `aria-controls` says WHAT it opened, and assistive technology uses the
@@ -497,16 +507,17 @@
 					a no-op value. That is what makes the prop additive: a consumer
 					who never names it gets the same element, the same class string
 					and the same declarations as before it existed, so there is
-					nothing for the cascade to resolve differently.
+					nothing for the cascade to resolve differently. Both read the
+					single `capped` answer above, so they cannot disagree.
 				-->
 				<div
 					class={cn(
 						'flex min-h-0 min-w-0 flex-1 flex-col',
 						'w-full',
-						measure !== 'full' && 'ds-shell-measure',
+						capped && 'ds-shell-measure',
 						padded && 'px-4 py-5 sm:px-6 md:px-8 md:py-7 2xl:px-12'
 					)}
-					data-measure={measure === 'full' ? undefined : measure}
+					data-measure={capped ?? undefined}
 				>
 					{@render children()}
 				</div>

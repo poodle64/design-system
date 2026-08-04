@@ -656,6 +656,34 @@ same markup and the same numbers. `measure="full"` passed explicitly is checked
 against the omitted case in the same run, since a consumer adopting the scale and
 then wanting one layout uncapped must land back where they started.
 
+### The character band is font-robust, measured across faces
+
+A fixed character band would be a fragile assertion if the number moved with
+whatever face the runner happened to resolve — CI is `ubuntu-latest` and picks a
+different fallback than a Mac. So it was driven across eight faces at 2560px,
+including the metric extremes:
+
+| Face                                                                      | Box width | Characters per line |
+| ------------------------------------------------------------------------- | --------- | ------------------- |
+| harness default (Avenir Next)                                             | 668.16px  | 80                  |
+| DejaVu Sans / Liberation Sans / Ubuntu / Arial / monospace / `sans-serif` | 640.69px  | 80                  |
+| Times New Roman                                                           | 576px     | 75                  |
+
+The BOX moves by 92px across that set; the characters on a line move by five.
+That is the property that makes `ch` the right unit for this tier rather than a
+coincidence: the cap and the glyph advance scale together, so the measure holds
+its meaning in a face nobody anticipated. The 45–90 band has margin on both
+sides at every face tried, so it is a real bound rather than one tuned to the
+number this machine happens to produce.
+
+`readGeometry` awaits `document.fonts.ready` before measuring, and prints the
+resolved family beside the count. The harness ships no `@font-face` at all —
+it compiles the consumer's stylesheet over the built package, and the body stack
+falls through to a locally available face — so that await is a no-op today. It
+is there because the day this harness self-hosts a face, every number here would
+begin being read a frame early, and that would surface as a CI flake rather than
+as anything a reader could diagnose.
+
 ### Why `prose` is a tier rather than the narrow end of `page`
 
 The measurement above is the argument. At 2560px with no cap, the same paragraph

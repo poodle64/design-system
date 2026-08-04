@@ -63,6 +63,23 @@ describe('AppShell — the measure is additive', () => {
 		expect(explicit).toEqual(omitted);
 	});
 
+	it('treats a null measure as no measure, rather than half of one', () => {
+		// The type forbids `null`, but a loosely-typed prop bag, a spread config
+		// or a nullable route field still delivers it, and the two guards this
+		// used to carry were asymmetric: Svelte omits an attribute whose value is
+		// null while a class token under the same test survives, so the box came
+		// out carrying `ds-shell-measure` with no `data-measure` and therefore no
+		// rule. Visually harmless, but it is precisely the DOM contract the gate
+		// above states, and a guarantee with a hole in it is not one.
+		const { container } = render(ShellHarness, {
+			props: { measure: null as unknown as undefined }
+		});
+		const box = contentBox(container);
+
+		expect(box.classList.contains('ds-shell-measure')).toBe(false);
+		expect(box.hasAttribute('data-measure')).toBe(false);
+	});
+
 	it('adds exactly one class and one attribute when a measure IS named', () => {
 		// The size of the change, pinned. A future refactor that reached for a
 		// second wrapper element or swapped the padding utilities out under

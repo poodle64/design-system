@@ -1263,8 +1263,19 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 	const MEASURES = ['prose', 'page', 'wide', 'full'];
 
 	/** Read the content box's geometry, plus what the browser resolved the cap to. */
-	const readGeometry = async (page) =>
-		page.evaluate(() => {
+	const readGeometry = async (page) => {
+		// `ch` is a font metric, so nothing here may be measured before the font
+		// is settled. This harness ships no `@font-face` at all — it compiles the
+		// consumer's stylesheet over the built package and the body stack falls
+		// through to a locally available face — so `fonts.ready` resolves
+		// immediately today. It is awaited anyway: the day this harness self-hosts
+		// a face, every number below would start being read a frame early, and
+		// that failure would show up as a flake in CI rather than as an error
+		// anyone could read. The resolved family is reported with the numbers for
+		// the same reason — a Linux runner resolves a different fallback than a
+		// Mac, and a check about characters should say which characters.
+		await page.evaluate(() => document.fonts.ready);
+		return page.evaluate(() => {
 			const main = document.querySelector('#ds-main');
 			const box = main.firstElementChild;
 			const rect = box.getBoundingClientRect();
@@ -1311,10 +1322,12 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 				rootFontSize: parseFloat(getComputedStyle(document.documentElement).fontSize),
 				oneProseMeasure: Math.round(oneProseMeasure * 100) / 100,
 				charsPerLine,
+				face: copy ? getComputedStyle(copy).fontFamily.split(',')[0].replace(/"/g, '') : 'n/a',
 				mainScroll: main.scrollWidth,
 				mainClient: main.clientWidth
 			};
 		});
+	};
 
 	// ── At 2560px, where every cap binds ────────────────────────────────────
 	{
@@ -1372,7 +1385,7 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 		check(
 			'measure @2560px, prose: running text lands in a readable 45-90 character band',
 			at.prose.charsPerLine >= 45 && at.prose.charsPerLine <= 90,
-			`prose ${at.prose.charsPerLine} characters per line (box ${at.prose.boxWidth}px), against ${at.full.charsPerLine} at full on the same viewport`
+			`prose ${at.prose.charsPerLine} characters per line (box ${at.prose.boxWidth}px, face ${at.prose.face}), against ${at.full.charsPerLine} at full on the same viewport`
 		);
 
 		// The scale is monotonic, in the order it is documented in. A tier that

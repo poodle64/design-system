@@ -289,8 +289,8 @@ It exists because "content is always full-width" did not remove the width
 decision, it pushed it into every page. Surveyed at 2560px, one consumer had six
 distinct caps across nine routes — each a hand-written `mx-auto max-w-*` at the
 top of a `+page.svelte`, none wrong on its own, no two agreeing — using between
-15% and 79% of the width available. Across the estate that is 34 hand-rolled caps
-in 24 page files, spanning eight different `max-w-*` values. A scale with four
+15% and 79% of the width available. Across the estate that is 42 hand-rolled caps
+in 34 page files, spanning eight different `max-w-*` values. A scale with four
 names cannot drift like that.
 
 **Why `prose` is a tier at all.** Because a shared measure that let running text
