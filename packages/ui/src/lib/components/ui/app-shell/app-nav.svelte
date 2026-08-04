@@ -84,6 +84,17 @@
 	 * localStorage key collides with the app's own, and collides with itself the
 	 * moment a page renders two navs — the same hazard as a literal element id.
 	 * An app that wants disclosure to survive a reload owns that decision.
+	 *
+	 * Keyed by `href`, which is already this component's notion of identity — the
+	 * `{#each}` below keys on it too, so two items sharing an href is a Svelte
+	 * duplicate-key error before it is anything else. The consequence worth naming:
+	 * an app that swaps its whole `nav` (a permission filter, a context switch)
+	 * and reuses an href across variants carries the user's open/closed decision
+	 * across that swap. That is deliberate, not an oversight — resetting on a
+	 * changed `nav` would wipe the override every time a `$derived` nav recomputes,
+	 * which in the apps that derive nav from a store is constantly, destroying the
+	 * persistence this whole mechanism exists to provide. The href is the contract:
+	 * same href, same section, same decision.
 	 */
 	let overrides = $state<Record<string, boolean>>({});
 
