@@ -1245,6 +1245,295 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 	}
 }
 
+// ── The content measure ─────────────────────────────────────────────────────
+// This is the check the feature exists for, and it is a WIDTH, so it can only
+// be made here. Every claim the scale makes is a resolved length: `80rem`
+// against the root font size, `72ch` against the body face as loaded, a cap
+// that binds only once the viewport is wide enough to reach it, and a box
+// centred by auto margins inside a flex column. jsdom resolves none of them —
+// it hands back the unresolved `var()` literal for `max-width` and zero for
+// every rect — so a unit test there would pass against a build whose
+// stylesheet was never imported. A class-name assertion is not a measurement.
+//
+// 2560px is the case that motivated the feature: on a real 4K panel the
+// surveyed consumer was using 15-79% of the width available, and the shell had
+// no opinion to offer.
+{
+	// Every tier, measured under one page body, so the only variable is the prop.
+	const MEASURES = ['prose', 'page', 'wide', 'full'];
+
+	/** Read the content box's geometry, plus what the browser resolved the cap to. */
+	const readGeometry = async (page) =>
+		page.evaluate(() => {
+			const main = document.querySelector('#ds-main');
+			const box = main.firstElementChild;
+			const rect = box.getBoundingClientRect();
+			const mainRect = main.getBoundingClientRect();
+			const style = getComputedStyle(box);
+
+			// What `72ch` MEANS in this box, measured rather than assumed: a probe
+			// sized in the unit under test, in the box's own inherited font. If the
+			// face or size ever changes, this moves with it, which is the whole
+			// argument for stating a reading measure in characters.
+			const probe = document.createElement('div');
+			probe.style.cssText = 'position:absolute;visibility:hidden;width:72ch';
+			box.appendChild(probe);
+			const oneProseMeasure = probe.getBoundingClientRect().width;
+			probe.remove();
+
+			// How many characters of the app's ACTUAL running text land on a line.
+			// This is the claim `prose` makes, and it is not the same number as
+			// `72ch`: `ch` resolves against the box's own font, while the copy
+			// inside it is a step smaller, so the real line is longer than 72
+			// characters. Measured off a sample in the paragraph's own font rather
+			// than assumed from the unit.
+			const copy = document.querySelector('[data-probe="measure-copy"]');
+			let charsPerLine = null;
+			if (copy) {
+				const sample = document.createElement('span');
+				const SAMPLE = 'abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz';
+				sample.textContent = SAMPLE;
+				sample.style.cssText = 'position:absolute;visibility:hidden;white-space:pre';
+				copy.appendChild(sample);
+				const advance = sample.getBoundingClientRect().width / SAMPLE.length;
+				sample.remove();
+				charsPerLine = Math.round(copy.clientWidth / advance);
+			}
+
+			return {
+				boxWidth: Math.round(rect.width * 100) / 100,
+				available: main.clientWidth,
+				gapLeft: Math.round((rect.left - mainRect.left) * 100) / 100,
+				gapRight: Math.round((mainRect.right - rect.right) * 100) / 100,
+				maxWidth: style.maxWidth,
+				hasAttribute: box.hasAttribute('data-measure'),
+				hasClass: box.classList.contains('ds-shell-measure'),
+				rootFontSize: parseFloat(getComputedStyle(document.documentElement).fontSize),
+				oneProseMeasure: Math.round(oneProseMeasure * 100) / 100,
+				charsPerLine,
+				mainScroll: main.scrollWidth,
+				mainClient: main.clientWidth
+			};
+		});
+
+	// ── At 2560px, where every cap binds ────────────────────────────────────
+	{
+		const at = {};
+		for (const measure of MEASURES) {
+			const { context, page } = await open(`surface=measure&measure=${measure}`, {
+				width: 2560,
+				height: 1440
+			});
+			await page.waitForSelector('#ds-main');
+			at[measure] = await readGeometry(page);
+			await context.close();
+		}
+
+		// `full` is the anchor: no cap, so the box IS the available width. If this
+		// ever stops holding, the additivity claim below is measuring nothing.
+		check(
+			'measure @2560px, full: the content box is the whole available width',
+			at.full.boxWidth === at.full.available && at.full.maxWidth === 'none',
+			`box ${at.full.boxWidth}px of ${at.full.available}px available, max-width ${at.full.maxWidth}`
+		);
+
+		// The rem tiers, against the arithmetic the README states rather than
+		// against a number typed twice: 80rem and 120rem at the root font size
+		// this document actually resolved.
+		for (const [measure, rem] of [
+			['page', 80],
+			['wide', 120]
+		]) {
+			const expected = rem * at[measure].rootFontSize;
+			check(
+				`measure @2560px, ${measure}: the rendered width is ${rem}rem`,
+				Math.abs(at[measure].boxWidth - expected) < 1,
+				`box ${at[measure].boxWidth}px vs ${rem}rem = ${expected}px (root ${at[measure].rootFontSize}px), max-width ${at[measure].maxWidth}`
+			);
+		}
+
+		// `prose` is stated in characters, so it is checked in characters: the box
+		// must be exactly what `72ch` measures in its own font. A `rem` slipped in
+		// here would pass a "narrower than page" test and fail this one.
+		check(
+			'measure @2560px, prose: the rendered width is 72ch in the box’s own face',
+			Math.abs(at.prose.boxWidth - at.prose.oneProseMeasure) < 1,
+			`box ${at.prose.boxWidth}px vs a 72ch probe at ${at.prose.oneProseMeasure}px`
+		);
+
+		// A reading measure that spanned a 4K panel would be worse than the
+		// per-page guesses it replaces, which is the entire reason `prose` exists
+		// as a tier of its own rather than as the narrow end of `page`. So the
+		// claim is asserted in the terms it is actually made in — characters on a
+		// line, the typographic criterion — rather than as a pixel threshold
+		// someone picked. 45-90 is the accepted band for continuous text; the
+		// same paragraph at `full` on this viewport is what the tier exists to
+		// prevent, so it is measured beside it.
+		check(
+			'measure @2560px, prose: running text lands in a readable 45-90 character band',
+			at.prose.charsPerLine >= 45 && at.prose.charsPerLine <= 90,
+			`prose ${at.prose.charsPerLine} characters per line (box ${at.prose.boxWidth}px), against ${at.full.charsPerLine} at full on the same viewport`
+		);
+
+		// The scale is monotonic, in the order it is documented in. A tier that
+		// sorted out of order would make the vocabulary a lie at the call site.
+		check(
+			'measure @2560px: the scale widens strictly, narrowest first',
+			at.prose.boxWidth < at.page.boxWidth &&
+				at.page.boxWidth < at.wide.boxWidth &&
+				at.wide.boxWidth < at.full.boxWidth,
+			MEASURES.map((m) => `${m} ${at[m].boxWidth}`).join(' < ')
+		);
+
+		// Capped means CENTRED, not left-aligned with dead space on one side.
+		// Auto margins inside a flex column are the mechanism, and whether they
+		// resolve is exactly the kind of thing only a layout engine knows.
+		for (const measure of ['prose', 'page', 'wide']) {
+			check(
+				`measure @2560px, ${measure}: the capped box is centred, not flush left`,
+				Math.abs(at[measure].gapLeft - at[measure].gapRight) <= 1 && at[measure].gapLeft > 0,
+				`gaps ${at[measure].gapLeft}px / ${at[measure].gapRight}px`
+			);
+		}
+
+		// The number the whole feature was argued from, restated as evidence.
+		checks.push({
+			name: 'measure @2560px: width used, per tier (the survey number)',
+			ok: true,
+			detail: MEASURES.map(
+				(m) => `${m} ${Math.round((at[m].boxWidth / at[m].available) * 100)}%`
+			).join(', ')
+		});
+	}
+
+	// ── At 1440px, where the wide tiers must be inert ────────────────────────
+	// A ceiling, never a floor. `page` caps at 80rem and a laptop has less than
+	// that available, so it must change NOTHING there — a measure that narrowed
+	// a laptop to make a 4K panel tidy would be a regression for the common case.
+	{
+		const at = {};
+		for (const measure of MEASURES) {
+			const { context, page } = await open(`surface=measure&measure=${measure}`, {
+				width: 1440,
+				height: 900
+			});
+			await page.waitForSelector('#ds-main');
+			at[measure] = await readGeometry(page);
+			await context.close();
+		}
+
+		for (const measure of ['page', 'wide']) {
+			check(
+				`measure @1440px, ${measure}: the cap is out of reach and changes nothing`,
+				at[measure].boxWidth === at.full.boxWidth,
+				`${measure} ${at[measure].boxWidth}px vs full ${at.full.boxWidth}px (${at[measure].available}px available)`
+			);
+		}
+		check(
+			'measure @1440px, prose: a reading measure still binds on a laptop',
+			at.prose.boxWidth < at.full.boxWidth,
+			`prose ${at.prose.boxWidth}px vs full ${at.full.boxWidth}px`
+		);
+	}
+
+	// ── Additivity, in the browser ───────────────────────────────────────────
+	// The operator's hard constraint: no consumer that omits `measure` may render
+	// one pixel differently. `surface=shell` passes no `measure` prop at all —
+	// it is the shell every existing consumer gets — so it must carry no
+	// attribute, no class, no cap, and no margin, at every width.
+	for (const width of [2560, 1440, 360]) {
+		const { context, page } = await open('surface=shell', { width, height: 900 });
+		await page.waitForSelector('#ds-main');
+		const bare = await readGeometry(page);
+		await context.close();
+
+		check(
+			`measure @${width}px: a shell that never names measure is uncapped and unmoved`,
+			!bare.hasAttribute &&
+				!bare.hasClass &&
+				bare.maxWidth === 'none' &&
+				bare.boxWidth === bare.available &&
+				bare.gapLeft === 0,
+			`attribute ${bare.hasAttribute}, class ${bare.hasClass}, max-width ${bare.maxWidth}, box ${bare.boxWidth}px of ${bare.available}px, left gap ${bare.gapLeft}px`
+		);
+	}
+
+	// `full` passed explicitly has to land in the same place as omitting it, or
+	// an app adopting the scale and then deciding one layout wants no cap would
+	// get something subtly different from where it started.
+	{
+		const { context: c1, page: p1 } = await open('surface=shell', { width: 2560, height: 1440 });
+		await p1.waitForSelector('#ds-main');
+		const omitted = await readGeometry(p1);
+		await c1.close();
+		const { context: c2, page: p2 } = await open('surface=measure&measure=full', {
+			width: 2560,
+			height: 1440
+		});
+		await p2.waitForSelector('#ds-main');
+		const explicit = await readGeometry(p2);
+		await c2.close();
+
+		check(
+			'measure @2560px: measure="full" renders where omitting it renders',
+			omitted.boxWidth === explicit.boxWidth &&
+				omitted.maxWidth === explicit.maxWidth &&
+				omitted.gapLeft === explicit.gapLeft &&
+				explicit.hasAttribute === false,
+			`omitted ${omitted.boxWidth}px/${omitted.maxWidth}, explicit ${explicit.boxWidth}px/${explicit.maxWidth}`
+		);
+	}
+
+	// ── At 360px, where nothing may overflow ─────────────────────────────────
+	// No tier caps anything this narrow, so the interesting failure is the
+	// opposite one: a `min-width` typed for a `max-width`, or a `ch` value that
+	// forces a floor, would push the page sideways here and nowhere else. The
+	// DOM walk is the assertion for the reason #5 and the nested nav both
+	// established — the content region is its own scroller, so the document
+	// level number cannot move.
+	for (const measure of MEASURES) {
+		const { context, page } = await open(`surface=measure&measure=${measure}`, {
+			width: 360,
+			height: 780
+		});
+		await page.waitForSelector('#ds-main');
+
+		const measured = await page.evaluate((viewport) => {
+			const offenders = [];
+			for (const el of document.querySelectorAll('body *')) {
+				const rect = el.getBoundingClientRect();
+				if (rect.width === 0 && rect.height === 0) continue;
+				if (rect.right > viewport + 0.5 || rect.left < -0.5) {
+					offenders.push({
+						tag: el.tagName.toLowerCase(),
+						cls: (el.getAttribute('class') ?? '').slice(0, 60),
+						right: Math.round(rect.right)
+					});
+				}
+			}
+			const main = document.querySelector('#ds-main');
+			return {
+				offenderCount: offenders.length,
+				worst: offenders[0] ? `${offenders[0].tag}.${offenders[0].cls} right ${offenders[0].right}` : 'none',
+				mainOverflow: main.scrollWidth - main.clientWidth,
+				documentScroll: document.documentElement.scrollWidth
+			};
+		}, 360);
+
+		check(
+			`measure @360px, ${measure}: nothing in the document exceeds the viewport`,
+			measured.offenderCount === 0,
+			`${measured.offenderCount} offender(s); worst: ${measured.worst}`
+		);
+		check(
+			`measure @360px, ${measure}: the content region does not scroll sideways`,
+			measured.mainOverflow <= 0,
+			`main scrollWidth − clientWidth = ${measured.mainOverflow}px (document-level, blind: ${measured.documentScroll})`
+		);
+		await context.close();
+	}
+}
+
 await browser.close();
 server.close();
 

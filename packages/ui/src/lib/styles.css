@@ -285,6 +285,22 @@
 	--ds-shell-chrome-muted-foreground: var(--ds-color-muted-foreground);
 	--ds-shell-rail-width: 15.5rem;
 	--ds-shell-rail-width-collapsed: 3.5rem;
+
+	/* ── Content measure ──────────────────────────────────────────────────────
+	   The scale AppShell's `measure` prop selects between, as custom properties
+	   for the same reason the rail width is one: an app retunes a tier in one
+	   declaration instead of waiting on a release of this package.
+
+	   `prose` is in `ch` deliberately, where the other two are in `rem`. A
+	   reading measure is a count of CHARACTERS, not a length — the whole claim
+	   is "a line the eye can track back from", and that is a function of the
+	   face and size the app actually set, not of a number someone typed once.
+	   `page` and `wide` are page frames rather than reading measures, so they
+	   are lengths and stay in rem.
+	   ──────────────────────────────────────────────────────────────────────── */
+	--ds-shell-measure-prose: 72ch;
+	--ds-shell-measure-page: 80rem;
+	--ds-shell-measure-wide: 120rem;
 }
 
 @layer base {
@@ -751,6 +767,41 @@
 
 	.ds-shell-rail[data-collapsed='true'] {
 		width: var(--ds-shell-rail-width-collapsed);
+	}
+
+	/* The content measure: the shell's content box is ONE element in four
+	   states, the same shape as the rail above it.
+
+	   Real declarations here rather than a `max-w-[var(--ds-shell-measure-page)]`
+	   utility on the component, for the reason the rail's width is here too: an
+	   arbitrary utility only exists if the CONSUMER's Tailwind build happened to
+	   scan the file that spells it, whereas this stylesheet is imported by every
+	   consumer as a condition of using the package at all. Whoever writes the
+	   utility owns whatever makes it real.
+
+	   `full` writes no attribute and matches nothing here, so a shell that never
+	   asked for a measure carries no class, no attribute and no declaration —
+	   which is what makes the prop additive rather than a default anyone has to
+	   opt out of.
+
+	   The cap is the BORDER box, so `padded` spends its inline padding inside
+	   the measure rather than outside it. That is the same arithmetic as the
+	   `mx-auto max-w-4xl px-6` idiom this replaces, and keeping it means one
+	   element rather than a second wrapper nobody asked for. */
+	.ds-shell-measure {
+		margin-inline: auto;
+	}
+
+	.ds-shell-measure[data-measure='prose'] {
+		max-width: var(--ds-shell-measure-prose);
+	}
+
+	.ds-shell-measure[data-measure='page'] {
+		max-width: var(--ds-shell-measure-page);
+	}
+
+	.ds-shell-measure[data-measure='wide'] {
+		max-width: var(--ds-shell-measure-wide);
 	}
 
 	/* The bypass link (WCAG 2.4.1): off-screen until focused, then a real target

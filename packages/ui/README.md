@@ -150,7 +150,8 @@ That is the whole minimum. Everything below is optional.
 | `sidebar`                                         | A secondary, route-scoped column between the nav and the page body.                                                     |
 | `onSearch`, `searchLabel`, `searchShortcut`       | Provide `onSearch` to render the search affordance at all.                                                              |
 | `themeToggle`, `onToggleTheme`                    | Defaults to `mode-watcher`. Set `themeToggle={false}` when the app puts theming inside its own user menu.               |
-| `padded`, `mainClass`                             | Padding, and a background texture class. Content is always full-width.                                                  |
+| `measure`                                         | How wide the page body may get, from a named scale. Defaults to `full` (no cap).                                        |
+| `padded`, `mainClass`                             | Padding, and a background texture class.                                                                                |
 
 ### Nested navigation
 
@@ -261,6 +262,75 @@ palette:
 `AppNav` used outside the chrome (the `sidebar` slot's own column) keeps the
 page's ink, so inverting the rail does not drag a secondary nav with it.
 
+### The content measure
+
+How wide the page body may get, chosen once in the layout from a scale of four:
+
+```svelte
+<AppShell {nav} currentPath={page.url.pathname} measure="page">
+	{@render children()}
+</AppShell>
+```
+
+| Value   | Width    | Reach for it when the page is                                        |
+| ------- | -------- | -------------------------------------------------------------------- |
+| `prose` | `72ch`   | long-form running text: documentation, an article, a policy, a guide |
+| `page`  | `80rem`  | an everyday page: a form, a detail view, settings, a wizard          |
+| `wide`  | `120rem` | an index or a dashboard: card grids, tables, charts, board columns   |
+| `full`  | no cap   | a canvas that should use the whole panel: a map, a diagram, a board  |
+
+`full` is the default, so a shell that does not mention `measure` renders exactly
+as it did before the prop existed — verified, not assumed: the content region's
+markup and geometry were diffed against the pre-change build across three
+surfaces at three viewports and are identical on every field (`harness/drive.md`).
+Adoption is deliberate, one app at a time.
+
+It exists because "content is always full-width" did not remove the width
+decision, it pushed it into every page. Surveyed at 2560px, one consumer had six
+distinct caps across nine routes — each a hand-written `mx-auto max-w-*` at the
+top of a `+page.svelte`, none wrong on its own, no two agreeing — using between
+15% and 79% of the width available. Across the estate that is 34 hand-rolled caps
+in 24 page files, spanning eight different `max-w-*` values. A scale with four
+names cannot drift like that.
+
+**Why `prose` is a tier at all.** Because a shared measure that let running text
+span a large display would be worse than what it replaces, and worse everywhere
+at once. Measured in Chromium at 2560px: the same paragraph runs to **311
+characters per line** uncapped, against an accepted band of 45–90 for continuous
+text. `prose` puts it at 80. It is stated in `ch` rather than `rem` deliberately —
+a reading measure is a count of characters, not a length, so it has to track
+whatever face and size the app actually set.
+
+Every tier is a CSS custom property, so an app retunes one without waiting on a
+release of this package:
+
+```css
+:root {
+	--ds-shell-measure-prose: 66ch;
+	--ds-shell-measure-page: 72rem;
+	--ds-shell-measure-wide: 100rem;
+}
+```
+
+Two things worth knowing before you set it:
+
+- **The cap is a ceiling, never a floor.** `page` caps at 80rem; a 1440px laptop
+  has less than that available, so nothing changes there. A measure never narrows
+  a window that was already narrower than the tier.
+- **`prose` moves when the font does.** A webfont arriving after first paint
+  reflows the column, because `ch` is measured in the face that actually
+  rendered. That is the tier doing its job rather than a bug; `page` and `wide`
+  are lengths and never move.
+- **The cap is the border box, so `padded` spends its padding inside it.**
+  `measure="page"` with the default padding is 80rem of box holding 78rem of
+  content, which is the same arithmetic as the `mx-auto max-w-4xl px-6` idiom it
+  replaces. An app running `padded={false}` and its own page padding gets the cap
+  flush, which is usually what it wanted.
+
+Set it in the layout, not the page. A page reaching for `measure` is the habit
+this replaces; a route group that genuinely differs (a docs section inside an
+app of dashboards) gets its own layout, which is where a shared decision belongs.
+
 ### The active nav row: primary is a fill, never an ink
 
 The active row is marked with a 12% `--ds-color-primary` tint, a primary edge
@@ -292,6 +362,9 @@ darker of the two. `harness/drive.mjs` gates the default path across three
 palettes in both themes on every run.
 
 ### Measuring the content region
+
+About overflow, not width — for how wide the body is allowed to get, see
+[The content measure](#the-content-measure) above.
 
 `<main>` is the scrolling content region and carries
 `data-slot="app-shell-content"`. A consuming app's "no horizontal overflow" check

@@ -5,16 +5,21 @@
 	import AppShell from '$lib/components/ui/app-shell/app-shell.svelte';
 	import CommandPalette from '$lib/components/ui/command-palette/command-palette.svelte';
 	import type { NavSource } from '$lib/components/ui/app-shell/types.js';
+	import type { ShellMeasure } from '$lib/components/ui/app-shell/measure.js';
 	import Package from '@lucide/svelte/icons/package';
 
 	let {
 		currentPath = $bindable('/overview'),
 		collapsible = false,
-		navLabel
+		navLabel,
+		measure
 	}: {
 		currentPath?: string;
 		collapsible?: boolean;
 		navLabel?: string;
+		/** Left undefined by default, so the additivity gate drives the shell
+		    exactly as a consumer who never heard of the prop does. */
+		measure?: ShellMeasure;
 	} = $props();
 
 	const nav: NavSource = [
@@ -46,6 +51,7 @@
 	{navLabel}
 	{currentPath}
 	{collapsible}
+	{measure}
 	bind:collapsed
 	brandTitle="Harness"
 	onSearch={() => (paletteOpen = true)}

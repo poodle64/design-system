@@ -44,6 +44,7 @@
 	import Sparkline from '../dist/components/ui/sparkline/sparkline.svelte';
 	import StatusBadge from '../dist/components/ui/status-badge/status-badge.svelte';
 	import type { NavSource } from '../dist/components/ui/app-shell/types.js';
+	import { SHELL_MEASURES, type ShellMeasure } from '../dist/components/ui/app-shell/measure.js';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import Package from '@lucide/svelte/icons/package';
 	import KeySquare from '@lucide/svelte/icons/key-square';
@@ -144,6 +145,18 @@
 	// `?sidebar=1` adds a route-scoped secondary AppNav on the page background,
 	// so the half of the nav-ink rule that must NOT follow the chrome is driven too.
 	const withSidebar = params.get('sidebar') === '1';
+	// `?surface=measure&measure=<tier>` drives the content measure. Every claim
+	// it makes is a resolved length — `80rem` against the root font size, `72ch`
+	// against the body face, a cap that binds only once the viewport is wide
+	// enough to reach it, and a box centred by auto margins inside a flex
+	// column. jsdom resolves none of those: it reports `max-width` as the
+	// unresolved literal and every rect as zero, so a unit test there would pass
+	// against a build whose stylesheet was never imported at all.
+	//
+	// Validated back onto the union rather than cast, so a typo in the query
+	// string renders the default instead of a class with no rule behind it.
+	const measureParam: ShellMeasure =
+		SHELL_MEASURES.find((m) => m === params.get('measure')) ?? 'full';
 	// `?surface=console` (design-system#15) drives the five console-dashboard
 	// primitives promoted from mission-command. jsdom cannot resolve any
 	// --ds-color-status-*/--ds-color-primary var() chain, so ArcGauge's tone
@@ -453,6 +466,21 @@
 	>
 		<h1 class="font-display text-display font-semibold">Education</h1>
 		<p class="text-muted-foreground mt-2 text-sm">A section with its own navigation.</p>
+	</AppShell>
+{:else if surface === 'measure'}
+	<!-- One page body, four caps, so the only thing that can move a measured
+	     width is the prop. The copy is real running text rather than a filler
+	     block because `prose` is stated in `ch` — a claim about how many
+	     characters land on a line, which only means anything against characters
+	     in the face the app actually set. -->
+	<AppShell {nav} currentPath="#/overview" brandTitle="Harness" measure={measureParam}>
+		<h1 class="font-display text-display font-semibold">Measure</h1>
+		<p data-probe="measure-copy" class="text-muted-foreground mt-2 text-sm">
+			The shell owns the content measure so that pages stop each deciding their own. A cap
+			written at the top of a page is invisible to every other page, which is how one app ended
+			up with six different answers to the same question and no way to tell which was
+			deliberate.
+		</p>
 	</AppShell>
 {:else}
 	{#snippet secondaryNav()}

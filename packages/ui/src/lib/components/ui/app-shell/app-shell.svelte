@@ -13,10 +13,23 @@
 	 * There is now exactly one composition, no variant prop to choose it: a
 	 * permanent side rail on md+ (an overlay drawer below it) carrying primary
 	 * navigation, brand and the collapse toggle, PLUS a real top navbar (search,
-	 * leading/trailing slots, theme toggle, identity) — always both together, and
-	 * content that is always full-width. Operator ruling, 31/07/2026: every
-	 * household app renders one shell shape; apps do not choose variants,
-	 * content modes, or spacing.
+	 * leading/trailing slots, theme toggle, identity) — always both together.
+	 * Operator ruling, 31/07/2026: every household app renders one shell shape;
+	 * apps do not choose variants.
+	 *
+	 * Content WIDTH is the one dimension that came back, as `measure`, and it
+	 * came back on a measurement rather than on taste. "Always full-width" did
+	 * not remove the decision, it pushed it down into every page: a consumer was
+	 * surveyed at 2560px and had six distinct caps across nine routes, every one
+	 * of them a hand-written `mx-auto max-w-*` at the top of a `+page.svelte`,
+	 * between them using 15% to 79% of the width actually available. That is
+	 * fifteen independent guesses, not a shell shape.
+	 *
+	 * `measure` is a small named scale, chosen once in the layout, and it is not
+	 * the old `content` prop returning. It defaults to `full`, so a shell that
+	 * never mentions it renders byte-identically; its tiers are CSS custom
+	 * properties an app retunes without a release; and it exists to REPLACE
+	 * per-page width decisions rather than to offer an app a look.
 	 *
 	 * Everything else the surveyed apps differed on turned out to be a slot, not
 	 * a variant: the brand, the identity surface, a context switcher, a banner, a
@@ -31,6 +44,7 @@
 	 *     </AppShell>
 	 */
 	import type { Snippet } from 'svelte';
+	import type { ShellMeasure } from './measure.js';
 	import { toggleMode } from 'mode-watcher';
 	import Menu from '@lucide/svelte/icons/menu';
 	import X from '@lucide/svelte/icons/x';
@@ -64,6 +78,7 @@
 		themeToggle = true,
 		onToggleTheme,
 		padded = true,
+		measure = 'full',
 		mainClass,
 		children
 	}: {
@@ -115,6 +130,18 @@
 		/** Override the theme action. Defaults to mode-watcher's toggleMode. */
 		onToggleTheme?: () => void;
 		padded?: boolean;
+		/**
+		 * How wide the page body may get, from a named scale: `prose` (72ch, for
+		 * long-form running text), `page` (80rem — forms, detail views,
+		 * settings), `wide` (120rem — indexes, grids, tables, dashboards), or
+		 * `full` (no cap).
+		 *
+		 * Defaults to `full`, so a shell that does not mention it is unchanged.
+		 * Set it in the layout, once: the point is that pages stop each deciding
+		 * their own width. The cap is the content box's border box, so `padded`
+		 * spends its padding inside the measure.
+		 */
+		measure?: ShellMeasure;
 		/** Extra classes on the scrolling content container (a background texture). */
 		mainClass?: string;
 		children: Snippet;
@@ -458,12 +485,28 @@
 					carrying its own scroller can, as this package's Table does. The half
 					of that defect the shell genuinely owns is on `<main>` above.
 				-->
+				<!--
+					`measure` caps and centres this box, through `.ds-shell-measure`
+					in styles.css rather than a utility here — an arbitrary
+					`max-w-[var(…)]` only exists if the consumer's Tailwind build
+					scanned the file spelling it, and a cap that silently does not
+					compile is the failure mode this package gates against everywhere
+					else.
+
+					At `full` the class and the attribute are both ABSENT, not set to
+					a no-op value. That is what makes the prop additive: a consumer
+					who never names it gets the same element, the same class string
+					and the same declarations as before it existed, so there is
+					nothing for the cascade to resolve differently.
+				-->
 				<div
 					class={cn(
 						'flex min-h-0 min-w-0 flex-1 flex-col',
 						'w-full',
+						measure !== 'full' && 'ds-shell-measure',
 						padded && 'px-4 py-5 sm:px-6 md:px-8 md:py-7 2xl:px-12'
 					)}
+					data-measure={measure === 'full' ? undefined : measure}
 				>
 					{@render children()}
 				</div>

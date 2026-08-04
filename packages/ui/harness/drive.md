@@ -580,16 +580,16 @@ wide, at `#/education/topic-3` so the group is open on first paint with nothing
 clicked. The interaction logic is proved under jsdom in
 `src/test/app-nav-nested.test.ts`; only the claims below need an engine.
 
-| Claim                                                     | Why jsdom cannot make it                                                                 | Observed                                     |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------- |
-| A child label lines up under its parent's                 | no layout; the indent is arithmetic over padding, icon size and a border                 | 52.0px vs 52.0px                             |
-| The guide border is a real resolved width                 | jsdom resolves no stylesheet                                                             | 1px                                          |
-| The open chevron is genuinely rotated                     | `transform` stays an unresolved literal, so a dead rule passes                           | `matrix(0, 1, -1, 0, 0, 0)`                  |
-| A child row stays inside the rail                         | no layout                                                                                | child right 235px vs rail right 248px        |
-| Nothing in the document exceeds the viewport at 360/320px | no layout at all                                                                         | 0 offenders, drawer 248px                    |
-| The nav does not scroll sideways                          | `scrollWidth`/`clientWidth` are both 0 without layout                                    | fits                                         |
-| A collapsed rail renders no tree                          | the rail's collapsed width is a media/transition fact, and the claim is about that state | 0 branches, 0 controls, 0 child rows at 56px |
-| `prefers-reduced-motion: reduce` stops the chevron animating but NOT rotating | one half is a media query, the other a resolved matrix; jsdom sees neither | `transition-duration` 0.15s → 0s, `transform` unchanged at `matrix(0, 1, -1, 0, 0, 0)` |
+| Claim                                                                         | Why jsdom cannot make it                                                                 | Observed                                                                               |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| A child label lines up under its parent's                                     | no layout; the indent is arithmetic over padding, icon size and a border                 | 52.0px vs 52.0px                                                                       |
+| The guide border is a real resolved width                                     | jsdom resolves no stylesheet                                                             | 1px                                                                                    |
+| The open chevron is genuinely rotated                                         | `transform` stays an unresolved literal, so a dead rule passes                           | `matrix(0, 1, -1, 0, 0, 0)`                                                            |
+| A child row stays inside the rail                                             | no layout                                                                                | child right 235px vs rail right 248px                                                  |
+| Nothing in the document exceeds the viewport at 360/320px                     | no layout at all                                                                         | 0 offenders, drawer 248px                                                              |
+| The nav does not scroll sideways                                              | `scrollWidth`/`clientWidth` are both 0 without layout                                    | fits                                                                                   |
+| A collapsed rail renders no tree                                              | the rail's collapsed width is a media/transition fact, and the claim is about that state | 0 branches, 0 controls, 0 child rows at 56px                                           |
+| `prefers-reduced-motion: reduce` stops the chevron animating but NOT rotating | one half is a media query, the other a resolved matrix; jsdom sees neither               | `transition-duration` 0.15s → 0s, `transform` unchanged at `matrix(0, 1, -1, 0, 0, 0)` |
 
 ### The overflow check is a DOM walk, not `documentElement.scrollWidth`
 
@@ -609,6 +609,63 @@ click. The fix is to wait for `document.getAnimations()` to settle before
 measuring, which is what makes the 0 meaningful rather than tuned. The same wait
 was then needed on the collapsed rail, whose 200ms width transition was being
 read at 243px and read as though the collapse had not happened.
+
+## The content measure (`?surface=measure&measure=<tier>`)
+
+One page body rendered at each of the four tiers, so the only thing that can
+move a measured width is the prop. Driven at 2560px (the viewport that motivated
+the feature), 1440px (where the wide tiers must be inert) and 360px. Scripted in
+`drive.mjs`.
+
+Every claim here is a resolved LENGTH, which is why none of it can be made under
+jsdom: `max-width` comes back as the unresolved `var(--ds-shell-measure-*)`
+literal, `ch` resolves against a font that was never loaded, and every rect is
+zero, so a unit test would pass against a build whose stylesheet was never
+imported. A class-name assertion is not a width measurement.
+
+| Claim                                                                          | Why jsdom cannot make it                                                                    | Observed                                                    |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `full` leaves the box at the whole available width                             | no layout; `max-width: none` and a bound cap measure identically                            | 2312 of 2312px, `max-width: none`                           |
+| `page` renders at 80rem, against the root font size the document resolved      | rem resolution is a cascade fact                                                            | 1280px vs 80 × 16px                                         |
+| `wide` renders at 120rem                                                       | same                                                                                        | 1920px vs 120 × 16px                                        |
+| `prose` renders at exactly `72ch` **in the box's own face**, measured by probe | `ch` is the advance of the `0` glyph in a loaded font; jsdom loads none                     | 668.16px vs a 72ch probe at 668.16px                        |
+| `prose` puts running text in the readable 45–90 character band                 | characters-per-line is text layout, the thing jsdom most completely lacks                   | **80 characters per line, against 311 at `full`**           |
+| The scale widens strictly, narrowest first                                     | no layout                                                                                   | 668.16 < 1280 < 1920 < 2312                                 |
+| A capped box is centred, not flush left                                        | auto margins inside a flex column resolve only in an engine                                 | gaps equal to 0.01px at every tier (821.92/821.92 at prose) |
+| A cap is a ceiling, never a floor — `page`/`wide` change nothing at 1440px     | whether a cap binds depends on available width, which requires layout                       | 1192px at `page`, `wide` and `full` alike                   |
+| No tier introduces sideways scroll at 360px                                    | the content region is its own scroller, so the document-level number cannot move (see `#5`) | 0 offenders, `main` overflow 0px, all four tiers            |
+
+### Additivity, measured against the pre-change build
+
+The operator's hard constraint on this feature was that no consumer omitting
+`measure` may render one pixel differently. That is asserted permanently in two
+places — `src/test/app-shell-measure.test.ts` holds the DOM half, and the three
+`a shell that never names measure is uncapped and unmoved` checks above hold the
+pixel half at 2560/1440/360px — but neither can compare against a build that no
+longer exists, so the cross-build diff was done out of band.
+
+`dist` and the harness were built at the pre-change commit, the `shell`,
+`overflow` and `nested` surfaces captured at 2560px, 1440px and 360px, and the
+same capture repeated on this build. Compared per surface/viewport pair: the
+whole `<main>` subtree's `outerHTML`, the content box's class string, its full
+attribute set, its measured width, its offset inside `<main>`, and its computed
+`max-width`, `margin-left`, `margin-right` and padding.
+
+All nine pairs identical on all ten fields — not "no visible difference", but the
+same markup and the same numbers. `measure="full"` passed explicitly is checked
+against the omitted case in the same run, since a consumer adopting the scale and
+then wanting one layout uncapped must land back where they started.
+
+### Why `prose` is a tier rather than the narrow end of `page`
+
+The measurement above is the argument. At 2560px with no cap, the same paragraph
+runs to **311 characters per line**; the accepted band for continuous text is
+45–90. A shared measure that shipped one page-frame width and let running text
+span a 4K panel would be worse than the fifteen hand-written caps it replaces,
+because it would be worse _everywhere at once_ and no page could opt out without
+going back to writing its own width. `prose` is stated in `ch` rather than `rem`
+for the same reason: a reading measure is a count of characters, so it has to
+track whatever face and size the app actually set.
 
 ## The Svelte/bits-ui pairing (no surface — a sweep)
 
