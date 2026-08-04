@@ -152,6 +152,69 @@ That is the whole minimum. Everything below is optional.
 | `themeToggle`, `onToggleTheme`                    | Defaults to `mode-watcher`. Set `themeToggle={false}` when the app puts theming inside its own user menu.               |
 | `padded`, `mainClass`                             | Padding, and a background texture class. Content is always full-width.                                                  |
 
+### Nested navigation
+
+A section with its own navigation puts it on the item, as `children`, and the
+rail discloses it in place:
+
+```ts
+{
+	label: 'Education',
+	href: '/education',
+	icon: BookOpen,
+	children: [
+		{ label: 'Open architecture', href: '/education/open-architecture' },
+		{ label: 'Autonomy', href: '/education/autonomy' }
+	]
+}
+```
+
+That is the whole API. An item with no `children` renders and behaves exactly as
+it did before the field existed.
+
+It exists because the alternative was two left-hand columns: an app whose
+sections have inner navigation had nowhere to put it in the rail, so it put
+modules in `nav` and the current section's pages in `sidebar`. The other way out
+(modules along the top bar, rail for the current module) was rejected on mobile:
+it leaves two navigation surfaces that both need collapsing and both want the
+same hamburger. One nested tree collapses to one drawer.
+
+The behaviour, and why:
+
+- **The parent stays a destination.** Its label navigates; a separate chevron
+  expands. Folding both into the link cannot be made honest, since
+  `aria-expanded` on something that navigates away announces a state the user
+  never observes; and making the label expand-only would silently change what
+  `href` means the day an app adds children to an item that already had one.
+- **A group holding the current page is open**, on first paint, with nothing
+  clicked. A rail that will not show you where you are is the defect this
+  feature exists to remove.
+- **A deliberate toggle wins, and keeps winning** for the life of the shell,
+  which in a SvelteKit layout is the session. It overrides the path default rather than
+  replacing it, so an untouched group still opens as you walk into it while a
+  group you made a decision about keeps your decision. Nothing is written to
+  storage: a shared package writing to a fixed key would collide with the app's
+  own, and with itself on a page rendering two navs.
+- **One level, enforced by the type.** `children` holds `NavChildItem`, which is
+  `NavItem` minus `children`, so a second nesting is a compile error where the
+  nav is authored. The rail is 15.5rem and every level costs an indent; by depth
+  three the label has less room than the chevron.
+- **A collapsed rail renders no tree.** 3.5rem of icons cannot hold one, and a
+  hover flyout would be a second interaction surface with its own positioning,
+  touch and focus story. The parent stays an icon-only link to its own page; the
+  way back is the Collapse control the user just used.
+- **The drawer renders the same tree.** It is the same element as the rail, and
+  it is never collapsed.
+
+What this does not absorb, and deliberately: a `children` list is flat and one
+deep, so a section whose own navigation is itself grouped under sub-headings, or
+whose rows disclose a third level, does not lift into the rail whole. The rail is
+not the place to fix that. At 15.5rem a third level leaves roughly 128px for the
+label, which is about fifteen characters. A section that deep keeps its deepest
+level on its own page, where there is width for it, and the `sidebar` snippet
+stays the right home for a column that is not `NavItem`-shaped at all: a document
+tree, a table of contents, a filter panel.
+
 `NavItem` / `NavGroup` are exported so an app types its own config against them.
 They carry **no notion of who may see an item**: two surveyed apps gate
 navigation on admin or per-module permission, and both do it with their own auth

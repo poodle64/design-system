@@ -121,7 +121,6 @@
 	} = $props();
 
 	const hasNav = $derived(toItems(nav).length > 0);
-	const railCollapsed = $derived(collapsible && collapsed);
 
 	// The disclosure toggle and the region it opens have to be programmatically
 	// related, not merely adjacent: `aria-expanded` says the control is open,
@@ -148,6 +147,17 @@
 		void currentPath;
 		mobileNavOpen = false;
 	});
+
+	// The DRAWER is never collapsed, and that `&& !mobileNavOpen` is a fix rather
+	// than a flourish. The rail and the drawer are one element carrying one
+	// `collapsed` state, so a user who collapsed the rail on a desktop and later
+	// opened the menu on a phone was handed a 3.5rem icon-only drawer with no way
+	// out — the Collapse control is `md:flex` and does not render at that width.
+	// Nesting did not cause that, it raised the stakes: a collapsed rail renders
+	// no children, so the phone would have lost the sub-navigation entirely.
+	// `mobileNavOpen` implies narrow (the matchMedia effect below is what earns
+	// that), so this can never suppress a legitimate desktop collapse.
+	const railCollapsed = $derived(collapsible && collapsed && !mobileNavOpen);
 
 	// Focus follows the overlay, in both directions. Opening a drawer and leaving
 	// the caret behind it strands a keyboard user in a page they can no longer

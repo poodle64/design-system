@@ -52,7 +52,37 @@ export interface NavItem {
 	 * item can still claim an additional prefix by full path match.
 	 */
 	matchPrefixes?: string[];
+	/**
+	 * A section's own sub-navigation, disclosed in place beneath it.
+	 *
+	 * Without this, an app whose sections have their own inner navigation has
+	 * nowhere to put it inside the rail. The observed workaround was modules in
+	 * `nav` and the current module's pages in the `sidebar` snippet — two
+	 * left-hand columns on a desktop, and, the reason this shape won over moving
+	 * modules to a top bar, two surfaces on a phone that both want the same
+	 * hamburger. One nested tree collapses to one drawer.
+	 *
+	 * Named `children`, not `items`, for a mechanical reason as well as a
+	 * readable one: `isNavGroup` narrows on `'items' in entry`, so an item
+	 * carrying `items` would be misread as a GROUP by every consumer of this
+	 * vocabulary, this package's own renderer included.
+	 *
+	 * ONE level, and the type is what enforces it: a child is `NavItem` minus
+	 * this field, so a second nesting is a compile error where the nav is
+	 * authored rather than a rail nobody can read. The cap is deliberate. The
+	 * rail is 15.5rem and every level costs an indent; by depth three the label
+	 * has less room than the chevron beside it. Every household case is one
+	 * level, and a genuinely deeper tree belongs in the page body, which has the
+	 * width for it.
+	 */
+	children?: readonly NavChildItem[];
 }
+
+/**
+ * A row inside a parent's disclosure: everything an item is, minus the ability
+ * to nest again.
+ */
+export type NavChildItem = Omit<NavItem, 'children'>;
 
 /** A titled run of items. The heading is optional — a leading group usually has none. */
 export interface NavGroup {
@@ -99,10 +129,28 @@ export function toGroups(nav: NavSource | undefined): NavGroup[] {
 	return groups;
 }
 
-/** Every item in source order, ignoring grouping. Used by the command palette. */
+/** No allocation per call for the overwhelmingly common childless item. */
+const NO_CHILDREN: readonly NavChildItem[] = [];
+
+/** An item's disclosed rows, normalised — an empty list where there are none. */
+export function navChildren(item: NavItem): readonly NavChildItem[] {
+	return item.children ?? NO_CHILDREN;
+}
+
+/**
+ * Every item in source order, ignoring grouping — a parent immediately followed
+ * by its own children. Used by the command palette.
+ *
+ * Children are included because they are destinations like any other, and the
+ * palette is the fastest route to a page three levels into a section. An item
+ * with no children flattens exactly as it always did.
+ */
 export function toItems(nav: NavSource | undefined): NavItem[] {
 	if (!nav) return [];
-	return nav.flatMap((entry) => (isNavGroup(entry) ? entry.items : [entry]));
+	return nav.flatMap((entry) => {
+		const items = isNavGroup(entry) ? entry.items : [entry];
+		return items.flatMap((item) => [item, ...navChildren(item)]);
+	});
 }
 
 /** Prefix-match `path` against `prefix`, without running past a path segment. */
@@ -127,4 +175,18 @@ export function isNavItemActive(item: NavItem, currentPath: string | undefined):
 			: matchesPrefix(currentPath, item.href);
 	if (ownMatch) return true;
 	return (item.matchPrefixes ?? []).some((prefix) => matchesPrefix(currentPath, prefix));
+}
+
+/**
+ * Whether one of `item`'s disclosed children is the current page.
+ *
+ * Two things read this. It is what auto-opens the group you have navigated
+ * into — a rail that will not show you where you are is the defect this whole
+ * feature exists to avoid. And it marks a parent whose section you are inside
+ * but whose own `href` does not match, which flat prefix matching cannot see
+ * when the children live at their own top-level routes.
+ */
+export function hasActiveNavChild(item: NavItem, currentPath: string | undefined): boolean {
+	if (!currentPath) return false;
+	return navChildren(item).some((child) => isNavItemActive(child, currentPath));
 }

@@ -1,9 +1,10 @@
 # Real-browser verification
 
-Nine surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
+Ten surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
 plus `states` (the async-outcome surfaces), `card` (CardTitle's heading mode),
-`overlays`, `overflow`, `avatar`, `theming`, `detail-panel` and `console` (the
-console-dashboard primitives) — each in its own section at the end.
+`overlays`, `overflow`, `avatar`, `theming`, `detail-panel`, `nested` (nested
+navigation) and `console` (the console-dashboard primitives) — each in its own
+section at the end.
 
 ## Two ways to drive it
 
@@ -571,6 +572,42 @@ completeness but carry no scripted check of their own.
 | ArcGauge's `stroke` resolves to a real colour per tone (success/warning/error), not the unresolved `var(--ds-color-status-*)` literal | jsdom returns the literal and calls it a pass                                                    | three distinct resolved `rgb(...)` values                                                 |
 | StatusBadge's new `primary` chip/dot resolve to a real colour, distinct from every shared five-state chip's                           | same — and `primary` is not in the shared `Status` type, so nothing else proves it paints at all | `--ds-color-primary`'s resolved colour, different from success/warning/error/info/neutral |
 | BarRow's fill genuinely covers the percentage of its track `pct` asked for                                                            | jsdom has no layout, so "42% wide" and "0% wide with a `width: 42%` string" measure identically  | fill/track `getBoundingClientRect()` ratio within 2% of 42%                               |
+
+## Nested navigation (`?surface=nested`)
+
+A parent with fifteen children, labels deliberately longer than the rail is
+wide, at `#/education/topic-3` so the group is open on first paint with nothing
+clicked. The interaction logic is proved under jsdom in
+`src/test/app-nav-nested.test.ts`; only the claims below need an engine.
+
+| Claim                                                     | Why jsdom cannot make it                                                                 | Observed                                     |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------- |
+| A child label lines up under its parent's                 | no layout; the indent is arithmetic over padding, icon size and a border                 | 52.0px vs 52.0px                             |
+| The guide border is a real resolved width                 | jsdom resolves no stylesheet                                                             | 1px                                          |
+| The open chevron is genuinely rotated                     | `transform` stays an unresolved literal, so a dead rule passes                           | `matrix(0, 1, -1, 0, 0, 0)`                  |
+| A child row stays inside the rail                         | no layout                                                                                | child right 235px vs rail right 248px        |
+| Nothing in the document exceeds the viewport at 360/320px | no layout at all                                                                         | 0 offenders, drawer 248px                    |
+| The nav does not scroll sideways                          | `scrollWidth`/`clientWidth` are both 0 without layout                                    | fits                                         |
+| A collapsed rail renders no tree                          | the rail's collapsed width is a media/transition fact, and the claim is about that state | 0 branches, 0 controls, 0 child rows at 56px |
+
+### The overflow check is a DOM walk, not `documentElement.scrollWidth`
+
+The nav is `overflow-y: auto`, which computes `overflow-x` to `auto` with it. A
+row wider than the rail therefore becomes a scrollbar **inside the nav**, and the
+document-level number never moves — the same blindness `?surface=overflow`
+documents for the content region, one component along. So the assertion walks
+every element in `body` and compares each `getBoundingClientRect()` against the
+viewport, and the naive number is printed beside it, unasserted, for contrast.
+
+### What this caught
+
+The walk's first run reported 82 offenders at 360px, the entire drawer subtree at
+`left: -248`. That was not overflow: `ds-drawer-in` animates from
+`translateX(-100%)`, and the measurement was being taken on the frame after the
+click. The fix is to wait for `document.getAnimations()` to settle before
+measuring, which is what makes the 0 meaningful rather than tuned. The same wait
+was then needed on the collapsed rail, whose 200ms width transition was being
+read at 243px and read as though the collapse had not happened.
 
 ## The Svelte/bits-ui pairing (no surface — a sweep)
 

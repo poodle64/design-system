@@ -601,6 +601,98 @@
 		background: color-mix(in oklch, var(--primary) 15%, transparent);
 	}
 
+	/* A parent whose SECTION you are in, but whose own href does not match. Flat
+	   prefix matching already covers the ordinary case — children under the
+	   parent's own path light it up — so this only fires where the children live
+	   at their own top-level routes and the parent would otherwise go dark while
+	   you are inside it.
+
+	   It lifts the ink and nothing else, on purpose. The tint, the weight and the
+	   edge bar are what "this row IS the page" means in this rail, and spending
+	   any of them on "the page is somewhere below this row" would leave two rows
+	   claiming to be the current one. */
+	.ds-nav-item[data-within='true'] {
+		color: var(--ds-nav-ink);
+	}
+
+	/* The disclosed rows. The indent is measured against the parent's own
+	   geometry rather than picked: .ds-nav-item pads 0.625rem and the icon is
+	   1.125rem, so the icon's centre line sits at 1.1875rem — where the guide
+	   border goes — and 0.625rem of padding here plus the child's own 0.625rem
+	   lands its label at 2.5rem, exactly under the parent's. The border is a real
+	   affordance at fifteen rows, not decoration: it is what makes the run
+	   scannable as one section. */
+	.ds-nav-children {
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+		margin-top: 0.125rem;
+		margin-left: 1.1875rem;
+		padding-left: 0.625rem;
+		border-left: 1px solid var(--border);
+	}
+
+	/* `hidden` is an attribute the UA stylesheet honours at the weakest possible
+	   specificity, so the `display: flex` above beats it and a closed group would
+	   render wide open. This is not belt-and-braces; without it the attribute is
+	   inert for layout while still hiding the rows from assistive technology,
+	   which is the worst of both. */
+	.ds-nav-children[hidden] {
+		display: none;
+	}
+
+	/* A child sits on the chrome like any other row, one step quieter at rest.
+	   The active child keeps the full active treatment from .ds-nav-item — it is
+	   the current page, and depth does not make it less so. */
+	.ds-nav-item[data-child='true'] {
+		font-size: 0.8125rem;
+	}
+
+	.ds-nav-row {
+		display: flex;
+		align-items: center;
+		gap: 0.125rem;
+	}
+
+	/* The link takes the room and the chevron takes what is left, so a long label
+	   truncates instead of pushing the control out of the rail. min-width: 0 is
+	   what actually permits the shrink — a flex item's automatic minimum size is
+	   its content, and .ds-nav-item is nowrap. */
+	.ds-nav-row > .ds-nav-item {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.ds-nav-disclosure {
+		display: grid;
+		flex: none;
+		place-items: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: var(--ds-radius-md);
+		color: var(--ds-nav-ink-muted);
+		transition:
+			color 150ms,
+			background-color 150ms;
+	}
+
+	.ds-nav-disclosure:hover {
+		color: var(--ds-nav-ink);
+		background: color-mix(in oklch, var(--ds-nav-ink) 5%, transparent);
+	}
+
+	/* The rotation IS the open/closed state for a sighted user, paired with the
+	   aria-expanded that carries it for everyone else. Transform on the icon
+	   rather than a swapped glyph, so the two states are the same object moving
+	   rather than two pictures. */
+	.ds-nav-disclosure > svg {
+		transition: transform 150ms ease;
+	}
+
+	.ds-nav-disclosure[aria-expanded='true'] > svg {
+		transform: rotate(90deg);
+	}
+
 	.ds-nav[data-collapsed='true'] {
 		padding-inline: 0.375rem;
 	}
@@ -698,6 +790,9 @@
 			animation: none;
 		}
 		.ds-shell-rail {
+			transition: none;
+		}
+		.ds-nav-disclosure > svg {
 			transition: none;
 		}
 	}

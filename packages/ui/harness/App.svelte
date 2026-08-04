@@ -49,6 +49,41 @@
 	import KeySquare from '@lucide/svelte/icons/key-square';
 	import ScrollText from '@lucide/svelte/icons/scroll-text';
 
+	// `?surface=nested` drives nested navigation. Three of its four claims are
+	// beyond jsdom entirely: the indent geometry is a layout fact, the chevron's
+	// rotation is a resolved transform, and whether a fifteen-row tree fits a
+	// 360px drawer needs a real engine to answer at all. The labels below are
+	// deliberately longer than the rail is wide — a tree that only fits because
+	// the test data was short proves nothing about an app's real section names.
+	const nestedNav: NavSource = [
+		{ label: 'Overview', href: '#/overview', icon: LayoutDashboard },
+		{
+			label: 'Education',
+			href: '#/education',
+			icon: ScrollText,
+			children: Array.from({ length: 15 }, (_, i) => ({
+				label: `Open architecture and autonomy, topic ${i + 1}`,
+				href: `#/education/topic-${i + 1}`
+			}))
+		},
+		{
+			heading: 'Access',
+			items: [
+				{
+					label: 'Credentials',
+					href: '#/credentials',
+					icon: Package,
+					badge: 3,
+					children: [
+						{ label: 'Rotations', href: '#/rotations' },
+						{ label: 'Expiring soon', href: '#/expiring' }
+					]
+				},
+				{ label: 'Identities', href: '#/identities', icon: KeySquare }
+			]
+		}
+	];
+
 	const nav: NavSource = [
 		{ label: 'Overview', href: '#/overview', icon: LayoutDashboard },
 		{
@@ -405,6 +440,20 @@
 			/>
 		</div>
 	</div>
+{:else if surface === 'nested'}
+	<!-- The path is inside the Education section, so the group is open on first
+	     paint with nothing having been clicked — the derived default, which is
+	     the whole reason a stored one was rejected. -->
+	<AppShell
+		nav={nestedNav}
+		{collapsible}
+		bind:collapsed
+		currentPath="#/education/topic-3"
+		brandTitle="Harness"
+	>
+		<h1 class="font-display text-display font-semibold">Education</h1>
+		<p class="text-muted-foreground mt-2 text-sm">A section with its own navigation.</p>
+	</AppShell>
 {:else}
 	{#snippet secondaryNav()}
 		<!-- A route-scoped secondary nav: the OTHER surface AppNav is rendered on,

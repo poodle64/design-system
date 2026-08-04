@@ -955,6 +955,197 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 	await context.close();
 }
 
+// ── Nested navigation ───────────────────────────────────────────────────────
+// Four claims, none of which jsdom can make. The indent geometry and the guide
+// border are layout facts and jsdom has no layout. The chevron's rotation is a
+// resolved `transform`, and jsdom returns the unresolved literal. Whether a
+// fifteen-row tree fits a 360px drawer is a question only an engine answers.
+//
+// The overflow check is a DOM WALK rather than `documentElement.scrollWidth`,
+// and the difference is not pedantry: the nav is `overflow-y: auto`, which
+// computes `overflow-x` to `auto` as well, so a child wider than the rail
+// becomes a scrollbar INSIDE the nav and the document-level number never moves.
+// That is the same blindness #5 was hiding behind, one component along, so the
+// element-by-element measurement is the assertion and the naive number is
+// printed beside it, unasserted, for contrast.
+{
+	// The rail at rest, wide. The tree is open with nothing clicked.
+	{
+		const { context, page, errors } = await open('surface=nested');
+		await page.waitForSelector('.ds-nav-branch');
+
+		const measured = await page.evaluate(() => {
+			const branch = document.querySelector('.ds-nav-branch');
+			const parentLink = branch.querySelector('.ds-nav-item');
+			const control = branch.querySelector('[data-ds-nav-disclosure]');
+			const panel = document.getElementById(control.getAttribute('aria-controls'));
+			const child = panel.querySelector('.ds-nav-item');
+			const parentLabel = parentLink.querySelector('span:not(.ds-nav-indicator)');
+			const childLabel = child.querySelector('span');
+			const panelStyle = getComputedStyle(panel);
+			return {
+				expanded: control.getAttribute('aria-expanded'),
+				panelDisplay: panelStyle.display,
+				borderLeft: panelStyle.borderLeftWidth,
+				chevronTransform: getComputedStyle(control.querySelector('svg')).transform,
+				parentLabelLeft: parentLabel.getBoundingClientRect().left,
+				childLabelLeft: childLabel.getBoundingClientRect().left,
+				childRight: child.getBoundingClientRect().right,
+				railRight: document.querySelector('.ds-shell-rail').getBoundingClientRect().right,
+				activeChildren: panel.querySelectorAll('[aria-current="page"]').length
+			};
+		});
+
+		// Derived-by-default, proved where it counts: first paint, no click.
+		check(
+			'nested: the group holding the current page is open on first paint',
+			measured.expanded === 'true' && measured.panelDisplay !== 'none',
+			`aria-expanded=${measured.expanded}, display ${measured.panelDisplay}`
+		);
+		check(
+			'nested: exactly one child is marked the current page',
+			measured.activeChildren === 1,
+			`${measured.activeChildren} rows carry aria-current`
+		);
+		// The rotation IS the open state for a sighted user. A class-name check
+		// passes while the transform is dead; the resolved matrix cannot.
+		check(
+			'nested: the open chevron is actually rotated',
+			measured.chevronTransform !== 'none' && measured.chevronTransform !== '',
+			measured.chevronTransform
+		);
+		// The alignment the CSS comment claims, measured rather than argued.
+		check(
+			'nested: a child label lines up under its parent’s',
+			Math.abs(measured.childLabelLeft - measured.parentLabelLeft) < 1,
+			`child ${measured.childLabelLeft.toFixed(1)}px vs parent ${measured.parentLabelLeft.toFixed(1)}px`
+		);
+		check(
+			'nested: the guide border is a real resolved width',
+			parseFloat(measured.borderLeft) > 0,
+			measured.borderLeft
+		);
+		check(
+			'nested: a child row stays inside the rail',
+			measured.childRight <= measured.railRight + 0.5,
+			`child right ${measured.childRight.toFixed(1)}px vs rail right ${measured.railRight.toFixed(1)}px`
+		);
+		check('nested: no page error', errors.length === 0, JSON.stringify(errors));
+		await context.close();
+	}
+
+	// The phone. 360px is where a nested tree breaks if it is going to.
+	for (const width of [360, 320]) {
+		const { context, page } = await open('surface=nested', { width, height: 780 });
+		await page.click('[data-testid="ds-shell-menu"]');
+		await page.waitForSelector('[data-testid="ds-shell-drawer"]');
+		await page.waitForSelector('.ds-nav-branch [data-ds-nav-disclosure]');
+		// The drawer slides in from translateX(-100%), so a walk taken on the
+		// frame after the click reports the entire drawer subtree as off-canvas —
+		// 82 "offenders" that are the animation, not the layout. Measuring the
+		// SETTLED box is the whole claim; this is what makes the number mean
+		// something rather than being tuned around.
+		await page.waitForFunction(() =>
+			document.getAnimations().every((animation) => animation.playState !== 'running')
+		);
+
+		const measured = await page.evaluate((viewport) => {
+			// Every element in the document, not the document's own scrollWidth: a
+			// scroll container hides its contents' overflow from the naive check,
+			// and the nav is one.
+			const offenders = [];
+			for (const el of document.querySelectorAll('body *')) {
+				const rect = el.getBoundingClientRect();
+				if (rect.width === 0 && rect.height === 0) continue;
+				if (rect.right > viewport + 0.5 || rect.left < -0.5) {
+					offenders.push({
+						tag: el.tagName.toLowerCase(),
+						cls: (el.getAttribute('class') ?? '').slice(0, 60),
+						left: Math.round(rect.left),
+						right: Math.round(rect.right)
+					});
+				}
+			}
+			const nav = document.querySelector('.ds-nav');
+			const drawer = document.querySelector('[data-testid="ds-shell-drawer"]');
+			const control = document.querySelector('.ds-nav-branch [data-ds-nav-disclosure]');
+			return {
+				offenders: offenders.slice(0, 6),
+				offenderCount: offenders.length,
+				navScrollsSideways: nav.scrollWidth > nav.clientWidth,
+				drawerWidth: drawer.getBoundingClientRect().width,
+				documentScroll: document.documentElement.scrollWidth,
+				innerWidth: window.innerWidth,
+				childrenVisible: document.querySelectorAll('.ds-nav-children:not([hidden]) .ds-nav-item')
+					.length,
+				controlHit: control.getBoundingClientRect().width
+			};
+		}, width);
+
+		check(
+			`nested @${width}px: nothing in the document exceeds the viewport`,
+			measured.offenderCount === 0,
+			measured.offenderCount === 0
+				? `0 offenders (drawer ${measured.drawerWidth.toFixed(0)}px)`
+				: `${measured.offenderCount}: ${JSON.stringify(measured.offenders)}`
+		);
+		// The half a DOM walk alone would miss: contained overflow is still
+		// sideways scroll, it is just scoped to a box.
+		check(
+			`nested @${width}px: the nav itself does not scroll sideways`,
+			!measured.navScrollsSideways,
+			`nav scrollWidth vs clientWidth: ${measured.navScrollsSideways ? 'scrolls' : 'fits'}`
+		);
+		check(
+			`nested @${width}px: the drawer renders the tree, open`,
+			measured.childrenVisible > 0,
+			`${measured.childrenVisible} disclosed rows`
+		);
+		checks.push({
+			name: `nested @${width}px: document-level check (the blind one)`,
+			ok: true,
+			detail: `documentElement.scrollWidth ${measured.documentScroll} vs innerWidth ${measured.innerWidth}`
+		});
+		await context.close();
+	}
+
+	// A collapsed rail renders no tree at all, and the parent stays a link. The
+	// claim is about a real 3.5rem column, so it is measured here rather than
+	// asserted off a class name.
+	{
+		const { context, page } = await open('surface=nested&collapsible=1');
+		await page.click('[data-testid="ds-rail-collapse"]');
+		await page.waitForFunction(
+			() => document.querySelector('.ds-shell-rail')?.dataset.collapsed === 'true'
+		);
+		// The rail's width transitions over 200ms; reading it on the next frame
+		// reports 243px and reads like the collapse never happened.
+		await page.waitForFunction(() =>
+			document.getAnimations().every((animation) => animation.playState !== 'running')
+		);
+
+		const measured = await page.evaluate(() => ({
+			railWidth: document.querySelector('.ds-shell-rail').getBoundingClientRect().width,
+			branches: document.querySelectorAll('.ds-nav-branch').length,
+			controls: document.querySelectorAll('[data-ds-nav-disclosure]').length,
+			childRows: document.querySelectorAll('.ds-nav-children .ds-nav-item').length,
+			parentStillLinks: !!document.querySelector('.ds-nav-item[href="#/education"]')
+		}));
+
+		check(
+			'nested, collapsed rail: no disclosure control and no child rows',
+			measured.branches === 0 && measured.controls === 0 && measured.childRows === 0,
+			`branches ${measured.branches}, controls ${measured.controls}, child rows ${measured.childRows} at ${measured.railWidth.toFixed(0)}px`
+		);
+		check(
+			'nested, collapsed rail: the parent is still a link to its own page',
+			measured.parentStillLinks,
+			`parent link present: ${measured.parentStillLinks}`
+		);
+		await context.close();
+	}
+}
+
 await browser.close();
 server.close();
 
