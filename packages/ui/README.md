@@ -349,11 +349,19 @@ top-right — painted once, by the shell, on the region that scrolls:
 | `none` | nothing at all                                          | the default                                                              |
 
 `none` is the default, so a shell that does not mention `texture` renders exactly
-as it did before the prop existed. Verified, not assumed: five surfaces were
-captured at three viewports on the pre-change build and on this one, and all 15
-pairs are identical on all 120 compared fields **including the rendered PNG
-compared byte-for-byte** (`harness/drive.md`). Adoption is deliberate, one app at
-a time.
+as it did before the prop existed. Verified, not assumed, and reproducibly so:
+
+```sh
+node harness/additivity.mjs ui-v2026.8.3
+# 15 surface/viewport pairs, 105 compared fields (including the screenshot hash)
+# IDENTICAL on every field and every pixel — the change is additive.
+```
+
+`harness/additivity.mjs` builds the package at any base ref in a throwaway git
+worktree, renders the five surfaces an existing consumer already has at 2560px,
+1440px and 360px, and diffs the markup, both attribute sets, the computed box and
+background properties, the geometry and the rendered pixels. Adoption is
+deliberate, one app at a time.
 
 **Why it lives on the shell rather than being a class an app applies.** Because
 that is the entire defect it fixes. Two apps had built this same picture
@@ -570,9 +578,12 @@ error, no lint hit; the classes just never reach the compiled CSS).
 ## Verifying a change
 
 ```bash
-pnpm test            # build + vitest: jsdom interaction, and compiled-CSS gates
-pnpm run check       # svelte-check
+pnpm test              # build + vitest: jsdom interaction, and compiled-CSS gates
+pnpm run check         # svelte-check
 pnpm run test:browser  # build the harness and drive it in a real browser
+
+# Before releasing a change that claims to be additive (minutes, not seconds):
+node harness/additivity.mjs ui-v2026.8.3
 ```
 
 `pnpm test` includes the gates that compile the built package through the real
@@ -586,6 +597,14 @@ no stylesheet and returns unresolved `var(…)` literals, so it passes just as
 happily on a dead animation, an unregistered colour and a layout that does not
 exist. `harness/drive.md` records what is asserted, what each defect looked like
 before it was caught, and the measurement traps worth inheriting.
+
+`harness/additivity.mjs` is the leg that runs across two builds. Every additive
+prop this package has added promised the same thing — that a consumer who never
+names it renders identically — and that promise used to be checked by hand and
+written up as prose nobody could re-derive. It now builds the base ref in a
+throwaway worktree and diffs the markup, the computed boxes, the geometry and the
+pixels of the surfaces a consumer gets without opting into anything, exiting
+non-zero and naming the field on any difference.
 
 ## Releasing
 

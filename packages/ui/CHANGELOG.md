@@ -31,7 +31,15 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 **None, for anybody, without a deliberate edit.** Checked against every household frontend's actual `<AppShell` call site: eleven call sites across ten apps (milton has two layouts). No app passes `texture`, no app has a prop or nav field of that name, and no call site needs a line changed.
 
-The additive claim was measured rather than argued, and to a higher bar than 2026.8.3's. `dist` and the harness were built at the pre-change commit and five surfaces — `shell`, `shell&sidebar=1`, `overflow`, `nested` and `measure&measure=page` — captured at 2560px, 1440px and 360px; the capture was repeated on this build. Compared per surface/viewport pair: the whole `<main>` subtree's `outerHTML`, its full attribute set, the content box's attribute set, `<main>`'s computed `background-image`, `background-color`, `background-size`, `background-repeat`, `background-attachment`, `background-position`, `position`, `overflow-x`, `overflow-y`, `display`, `flex-direction`, `isolation` and `z-index`, the box's computed `max-width`, margins and padding, seven geometry numbers — **and the rendered PNG, compared byte-for-byte**. **All 15 pairs identical on all 120 compared fields, screenshots included.** Not "no visible difference": the same bytes.
+The additive claim is measured rather than argued, and — new in this release — **reproducible on demand rather than recorded as prose**. The cross-build diff had been done by hand for `level`, for `children` and for `measure`, each written up as a paragraph nobody could re-derive; adversarial review correctly called that an unverifiable claim as shipped. It is now `harness/additivity.mjs`, committed:
+
+```sh
+node harness/additivity.mjs ui-v2026.8.3
+# 15 surface/viewport pairs, 105 compared fields (including the screenshot hash)
+# IDENTICAL on every field and every pixel — the change is additive.
+```
+
+It builds the package at any base ref in a throwaway git worktree, renders the five surfaces an existing consumer already has (`shell`, `shell&sidebar=1`, `overflow`, `nested`, `measure&measure=page`) at 2560px, 1440px and 360px, and diffs the whole `<main>` subtree's `outerHTML`, both attribute sets, `<main>`'s computed background shorthand and box properties, the content box's computed `max-width`/margins/padding, eight geometry numbers, and the rendered screenshot. It exits non-zero on any difference and names the field. Driven red against `ui-v2026.8.0` before being kept: 19 differences, correctly attributed to `nested` and `measure`, which is what a release two features back should look like. It is deliberately not in `pnpm test` — it installs and builds a second copy of the package, so it is minutes rather than seconds, and it is meaningful only on a change claiming to be additive.
 
 Both halves are permanent gates rather than a one-off. `src/test/app-shell-texture.test.ts` holds the DOM half under jsdom, and was driven red twice before being kept — once by forcing the texture on unconditionally, once by moving the class onto the measured box — so it gates rather than describes. `harness/drive.mjs` holds the resolved-paint half in a real browser at 2560/1440/360px, including `texture="none"` passed explicitly landing where omitting it lands.
 

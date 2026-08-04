@@ -834,7 +834,16 @@
 	   against the whole scroll height and stretch one corner glow down a 5000px
 	   page.
 
-	   The four knobs are read through var() fallbacks at the point of use rather
+	   That length defaults to `calc(100dvh - 3.5rem)` rather than `100dvh`, and
+	   the 3.5rem is the top bar's own `h-14`: `.ds-shell` is `h-dvh` with the bar
+	   above `<main>` in the same column, so the region this paints is one bar
+	   shorter than the viewport and a plain `100dvh` overshoots it by about 6%.
+	   The literal is written out for the same reason `48rem` is in the rail's
+	   media query below — nothing here can read the bar's Tailwind utility — so
+	   an app that retunes the bar height retunes this alongside it, in the knob
+	   already provided.
+
+	   The five knobs are read through var() fallbacks at the point of use rather
 	   than declared at :root, for the reason the @theme inline block above states
 	   (design-system#8): a :root alias holding a var() reference resolves once, at
 	   :root, and a scoped override or a scoped .dark wrapper below it can never
@@ -878,7 +887,7 @@
 		background-repeat: no-repeat, repeat;
 		background-position: 0 0;
 		background-size:
-			100% var(--ds-shell-texture-vignette-height, 100dvh),
+			100% var(--ds-shell-texture-vignette-height, calc(100dvh - 3.5rem)),
 			var(--ds-shell-texture-grid-pitch, 30px) var(--ds-shell-texture-grid-pitch, 30px);
 		background-attachment: local, local;
 	}
@@ -891,7 +900,14 @@
 	   Later in the file than the rule above and in the same layer, so it wins
 	   without `!important`; an app's own print rules are unlayered and still beat
 	   it, which is the right way round. The white is the content region's, not the
-	   document's — `html`/`body` stay the app's to decide. */
+	   document's — `html`/`body` stay the app's to decide.
+
+	   `#fff` is the one literal colour in an otherwise entirely token-driven
+	   feature, on the same grounds `--ds-shadow-sm` gives for its neutral black:
+	   paper is white, which is a fact about the medium rather than a palette
+	   choice, and a brand-tinted "white" here would only spend the reader's
+	   toner. An app that genuinely wants the region printed in a colour paints it
+	   from its own unlayered print rules and wins. */
 	@media print {
 		.ds-shell-texture[data-texture='grid'] {
 			background-image: none;

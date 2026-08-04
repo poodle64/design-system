@@ -36,11 +36,11 @@ function attributes(el: HTMLElement): Record<string, string> {
 describe('AppShell — the texture is additive', () => {
 	// The guarantee the operator asked for, as a gate rather than a claim: no
 	// consumer that omits `texture` may render one pixel differently. The pixel
-	// half was also measured out of band — the shell was rendered on the
-	// pre-change build and on this one and the whole surface's screenshot,
-	// markup, geometry and computed background properties diffed at 2560/1440/
-	// 360px, identical throughout (recorded in CHANGELOG.md). This holds the half
-	// a test can hold permanently.
+	// half is measured across two builds by `harness/additivity.mjs`, which
+	// renders the opt-in-free surfaces at 2560/1440/360px on a base ref and on
+	// the working tree and diffs markup, computed boxes, geometry and pixels
+	// (`node harness/additivity.mjs ui-v2026.8.3` — 15 pairs, 105 fields,
+	// identical). This holds the half a test can hold permanently, on every run.
 	it('writes no texture class and no texture attribute when the prop is never named', () => {
 		const { container } = render(ShellHarness);
 		const main = contentRegion(container);

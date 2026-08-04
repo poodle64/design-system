@@ -766,28 +766,53 @@ result by construction rather than by declaration: it cannot be hit-tested, it
 always paints beneath every descendant, it adds no box to the flex column, and it
 opens no stacking context.
 
-### Additivity, measured against the pre-change build
+### Additivity, measured against the pre-change build — now a script
 
 The operator's hard constraint, the same one `measure` was held to: no consumer
 that does not ask for a texture may render one pixel differently. Asserted
 permanently in `src/test/app-shell-texture.test.ts` (the DOM half) and in the
 three `a shell that never names texture paints none` checks above (the resolved-
-background half), but neither can compare against a build that no longer exists,
-so the cross-build diff was done out of band.
+background half), but neither can compare against a build that no longer exists.
 
-`dist` and the harness were built at the pre-change commit and five surfaces —
-`shell`, `shell&sidebar=1`, `overflow`, `nested` and `measure&measure=page` —
-captured at 2560px, 1440px and 360px; the capture was then repeated on this
-build. Compared per surface/viewport pair: the whole `<main>` subtree's
-`outerHTML`, its full attribute set, the content box's attribute set, `<main>`'s
-computed `background-image`, `background-color`, `background-size`,
-`background-repeat`, `background-attachment`, `background-position`, `position`,
-`overflow-x`, `overflow-y`, `display`, `flex-direction`, `isolation` and
-`z-index`, the box's computed `max-width`, margins and padding, seven geometry
-numbers — **and the rendered PNG, compared byte-for-byte**.
+That cross-build half used to be done by hand and written up here as a
+paragraph — for `level`, for `children` and for `measure` — and a paragraph is
+where the claim went to die: "all nine pairs identical on all ten fields" gave
+the next reader no way to re-derive it, which adversarial review correctly called
+an unverifiable claim as shipped. So the procedure is now `additivity.mjs`:
 
-**All 15 pairs identical on all 120 compared fields, screenshots included.** Not
-"no visible difference": the same bytes.
+```sh
+node harness/additivity.mjs                # against the previous commit
+node harness/additivity.mjs ui-v2026.8.3   # against a released tag
+```
+
+It builds the package at the base ref in a throwaway git worktree (a full
+install, deliberately: borrowing this checkout's `node_modules` would resolve the
+workspace links back into current sources and silently build the "base" from the
+new code), renders the five surfaces an existing consumer already has — `shell`,
+`shell&sidebar=1`, `overflow`, `nested`, `measure&measure=page` — at 2560px,
+1440px and 360px, and diffs, per pair: the whole `<main>` subtree's `outerHTML`,
+its full attribute set, the content box's attribute set, `<main>`'s computed
+`background-image`, `background-color`, `background-size`, `background-repeat`,
+`background-attachment`, `background-position`, `position`, `overflow-x`,
+`overflow-y`, `display`, `flex-direction`, `isolation` and `z-index`, the box's
+computed `max-width`, margins and padding, eight geometry numbers, and the
+rendered screenshot. It exits non-zero on any difference and names the field.
+
+**Against `ui-v2026.8.3`: 15 pairs, 105 compared fields, identical on every field
+and every pixel.** Not "no visible difference": the same bytes.
+
+Driven red before being kept, the way every other gate here is: against
+`ui-v2026.8.0` — two features back — it reports **19 differences**, exits 1, and
+attributes them to `nested` and `measure`, which is exactly what those two
+releases changed.
+
+The surfaces are deliberately the opt-in-free ones. Adding a surface that names
+`texture` or `measure` would defeat the point: the only question this asks is
+what happens to somebody who did not ask for anything.
+
+It is not wired into `pnpm test` — it installs and builds a second copy of the
+package, so it is minutes rather than seconds, and it is meaningful only on a
+change claiming to be additive. Run it before releasing one.
 
 The feature also adds nothing to a consumer's `:root`. All four knobs are read
 through `var()` fallbacks at the point of use rather than aliased at `:root`
