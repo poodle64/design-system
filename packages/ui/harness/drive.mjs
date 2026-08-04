@@ -1109,6 +1109,39 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 		await context.close();
 	}
 
+	// Reduced motion. The chevron's rotation is how the open state reads for a
+	// sighted user, so the reduced-motion rule has to kill the TRANSITION without
+	// killing the transform — suppress both and the control stops saying anything.
+	// Neither half is visible to jsdom or to a compiled-CSS gate: one is a media
+	// query, the other a resolved matrix.
+	for (const motion of ['no-preference', 'reduce']) {
+		const context = await browser.newContext({
+			viewport: { width: 1280, height: 800 },
+			reducedMotion: motion
+		});
+		const page = await context.newPage();
+		await page.goto(`http://127.0.0.1:${PORT}/index.html?surface=nested`, { waitUntil: 'load' });
+		await page.waitForSelector('[data-ds-nav-disclosure] svg');
+
+		const measured = await page.evaluate(() => {
+			const style = getComputedStyle(document.querySelector('[data-ds-nav-disclosure] svg'));
+			return { duration: style.transitionDuration, transform: style.transform };
+		});
+
+		const wantsStill = motion === 'reduce';
+		check(
+			`nested, prefers-reduced-motion: ${motion}: the chevron ${wantsStill ? 'does not animate' : 'animates'}`,
+			wantsStill ? measured.duration === '0s' : parseFloat(measured.duration) > 0,
+			`transition-duration ${measured.duration}`
+		);
+		check(
+			`nested, prefers-reduced-motion: ${motion}: the open state still reads off the transform`,
+			measured.transform !== 'none' && measured.transform !== '',
+			measured.transform
+		);
+		await context.close();
+	}
+
 	// A collapsed rail renders no tree at all, and the parent stays a link. The
 	// claim is about a real 3.5rem column, so it is measured here rather than
 	// asserted off a class name.

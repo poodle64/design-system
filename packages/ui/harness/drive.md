@@ -589,6 +589,7 @@ clicked. The interaction logic is proved under jsdom in
 | Nothing in the document exceeds the viewport at 360/320px | no layout at all                                                                         | 0 offenders, drawer 248px                    |
 | The nav does not scroll sideways                          | `scrollWidth`/`clientWidth` are both 0 without layout                                    | fits                                         |
 | A collapsed rail renders no tree                          | the rail's collapsed width is a media/transition fact, and the claim is about that state | 0 branches, 0 controls, 0 child rows at 56px |
+| `prefers-reduced-motion: reduce` stops the chevron animating but NOT rotating | one half is a media query, the other a resolved matrix; jsdom sees neither | `transition-duration` 0.15s → 0s, `transform` unchanged at `matrix(0, 1, -1, 0, 0, 0)` |
 
 ### The overflow check is a DOM walk, not `documentElement.scrollWidth`
 
