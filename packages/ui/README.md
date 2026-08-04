@@ -79,25 +79,25 @@ app — the page chrome is. These are the cross-cutting surfaces every route
 composes from, so a household app gets its layout language from the package
 rather than rebuilding it:
 
-| Import | What it is |
-| --- | --- |
-| `page-header` | The only page-title pattern: optional `breadcrumbs` snippet, eyebrow, an optional title, one clamped subtitle, an `info` tooltip, an `actions` slot. Omit `title` for a header that is a breadcrumb bar. |
-| `panel` | The generic titled card: optional icon, subtitle and trailing actions over a body that can opt out of padding. |
-| `detail-panel` | The entity-detail surface: header with icon/eyebrow/title/`StatusBadge`/close, scrollable body, footer of actions. |
-| `context-column` | The persistent right-hand column: a standing `StatList` plus an optional detail that flows in on select. |
-| `app-dialog` | The dialogue frame: titled header, scrollable body, footer action bar, five sizes (`xs`…`xl`), and an `onOpenChange` for the dismissals the caller did not drive. |
-| `dialog-section` | One section of a dialogue body; adjacent sections are divided automatically. |
-| `stat-card` | A single metric that earns its space (label, value, unit, sub, status dot, and `valueTone` to colour the figure itself). |
-| `stat-list` | A route's low-context integers as a label→value list. Zero-aware: `muted` keeps a healthy zero quiet. |
-| `arc-gauge` | A radial capacity/percentage ring for a single 0–100 metric, in a footprint too compact for a `stat-card`. |
-| `bar-row` | A labelled horizontal bar with a trailing tabular value, for a ranked list (usage, rank, token burn). |
-| `scorecard` | A compact 0/1/2 dot-row health strip for several independent checks read at a glance. |
-| `sparkline` | An inline multi-series area+line trend for a row or card with room for a trend but not a full chart. |
-| `status` / `status-badge` | The fixed five-state vocabulary (`success \| warning \| error \| info \| neutral`) and the one state chip, with `pulse` for a state still in motion and `class` for placement. `status-badge` alone also accepts `'primary'`, a brand-emphasis extension outside the shared vocabulary — `stat-card`, `stat-list` and `data-table-toolbar` never see it. |
-| `empty-state` / `error-state` / `loading-state` | The shared blank, error and loading surfaces. Never hand-roll one. |
-| `info-tip` | One tooltip pattern: a small info trigger, or wrap an existing affordance as children. |
-| `data-table-toolbar` | Search field plus filter-chip groups for a TanStack table. Owns no state; fires callbacks. |
-| `data-table-tanstack` | The TanStack-backed table: global search, column filters, master-detail row select, opt-in bulk selection, responsive column hiding, a first-class empty branch. |
+| Import                                          | What it is                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `page-header`                                   | The only page-title pattern: optional `breadcrumbs` snippet, eyebrow, an optional title, one clamped subtitle, an `info` tooltip, an `actions` slot. Omit `title` for a header that is a breadcrumb bar.                                                                                                                                                 |
+| `panel`                                         | The generic titled card: optional icon, subtitle and trailing actions over a body that can opt out of padding.                                                                                                                                                                                                                                           |
+| `detail-panel`                                  | The entity-detail surface: header with icon/eyebrow/title/`StatusBadge`/close, scrollable body, footer of actions.                                                                                                                                                                                                                                       |
+| `context-column`                                | The persistent right-hand column: a standing `StatList` plus an optional detail that flows in on select.                                                                                                                                                                                                                                                 |
+| `app-dialog`                                    | The dialogue frame: titled header, scrollable body, footer action bar, five sizes (`xs`…`xl`), and an `onOpenChange` for the dismissals the caller did not drive.                                                                                                                                                                                        |
+| `dialog-section`                                | One section of a dialogue body; adjacent sections are divided automatically.                                                                                                                                                                                                                                                                             |
+| `stat-card`                                     | A single metric that earns its space (label, value, unit, sub, status dot, and `valueTone` to colour the figure itself).                                                                                                                                                                                                                                 |
+| `stat-list`                                     | A route's low-context integers as a label→value list. Zero-aware: `muted` keeps a healthy zero quiet.                                                                                                                                                                                                                                                    |
+| `arc-gauge`                                     | A radial capacity/percentage ring for a single 0–100 metric, in a footprint too compact for a `stat-card`.                                                                                                                                                                                                                                               |
+| `bar-row`                                       | A labelled horizontal bar with a trailing tabular value, for a ranked list (usage, rank, token burn).                                                                                                                                                                                                                                                    |
+| `scorecard`                                     | A compact 0/1/2 dot-row health strip for several independent checks read at a glance.                                                                                                                                                                                                                                                                    |
+| `sparkline`                                     | An inline multi-series area+line trend for a row or card with room for a trend but not a full chart.                                                                                                                                                                                                                                                     |
+| `status` / `status-badge`                       | The fixed five-state vocabulary (`success \| warning \| error \| info \| neutral`) and the one state chip, with `pulse` for a state still in motion and `class` for placement. `status-badge` alone also accepts `'primary'`, a brand-emphasis extension outside the shared vocabulary — `stat-card`, `stat-list` and `data-table-toolbar` never see it. |
+| `empty-state` / `error-state` / `loading-state` | The shared blank, error and loading surfaces. Never hand-roll one.                                                                                                                                                                                                                                                                                       |
+| `info-tip`                                      | One tooltip pattern: a small info trigger, or wrap an existing affordance as children.                                                                                                                                                                                                                                                                   |
+| `data-table-toolbar`                            | Search field plus filter-chip groups for a TanStack table. Owns no state; fires callbacks.                                                                                                                                                                                                                                                               |
+| `data-table-tanstack`                           | The TanStack-backed table: global search, column filters, master-detail row select, opt-in bulk selection, responsive column hiding, a first-class empty branch.                                                                                                                                                                                         |
 
 **The application shell** (`app-shell`, `command-palette`). Page chrome is not
 what makes an app feel like an app either — the shell is. Five household
@@ -138,19 +138,19 @@ The package therefore imports no app store, no app route and no app brand:
 
 That is the whole minimum. Everything below is optional.
 
-| Prop | Purpose |
-| --- | --- |
-| `nav` | Bare `NavItem`s, `NavGroup`s, or a mix. Consecutive bare items collapse into one run; an emptied group renders nothing. |
-| `currentPath` | Active state, and closing the mobile nav on navigation. |
-| `collapsible`, `collapsed` | An icon-only rail collapse toggle whose state binds out so an app can persist it. |
-| `brand` / `brandTitle` + `brandMark` / `homeHref` | Full control of the lockup, or the wordmark-plus-mark shorthand. |
-| `identity` | The signed-in surface. Rendered once, at the end of the top bar. |
-| `context`, `actions` | Leading and trailing top-bar slots: a store/tenant switcher, app-level action buttons. |
-| `banner` | Full-width region under the bar: reconnect notices, trial warnings. |
-| `sidebar` | A secondary, route-scoped column between the nav and the page body. |
-| `onSearch`, `searchLabel`, `searchShortcut` | Provide `onSearch` to render the search affordance at all. |
-| `themeToggle`, `onToggleTheme` | Defaults to `mode-watcher`. Set `themeToggle={false}` when the app puts theming inside its own user menu. |
-| `padded`, `mainClass` | Padding, and a background texture class. Content is always full-width. |
+| Prop                                              | Purpose                                                                                                                 |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `nav`                                             | Bare `NavItem`s, `NavGroup`s, or a mix. Consecutive bare items collapse into one run; an emptied group renders nothing. |
+| `currentPath`                                     | Active state, and closing the mobile nav on navigation.                                                                 |
+| `collapsible`, `collapsed`                        | An icon-only rail collapse toggle whose state binds out so an app can persist it.                                       |
+| `brand` / `brandTitle` + `brandMark` / `homeHref` | Full control of the lockup, or the wordmark-plus-mark shorthand.                                                        |
+| `identity`                                        | The signed-in surface. Rendered once, at the end of the top bar.                                                        |
+| `context`, `actions`                              | Leading and trailing top-bar slots: a store/tenant switcher, app-level action buttons.                                  |
+| `banner`                                          | Full-width region under the bar: reconnect notices, trial warnings.                                                     |
+| `sidebar`                                         | A secondary, route-scoped column between the nav and the page body.                                                     |
+| `onSearch`, `searchLabel`, `searchShortcut`       | Provide `onSearch` to render the search affordance at all.                                                              |
+| `themeToggle`, `onToggleTheme`                    | Defaults to `mode-watcher`. Set `themeToggle={false}` when the app puts theming inside its own user menu.               |
+| `padded`, `mainClass`                             | Padding, and a background texture class. Content is always full-width.                                                  |
 
 `NavItem` / `NavGroup` are exported so an app types its own config against them.
 They carry **no notion of who may see an item**: two surveyed apps gate
@@ -187,7 +187,11 @@ palette:
 :root {
 	--ds-shell-chrome: var(--ds-color-primary);
 	--ds-shell-chrome-foreground: var(--ds-color-primary-foreground);
-	--ds-shell-chrome-muted-foreground: color-mix(in oklch, var(--ds-color-primary-foreground) 70%, transparent);
+	--ds-shell-chrome-muted-foreground: color-mix(
+		in oklch,
+		var(--ds-color-primary-foreground) 70%,
+		transparent
+	);
 }
 ```
 

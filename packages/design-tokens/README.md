@@ -22,18 +22,18 @@ dist/                   Generated — run `pnpm build`; never edit by hand
 
 Non-negotiable across every household app. Per-app exceptions are not permitted on named semantic tokens.
 
-| Constraint         | Value                                                 |
-| ------------------ | ----------------------------------------------------- |
-| Corner radius base | `0.625rem` (`--ds-radius-lg`)                         |
-| Display font       | Fraunces                                              |
+| Constraint         | Value                                                         |
+| ------------------ | ------------------------------------------------------------- |
+| Corner radius base | `0.625rem` (`--ds-radius-lg`)                                 |
+| Display font       | Fraunces                                                      |
 | Body font          | Avenir Next (Apple system font), else Hanken Grotesk Variable |
-| Code / data font   | JetBrains Mono                                        |
-| Status vocabulary  | `success` / `warning` / `error` / `info` / `neutral`  |
-| Eyebrow size       | `text-2xs` (`--ds-text-2xs`) — never `text-[11px]`    |
-| Colour space       | OKLCH                                                 |
-| CSS namespace      | `--ds-*`                                              |
-| Token format       | W3C DTCG 2025.10                                      |
-| Build tool         | Style Dictionary v4                                   |
+| Code / data font   | JetBrains Mono                                                |
+| Status vocabulary  | `success` / `warning` / `error` / `info` / `neutral`          |
+| Eyebrow size       | `text-2xs` (`--ds-text-2xs`) — never `text-[11px]`            |
+| Colour space       | OKLCH                                                         |
+| CSS namespace      | `--ds-*`                                                      |
+| Token format       | W3C DTCG 2025.10                                              |
+| Build tool         | Style Dictionary v4                                           |
 
 ## Consuming the package
 
@@ -63,8 +63,8 @@ pnpm add @poodle64/design-tokens
 /* app.css — import order matters */
 @import 'tailwindcss';
 @import '@poodle64/design-tokens/tokens.tw.css'; /* @theme aliases            */
-@import '@poodle64/design-tokens/tokens.css';    /* :root + .dark --ds-* vars */
-@import '@poodle64/ui/styles.css';               /* shadcn surface + registration */
+@import '@poodle64/design-tokens/tokens.css'; /* :root + .dark --ds-* vars */
+@import '@poodle64/ui/styles.css'; /* shadcn surface + registration */
 
 /* then: the per-app primary override, and nothing else.
    An app does NOT hand-write a shadcn alias layer; @poodle64/ui ships it.
@@ -121,14 +121,14 @@ collide.
 
 In Tailwind markup use the numeric scale, which carries the same values:
 
-| Token | Value | Tailwind |
-| --- | --- | --- |
-| `--ds-spacing-xs` | 0.25rem | `p-1` |
-| `--ds-spacing-sm` | 0.5rem | `p-2` |
-| `--ds-spacing-md` | 1rem | `p-4` |
-| `--ds-spacing-lg` | 1.5rem | `p-6` |
-| `--ds-spacing-xl` | 2rem | `p-8` |
-| `--ds-spacing-2xl` | 3rem | `p-12` |
+| Token              | Value   | Tailwind |
+| ------------------ | ------- | -------- |
+| `--ds-spacing-xs`  | 0.25rem | `p-1`    |
+| `--ds-spacing-sm`  | 0.5rem  | `p-2`    |
+| `--ds-spacing-md`  | 1rem    | `p-4`    |
+| `--ds-spacing-lg`  | 1.5rem  | `p-6`    |
+| `--ds-spacing-xl`  | 2rem    | `p-8`    |
+| `--ds-spacing-2xl` | 3rem    | `p-12`   |
 
 `test/tailwind-namespace.test.js` compiles real Tailwind and asserts the sizing
 scale means the same with and without this package, so a future token cannot

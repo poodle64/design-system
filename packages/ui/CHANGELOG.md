@@ -15,18 +15,18 @@ All notable changes to this package are documented here. Format follows [Keep a 
 
 Checked against every household frontend's actual `<AppShell` call site at release: ten call sites across nine apps (milton has two layouts). "Fix at bump" is the whole code change; everything else is behaviour the shell now provides without being asked.
 
-| App (layout) | Passes today | Fix at bump | What changes on screen |
-| --- | --- | --- | --- |
-| earworm | `variant="header"`, `content="wide"` | delete both props | nav moves into the new permanent rail; the 120rem content cap is gone (full-width) |
-| eight | `variant="rail"`, `content="full"` | delete both props | top navbar gains its full chrome (was the ghost strip); content already full-width |
-| fixxxer | `variant="header"`, `content="standard"` | delete both props | gains the rail; the 80rem cap is gone (full-width) |
-| mission-command | `variant="rail"`, `content="standard"` | delete both props | navbar gains full chrome; the 80rem cap is gone; `identity` moves from the rail foot to the top bar |
-| seshat | `variant="header"`, `content="standard"` | delete both props | gains the rail; the 80rem cap is gone (full-width) |
-| godswood (protected) | neither prop | none | navbar gains full chrome; `identity` moves from the rail foot to the top bar |
-| milton (admin) | neither prop | none | navbar gains full chrome; `identity` moves from the rail foot to the top bar |
-| milton (protected) | `variant="header"` | delete the prop | gains the rail; `identity` already in the top bar |
-| portcullis (app) | neither prop | none | navbar gains full chrome; `identity` moves from the rail foot to the top bar |
-| tapestry | `variant="rail"` | delete the prop | navbar gains full chrome; `identity` moves from the rail foot to the top bar |
+| App (layout)         | Passes today                             | Fix at bump       | What changes on screen                                                                              |
+| -------------------- | ---------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------- |
+| earworm              | `variant="header"`, `content="wide"`     | delete both props | nav moves into the new permanent rail; the 120rem content cap is gone (full-width)                  |
+| eight                | `variant="rail"`, `content="full"`       | delete both props | top navbar gains its full chrome (was the ghost strip); content already full-width                  |
+| fixxxer              | `variant="header"`, `content="standard"` | delete both props | gains the rail; the 80rem cap is gone (full-width)                                                  |
+| mission-command      | `variant="rail"`, `content="standard"`   | delete both props | navbar gains full chrome; the 80rem cap is gone; `identity` moves from the rail foot to the top bar |
+| seshat               | `variant="header"`, `content="standard"` | delete both props | gains the rail; the 80rem cap is gone (full-width)                                                  |
+| godswood (protected) | neither prop                             | none              | navbar gains full chrome; `identity` moves from the rail foot to the top bar                        |
+| milton (admin)       | neither prop                             | none              | navbar gains full chrome; `identity` moves from the rail foot to the top bar                        |
+| milton (protected)   | `variant="header"`                       | delete the prop   | gains the rail; `identity` already in the top bar                                                   |
+| portcullis (app)     | neither prop                             | none              | navbar gains full chrome; `identity` moves from the rail foot to the top bar                        |
+| tapestry             | `variant="rail"`                         | delete the prop   | navbar gains full chrome; `identity` moves from the rail foot to the top bar                        |
 
 ## [2026.7.11] - 2026-07-31
 
@@ -101,7 +101,7 @@ Checked against every household frontend's actual `<AppShell` call site at relea
 
 - **`aria-controls` on the mobile disclosure toggle** (#12). The toggle already managed `aria-expanded` correctly and moved focus into the panel, trapped it, and returned it on Escape; what was missing was the programmatic relationship between the control and the region, which is how assistive technology offers to jump to the region rather than relying on DOM order, and how automated tooling can tell the two elements are related at all. Both variants carry it: under `variant="rail"` the reference is live from first render, because the rail and the drawer are one element; under `variant="header"` the disclosure panel is created and destroyed with the state, so the reference is present while the panel is and omitted rather than left dangling when it is not. The region id is generated per instance, so two shells on one page cannot collide with each other or with an app's own ids.
 
-- **A real-browser contrast gate for the whole defect class** (`harness/drive.mjs`). The class is *a shared component painting a colour the consumer owns as ink*, and nothing cheaper can see it: jsdom applies no stylesheet and returns the unresolved `var(--…)` literal, so a unit test passes just as happily on a colour nothing defines, and a compiled-CSS gate proves a rule exists without ever resolving `color-mix()` over a real surface. The gate drives the built package under three palettes (the package default plus two deliberately different consumer brands, including the low-luminance-on-light amber that is the failing shape) across both themes and both variants, and asserts the resolved ratio.
+- **A real-browser contrast gate for the whole defect class** (`harness/drive.mjs`). The class is _a shared component painting a colour the consumer owns as ink_, and nothing cheaper can see it: jsdom applies no stylesheet and returns the unresolved `var(--…)` literal, so a unit test passes just as happily on a colour nothing defines, and a compiled-CSS gate proves a rule exists without ever resolving `color-mix()` over a real surface. The gate drives the built package under three palettes (the package default plus two deliberately different consumer brands, including the low-luminance-on-light amber that is the failing shape) across both themes and both variants, and asserts the resolved ratio.
 
   Three measurement details are load-bearing, each having produced a wrong answer first. Contrast is taken against the **composited ancestor stack**, not the page background: the active row's background is a 12% `color-mix` over the chrome and the chrome is `bg-shell/80` over the page, so the label sits on three layers and any single one of them is the wrong comparison. **Transitions are disabled** before reading, because swapping a custom property starts `.ds-nav-item`'s 150ms colour transition and `getComputedStyle` mid-flight returns an interpolated value; the first run of this gate reported the package default while believing it had applied the override. And each fixture palette is asserted to clear AA **as a fill** first, so a future edit that breaks the fixture fails as a fixture problem rather than quietly weakening the claim.
 
@@ -174,10 +174,9 @@ absorbs it so no app has to fork around it.
 
 - **`Table` takes `containerClass`.** The table and its scroll container are different boxes and only one of them can be told to be shorter; a sticky header needs a bounded, scrolling ancestor and `class` lands on the `<table>`. An app wanting one had to reach in from the outside with `[&>[data-slot=table-container]]:…`, an arbitrary-variant selector aimed at a structure this package is free to change — a private detail in use as public API. Naming the seam makes it public and keeps the structure ours.
 
-- **A real-browser gate, wired into CI** (`harness/drive.mjs`, `pnpm run test:browser`). Three of the most expensive defects on this programme were invisible to every gate in this repo *and* to jsdom, and each was found by a person happening to look. The script opens all four bits-ui overlay families and asserts the resolved `animation-name` is the enter animation rather than `none`, measures the shell's content region at 375px and 320px across four page-wrapper shapes, and drives the avatar through a genuine 404 and a genuine decode. It is a script rather than a model-driven session because the choreography is pre-known; it prints every observed value beside its verdict, passing or failing.
+- **A real-browser gate, wired into CI** (`harness/drive.mjs`, `pnpm run test:browser`). Three of the most expensive defects on this programme were invisible to every gate in this repo _and_ to jsdom, and each was found by a person happening to look. The script opens all four bits-ui overlay families and asserts the resolved `animation-name` is the enter animation rather than `none`, measures the shell's content region at 375px and 320px across four page-wrapper shapes, and drives the avatar through a genuine 404 and a genuine decode. It is a script rather than a model-driven session because the choreography is pre-known; it prints every observed value beside its verdict, passing or failing.
 
 - **Four new compiled-CSS gates**, each driven red before being kept:
-
   - every shorthand `data-*:` variant the built package ships must appear in an exhaustive owned map (so a new one cannot arrive unowned), must compile to a selector targeting the attribute it is owned against, and that map is pinned against what bits-ui really puts in the DOM — otherwise it is only a table someone typed;
   - every animation utility the package writes must emit a rule in a consuming app that imports nothing extra;
   - every `--color-*` key this package registers must be read by a utility or a `var()` in the built output — the gate that would have caught `shell-foreground`;
@@ -201,7 +200,6 @@ absorbs it so no app has to fork around it.
 
 - **`CardTitle`'s `level` prop was already published**, in `2026.7.5`. The app that reported it missing was on `2026.7.3`; verified against the tarball on the registry. No change was needed, and the ARIA workaround it describes can be deleted on upgrade.
 
-
 ## [2026.7.5] - 2026-07-28
 
 ### Added
@@ -214,7 +212,7 @@ absorbs it so no app has to fork around it.
 
   Sizing stays where it already was, on `class`. Existing consumers are untouched: the default is unchanged, measured against a rebuild of the previous component in the same engine (identical class list, attribute set, box and computed style). The one difference in the whole read is the position of Svelte's empty anchor comment inside the element — invisible to layout, to the cascade and to the accessibility tree, all three measured. `harness/drive.md` records it, along with why the two-branch alternative was built, measured and rejected.
 
-- **A gate for both halves of that claim** (`src/test/card-title.*`). The heading branch and the div default are asserted against *each other* rather than against a copied-out class string, so the pin cannot rot the next time the class list is edited. Five red drives, each isolating one assertion: ignoring `level` fails only the six level tests; dropping `font-medium` from the heading branch fails only the parity test; dropping its rest props fails only the rest-props test; defaulting `level` to `3` fails only the "renders a div" test; and compiling the consumer chain without preflight fails only the UA-metrics test — which is what shows that last one is guarding a real dependency rather than restating the class list.
+- **A gate for both halves of that claim** (`src/test/card-title.*`). The heading branch and the div default are asserted against _each other_ rather than against a copied-out class string, so the pin cannot rot the next time the class list is edited. Five red drives, each isolating one assertion: ignoring `level` fails only the six level tests; dropping `font-medium` from the heading branch fails only the parity test; dropping its rest props fails only the rest-props test; defaulting `level` to `3` fails only the "renders a div" test; and compiling the consumer chain without preflight fails only the UA-metrics test — which is what shows that last one is guarding a real dependency rather than restating the class list.
 
   The real-browser leg is `harness/drive.md` (`?surface=card`), because jsdom can make neither claim: it applies no stylesheet, so a `<div>` and an `<h3>` are trivially identical there whether or not anything neutralises the UA metrics, and its `getByRole` is a static element→role table rather than a tree a browser built. In a real engine the six heading cards expose `heading "Estate summary" [level=1…6]` and the div card exposes plain text with no heading node anywhere on the page.
 
@@ -224,7 +222,7 @@ absorbs it so no app has to fork around it.
 
 ### Fixed
 
-- **`ErrorState` announced nothing at all.** It is rendered when an async load fails, so it arrives *after* the page has settled — and it carried no live region, so a screen-reader user was told nothing: the page silently changed and the failure was invisible. Every app adopting this package inherited that, and it was found by the fourth adopter, whose own local `ErrorState` had `role="alert"` from the start and lost it on migrating here.
+- **`ErrorState` announced nothing at all.** It is rendered when an async load fails, so it arrives _after_ the page has settled — and it carried no live region, so a screen-reader user was told nothing: the page silently changed and the failure was invisible. Every app adopting this package inherited that, and it was found by the fourth adopter, whose own local `ErrorState` had `role="alert"` from the start and lost it on migrating here.
 
   This was an inconsistency inside the package rather than a decision. The sibling `LoadingState` has had `role="status"` + `aria-live="polite"` since the initial release; `ErrorState` was extracted without the equivalent. It now carries `role="alert"` + `aria-live="assertive"`, and the pairing is deliberately not the sibling's: loading is not urgent and waits its turn, whereas this surface only exists because the user's task has already broken, so it interrupts. `EmptyState` is deliberately left alone — an empty result is ordinary static content the app placed, and announcing a blank list as loudly as a broken one is the over-correction, now pinned by its own assertion.
 
@@ -232,7 +230,7 @@ absorbs it so no app has to fork around it.
 
 ### Added
 
-- **A live-region gate for the async-outcome surfaces** (`src/test/live-regions.*`). It reaches each state by *driving* a load rather than by mounting the finished markup, because the claim is not that an attribute is present — it is that the region exists at the instant the outcome lands, which is the only instant a screen reader has to announce it. Driven red first: with the attributes removed the failure surfaces as a bare paragraph and four assertions fail; with `role="alert"` restored but `aria-live` dropped, three still fail, which is what keeps the explicit pairing from silently decaying into the implicit one.
+- **A live-region gate for the async-outcome surfaces** (`src/test/live-regions.*`). It reaches each state by _driving_ a load rather than by mounting the finished markup, because the claim is not that an attribute is present — it is that the region exists at the instant the outcome lands, which is the only instant a screen reader has to announce it. Driven red first: with the attributes removed the failure surfaces as a bare paragraph and four assertions fail; with `role="alert"` restored but `aria-live` dropped, three still fail, which is what keeps the explicit pairing from silently decaying into the implicit one.
 
 - **The real-browser harness now covers those surfaces too** (`?surface=states`), because jsdom cannot make this claim either: `getByRole` there is testing-library resolving a static element→role table, so it proves the string and nothing about what the platform is handed. A real engine exposes the failure as an `alert` node carrying the message, and exposed the pre-change build as a bare paragraph. `harness/drive.md` records both.
 
@@ -248,11 +246,11 @@ absorbs it so no app has to fork around it.
 
   Sensible defaults were a design constraint: `nav` plus a brand gets a working shell, with a bypass link (WCAG 2.4.1), a theme toggle, a mobile treatment and an active-state marker that is never colour alone. `CommandPalette` ships beside it because it had the identical coupling to a hardcoded navigation module, and leaving it behind would have stranded the shell's search affordance; one nav config now feeds both, and the palette owns its own ⌘K binding instead of each app re-typing the handler.
 
-- Focus management and modal semantics for the shell's mobile overlay: focus moves in on open and returns to the trigger on close, Tab wraps rather than walking out into the covered page, the overlay carries `role="dialog"`/`aria-modal` only while it *is* the overlay, and crossing up past `md` closes it so "open" genuinely implies "narrow". The scrim, the close button and the trigger each carry a distinct accessible name; the trigger uses the ordinary disclosure pattern (a stable name plus `aria-expanded`).
+- Focus management and modal semantics for the shell's mobile overlay: focus moves in on open and returns to the trigger on close, Tab wraps rather than walking out into the covered page, the overlay carries `role="dialog"`/`aria-modal` only while it _is_ the overlay, and crossing up past `md` closes it so "open" genuinely implies "narrow". The scrim, the close button and the trigger each carry a distinct accessible name; the trigger uses the ordinary disclosure pattern (a stable name plus `aria-expanded`).
 
 - **A real-browser verification harness (`harness/`).** jsdom applies no stylesheet and returns the unresolved `var(…)` literal from `getComputedStyle`, so it passes on a colour nothing defines: the blind spot behind five defects in this programme. The harness compiles the real Tailwind consumer chain over the built package and is driven at desktop and phone viewports; `harness/drive.md` records every claim, the observed value, and three measurement traps that produced false failures. The stateful behaviour is driven separately in jsdom, where it belongs.
 
-- **A named regression guard for the `checkbox` barrel export**, ported from the reference frontend the primitive was extracted from as that app migrates onto this package — the coverage belongs where the component now lives, not re-forked in the consumer. It pins the defect fixed in 2026.7.0 (bits-ui's compound namespace exported under the name `Checkbox`, shadowing the styled wrapper) by mounting the *named* export and asserting the wrapper's own `data-slot="checkbox"` marker, then driving the control off → on → off. Both assertions were driven red first: the historical barrel fails at mount, and a mountable-but-wrong export (`CheckboxPrimitive.Root`) fails only the marker check while toggling perfectly — which is precisely why asserting the marker is not redundant with driving the control.
+- **A named regression guard for the `checkbox` barrel export**, ported from the reference frontend the primitive was extracted from as that app migrates onto this package — the coverage belongs where the component now lives, not re-forked in the consumer. It pins the defect fixed in 2026.7.0 (bits-ui's compound namespace exported under the name `Checkbox`, shadowing the styled wrapper) by mounting the _named_ export and asserting the wrapper's own `data-slot="checkbox"` marker, then driving the control off → on → off. Both assertions were driven red first: the historical barrel fails at mount, and a mountable-but-wrong export (`CheckboxPrimitive.Root`) fails only the marker check while toggling perfectly — which is precisely why asserting the marker is not redundant with driving the control.
 
 ## [2026.7.2] - 2026-07-28
 
@@ -291,8 +289,8 @@ absorbs it so no app has to fork around it.
 
 ### Fixed
 
-- `DataTableTanstack` select-all could never deselect. `toggleAll()` read the `allSelected` derived *after* clearing the set it derives from, so it always re-evaluated to false and the branch re-selected every row. Inherited from the source app; found by driving the control rather than rendering it.
-- `DataTableTanstack` row checkboxes never registered a selection. The checkbox's wrapper handled the click to stop it reaching the master-detail row *and* toggled the selection, while the checkbox's own `onCheckedChange` toggled it again, netting out to nothing. The wrapper now only stops propagation.
+- `DataTableTanstack` select-all could never deselect. `toggleAll()` read the `allSelected` derived _after_ clearing the set it derives from, so it always re-evaluated to false and the branch re-selected every row. Inherited from the source app; found by driving the control rather than rendering it.
+- `DataTableTanstack` row checkboxes never registered a selection. The checkbox's wrapper handled the click to stop it reaching the master-detail row _and_ toggled the selection, while the checkbox's own `onCheckedChange` toggled it again, netting out to nothing. The wrapper now only stops propagation.
 - A code comment in `switch` named the private app the primitives came from. This repo is public; the sizing rationale is kept, the identifier removed.
 
 ## [2026.7.0] - 2026-07-23

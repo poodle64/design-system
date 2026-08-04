@@ -62,27 +62,27 @@ Drive with any browser automation that can evaluate JS in the page (the
 household's `browser-driver` MCP was used); read the outcome from the DOM, never
 from a screenshot. Two viewports: **1440×900** (desktop) and **390×844** (phone).
 
-| Claim | Why jsdom cannot make it | Observed |
-| --- | --- | --- |
-| The chrome surface resolves to a real colour | jsdom returns `var(--ds-shell-chrome)` and calls it a pass | `oklch(0.97 0.005 85)` light / `oklch(0.175 0.018 260)` dark |
-| The rail is exactly its declared width | no layout engine | 248px = 15.5rem |
-| Active nav differs visibly from inactive | no cascade | active `oklch(0.5 0.155 250 / 0.12)` vs inactive transparent |
-| The active marker is not colour alone (WCAG 1.4.1) | pseudo-elements are not computed | rail: 2×24px bar |
-| The theme toggle **actually flips** | no media/class-driven cascade | shell bg `oklch(0.985 0.003 85)` → `oklch(0.205 0.015 260)`, rail follows, restores on second press |
-| Exactly one theme icon shows per mode | `dark:` variants never resolve | `[block, none]` → `[none, block]` |
-| The rail collapses and re-expands | no transitions, no layout | 248 → 56 → 248px; labels drop to a 1×1 `sr-only` box; links centre |
-| The rail is hidden on a phone | no media queries | `display: none` at 390px; brand moves into the bar |
-| The drawer opens flush and full-height | no layout | `display:none` → `flex`, `position: fixed`, 248px at `left: 0`, scrim covers the viewport, 4 items, active lit |
-| The rail and drawer are one element, never two | no cascade, no layout | exactly one `identity`, one collapse control and one `Primary` landmark in both states |
-| A drawer opened on a phone is inert once widened | no media queries | forcing `data-drawer` at 1440px leaves `position: sticky`, 248px |
-| Focus enters the overlay and returns on close | `:focus` and layout are not computed | opens onto "Close menu"; Escape returns focus to the trigger |
-| Tab wraps inside the overlay | needs a real layout to know what is visible | 7 of 8 candidates in the cycle; the display:none collapse control excluded; last → first |
-| The drawer is a dialogue only while it is one | — | `role="dialog" aria-modal="true"` on open, both gone on close |
-| No two dismiss controls share a name | — | scrim "Dismiss menu", close "Close menu", trigger "Menu" + `aria-expanded` |
-| A tap-through does not leave the drawer over the page | needs real navigation | drawer gone, hash advanced |
-| Nothing overflows horizontally on a phone | no layout | `scrollWidth <= innerWidth` |
-| The palette opens on ⌘K and navigates | — (also covered in jsdom) | 4 items listed, hash advanced to the selected item, palette closed |
-| The bypass link hides at rest and reveals on focus | `:focus` styling is not computed | `top: -48px` → `8px`, 3px outline, focus lands on `#ds-main` |
+| Claim                                                 | Why jsdom cannot make it                                   | Observed                                                                                                       |
+| ----------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| The chrome surface resolves to a real colour          | jsdom returns `var(--ds-shell-chrome)` and calls it a pass | `oklch(0.97 0.005 85)` light / `oklch(0.175 0.018 260)` dark                                                   |
+| The rail is exactly its declared width                | no layout engine                                           | 248px = 15.5rem                                                                                                |
+| Active nav differs visibly from inactive              | no cascade                                                 | active `oklch(0.5 0.155 250 / 0.12)` vs inactive transparent                                                   |
+| The active marker is not colour alone (WCAG 1.4.1)    | pseudo-elements are not computed                           | rail: 2×24px bar                                                                                               |
+| The theme toggle **actually flips**                   | no media/class-driven cascade                              | shell bg `oklch(0.985 0.003 85)` → `oklch(0.205 0.015 260)`, rail follows, restores on second press            |
+| Exactly one theme icon shows per mode                 | `dark:` variants never resolve                             | `[block, none]` → `[none, block]`                                                                              |
+| The rail collapses and re-expands                     | no transitions, no layout                                  | 248 → 56 → 248px; labels drop to a 1×1 `sr-only` box; links centre                                             |
+| The rail is hidden on a phone                         | no media queries                                           | `display: none` at 390px; brand moves into the bar                                                             |
+| The drawer opens flush and full-height                | no layout                                                  | `display:none` → `flex`, `position: fixed`, 248px at `left: 0`, scrim covers the viewport, 4 items, active lit |
+| The rail and drawer are one element, never two        | no cascade, no layout                                      | exactly one `identity`, one collapse control and one `Primary` landmark in both states                         |
+| A drawer opened on a phone is inert once widened      | no media queries                                           | forcing `data-drawer` at 1440px leaves `position: sticky`, 248px                                               |
+| Focus enters the overlay and returns on close         | `:focus` and layout are not computed                       | opens onto "Close menu"; Escape returns focus to the trigger                                                   |
+| Tab wraps inside the overlay                          | needs a real layout to know what is visible                | 7 of 8 candidates in the cycle; the display:none collapse control excluded; last → first                       |
+| The drawer is a dialogue only while it is one         | —                                                          | `role="dialog" aria-modal="true"` on open, both gone on close                                                  |
+| No two dismiss controls share a name                  | —                                                          | scrim "Dismiss menu", close "Close menu", trigger "Menu" + `aria-expanded`                                     |
+| A tap-through does not leave the drawer over the page | needs real navigation                                      | drawer gone, hash advanced                                                                                     |
+| Nothing overflows horizontally on a phone             | no layout                                                  | `scrollWidth <= innerWidth`                                                                                    |
+| The palette opens on ⌘K and navigates                 | — (also covered in jsdom)                                  | 4 items listed, hash advanced to the selected item, palette closed                                             |
+| The bypass link hides at rest and reveals on focus    | `:focus` styling is not computed                           | `top: -48px` → `8px`, 3px outline, focus lands on `#ds-main`                                                   |
 
 Three measurement traps worth inheriting. Each produced a false failure here,
 and the third looked exactly like a total regression:
@@ -117,7 +117,7 @@ half-dark component set with no error anywhere.
 
 The declaration now ships in `@poodle64/ui/styles.css` beside the utilities that
 depend on it, and `src/test/dark-variant.test.ts` compiles the built package
-*without* an app's own declaration and fails if any shipped `dark:` utility
+_without_ an app's own declaration and fails if any shipped `dark:` utility
 lands somewhere a class-based theme switch cannot reach.
 
 ## The async-outcome surfaces (`?surface=states`)
@@ -132,13 +132,13 @@ testing-library resolving a static element→role table, so it proves the string
 `role="alert"` is present and nothing about what a browser hands the platform.
 The engine builds the tree itself, which is why the same claim is made twice.
 
-| Claim | Observed (1440×900) |
-| --- | --- |
-| Nothing announces before a load is under way | tree carries the three drivers and no live region |
-| An in-flight load is a polite status | `status "Fetching records…"` |
+| Claim                                               | Observed (1440×900)                                |
+| --------------------------------------------------- | -------------------------------------------------- |
+| Nothing announces before a load is under way        | tree carries the three drivers and no live region  |
+| An in-flight load is a polite status                | `status "Fetching records…"`                       |
 | A failure that arrives later is exposed as an alert | `alert:` → `paragraph: Could not load the estate.` |
-| The glyph is not announced beside the message | no `img`/graphic node inside the alert |
-| An empty result never interrupts | `heading "No records"`, no live region |
+| The glyph is not announced beside the message       | no `img`/graphic node inside the alert             |
+| An empty result never interrupts                    | `heading "No records"`, no live region             |
 
 **The pre-change build was driven in the same engine**, and the failure surfaced
 as a bare `paragraph: Could not load the estate.` — no live region, nothing for
@@ -163,12 +163,12 @@ for a live defect.
 ### The limit of what was verified
 
 The engine proves the alert node is built and carries the message. It does not
-prove what a screen reader then *says*, and one nuance is worth writing down
+prove what a screen reader then _says_, and one nuance is worth writing down
 because it is the obvious thing to get wrong later.
 
 `ErrorState` mounts already carrying its message. MDN counsels the opposite —
 prime an empty `role="alert"` in the markup first, then inject the text, since
-a live region announces on *content change* and an element that arrives fully
+a live region announces on _content change_ and an element that arrives fully
 populated is not a change. The Accessibility Developer Guide's matrix tests
 exactly the populated-on-insert form and records a pass on NVDA and JAWS across
 Firefox, Chrome and Edge, which is the mainstream set and the form every
@@ -199,13 +199,13 @@ anything neutralises the UA metrics. It cannot support the semantic half either
 — `getByRole` is testing-library resolving a static element→role table, so it
 proves the tag name and nothing about the tree a browser builds.
 
-| Claim | Observed (1440×900) |
-| --- | --- |
-| The title is a real heading at the level asked for | `H1`…`H6`; tree carries `heading "Estate summary" [level=1…6]` |
-| The default contributes no heading at all | tree carries `text: Estate summary`; `document.querySelectorAll('h1,…,h6').length === 0` |
-| The class list is identical across all seven | `text-base leading-snug font-medium group-data-[size=sm]/card:text-sm`, byte-for-byte |
-| A heading is laid out identically to the div | title box 352×22 and card box 384×114 on all seven |
-| The UA heading metrics are neutralised | 18 computed properties identical on all seven — `font-size: 16px`, `font-weight: 500`, `line-height: 22px`, all four margins `0px` |
+| Claim                                              | Observed (1440×900)                                                                                                                |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| The title is a real heading at the level asked for | `H1`…`H6`; tree carries `heading "Estate summary" [level=1…6]`                                                                     |
+| The default contributes no heading at all          | tree carries `text: Estate summary`; `document.querySelectorAll('h1,…,h6').length === 0`                                           |
+| The class list is identical across all seven       | `text-base leading-snug font-medium group-data-[size=sm]/card:text-sm`, byte-for-byte                                              |
+| A heading is laid out identically to the div       | title box 352×22 and card box 384×114 on all seven                                                                                 |
+| The UA heading metrics are neutralised             | 18 computed properties identical on all seven — `font-size: 16px`, `font-weight: 500`, `line-height: 22px`, all four margins `0px` |
 
 The margin row is the one that could have gone the other way. `text-base` and
 `font-medium` override the UA size and weight from the class list itself, but
@@ -225,7 +225,7 @@ identical 352×22 box inside an identical 384×114 card, and the same 18 compute
 properties.
 
 One difference exists and it is worth writing down rather than discovering
-later. `<svelte:element>` places its child anchor comment *before* the content
+later. `<svelte:element>` places its child anchor comment _before_ the content
 where a static `<div>` places it after, so the div-mode inner HTML went from
 `Estate summary<!---->` to `<!---->Estate summary`. It is an empty comment node:
 invisible to layout, to the cascade (comments are not elements, so `:first-child`
@@ -234,13 +234,12 @@ is unaffected) and to the accessibility tree, all three measured above. Only an
 
 The two-branch `{#if level}` alternative was built and measured too, rather than
 reasoned about, and it is worse on exactly the criterion this change is held to.
-It keeps the div's comment where it was, but adds a block anchor *outside* the
+It keeps the div's comment where it was, but adds a block anchor _outside_ the
 element (`<!----><!---->` before, `<!---->` after in the parent), and it still
 emits `<!---->Estate summary` in the heading branch — so heading and div are NOT
 inner-markup identical under it, which is the parity the prop exists to promise.
 The single `<svelte:element>` gives that parity, adds nothing to the parent, and
 leaves the class list and rest props with only one place to be written.
-
 
 ## The overlay transitions (`?surface=overlays`)
 
@@ -253,13 +252,13 @@ gate proves a rule exists and what selector it carries; only an engine proves th
 rule reaches an element that has actually opened, and jsdom resolves no
 animation at all.
 
-| Claim | Observed |
-| --- | --- |
-| Each overlay opens at all | dialogue, menu, popover, select: content visible |
-| bits-ui marks the content `data-state="open"` | `open` on all four |
-| The enter animation resolves, not `none` | `animation-name: enter` on all four |
-| It has a real duration | `0.1s` (dialogue, menu, select), `0.15s` (popover) |
-| Nothing throws | no page errors |
+| Claim                                         | Observed                                           |
+| --------------------------------------------- | -------------------------------------------------- |
+| Each overlay opens at all                     | dialogue, menu, popover, select: content visible   |
+| bits-ui marks the content `data-state="open"` | `open` on all four                                 |
+| The enter animation resolves, not `none`      | `animation-name: enter` on all four                |
+| It has a real duration                        | `0.1s` (dialogue, menu, select), `0.15s` (popover) |
+| Nothing throws                                | no page errors                                     |
 
 ### What this caught
 
@@ -286,12 +285,12 @@ combinations: a plain page wrapper and an `mx-auto` one, each holding either a
 wide table (`content=table`, which carries its own scroller) or an unbreakable
 string (`content=word`, which has none). Scripted in `drive.mjs`.
 
-| Claim | Observed |
-| --- | --- |
-| The content container is exactly the content box | container `clientWidth` == `<main>` `clientWidth`, all 8 combinations |
-| A wide table does not scroll the region sideways | `main.scrollWidth == clientWidth`, +0px, all 4 table combinations |
-| The wide table scrolls inside its own container | true, all 4 |
-| *(recorded, not asserted)* the document-level check | `documentElement.scrollWidth == innerWidth` — green in **every** case, including the ones carrying 180px and 235px of real region overflow |
+| Claim                                               | Observed                                                                                                                                   |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| The content container is exactly the content box    | container `clientWidth` == `<main>` `clientWidth`, all 8 combinations                                                                      |
+| A wide table does not scroll the region sideways    | `main.scrollWidth == clientWidth`, +0px, all 4 table combinations                                                                          |
+| The wide table scrolls inside its own container     | true, all 4                                                                                                                                |
+| _(recorded, not asserted)_ the document-level check | `documentElement.scrollWidth == innerWidth` — green in **every** case, including the ones carrying 180px and 235px of real region overflow |
 
 ### What this settled, against the obvious reading
 
@@ -325,16 +324,16 @@ lucky constant: a static `max-h-96` passes at 800 and fails at 560, and the
 bits-ui variable passes at both. The numbers below are the fixed build; the
 figures in brackets are the same measurement before the fix.
 
-| Overlay | Content bottom vs window | Scroller | Last row reached |
-| --- | --- | --- | --- |
-| select @ 800 | 800 vs 800 *(was 1068)* | viewport `scrollHeight` 1008 > `clientHeight` 716 *(was 1008 == 1008)* | top 772 after 292px *(was 1040, unreachable)* |
-| select @ 560 | 560 vs 560 *(was 1068)* | 1008 > 476 | top 532 after 532px |
-| dropdown menu @ 800 | 800 vs 800 *(was 1070)* | 1016 > 746 *(was 1016 == 1016)* | top 767 after 270px *(was 1037)* |
-| dropdown menu @ 560 | 560 vs 560 *(was 1070)* | 1016 > 506 | top 527 after 510px |
-| popover @ 800 | 800 vs 800 *(was 906)* | 896 > 746 *(was 896 == 896)* | top 759 after 150px *(was 865)* |
-| popover @ 560 | 560 vs 560 *(was 906)* | 896 > 506 | top 519 after 390px |
-| command list @ 800 | 595 vs 800 *(unchanged)* | 1188 > 288 *(unchanged)* | top 559 after 900px *(unchanged)* |
-| command list @ 560 | 515 vs 560 *(unchanged)* | 1188 > 288 *(unchanged)* | top 479 after 900px *(unchanged)* |
+| Overlay             | Content bottom vs window | Scroller                                                               | Last row reached                              |
+| ------------------- | ------------------------ | ---------------------------------------------------------------------- | --------------------------------------------- |
+| select @ 800        | 800 vs 800 _(was 1068)_  | viewport `scrollHeight` 1008 > `clientHeight` 716 _(was 1008 == 1008)_ | top 772 after 292px _(was 1040, unreachable)_ |
+| select @ 560        | 560 vs 560 _(was 1068)_  | 1008 > 476                                                             | top 532 after 532px                           |
+| dropdown menu @ 800 | 800 vs 800 _(was 1070)_  | 1016 > 746 _(was 1016 == 1016)_                                        | top 767 after 270px _(was 1037)_              |
+| dropdown menu @ 560 | 560 vs 560 _(was 1070)_  | 1016 > 506                                                             | top 527 after 510px                           |
+| popover @ 800       | 800 vs 800 _(was 906)_   | 896 > 746 _(was 896 == 896)_                                           | top 759 after 150px _(was 865)_               |
+| popover @ 560       | 560 vs 560 _(was 906)_   | 896 > 506                                                              | top 519 after 390px                           |
+| command list @ 800  | 595 vs 800 _(unchanged)_ | 1188 > 288 _(unchanged)_                                               | top 559 after 900px _(unchanged)_             |
+| command list @ 560  | 515 vs 560 _(unchanged)_ | 1188 > 288 _(unchanged)_                                               | top 479 after 900px _(unchanged)_             |
 
 Select also asserts that `SelectScrollDownButton` renders at all. bits-ui mounts
 it only while `viewportNode.scrollHeight - clientHeight > 0`, so on the broken
@@ -420,11 +419,11 @@ Method, because the number is only worth as much as how it was taken:
 - **The theme is waited on, never assumed.** Which one is on screen is the
   load-bearing fact of the whole section.
 
-| Palette (light) | Active label BEFORE | AFTER | As a fill (the documented constraint) |
-| --- | --- | --- | --- |
-| package default `oklch(0.50 0.155 250)` | 4.55:1 | **12.60:1** | 5.75:1 ✓ |
-| warm amber `oklch(0.75 0.11 75)` | **1.90:1** | **13.87:1** | 7.69:1 ✓ |
-| saturated blue `oklch(0.62 0.18 250)` | **2.87:1** | **13.00:1** | 5.00:1 ✓ |
+| Palette (light)                         | Active label BEFORE | AFTER       | As a fill (the documented constraint) |
+| --------------------------------------- | ------------------- | ----------- | ------------------------------------- |
+| package default `oklch(0.50 0.155 250)` | 4.55:1              | **12.60:1** | 5.75:1 ✓                              |
+| warm amber `oklch(0.75 0.11 75)`        | **1.90:1**          | **13.87:1** | 7.69:1 ✓                              |
+| saturated blue `oklch(0.62 0.18 250)`   | **2.87:1**          | **13.00:1** | 5.00:1 ✓                              |
 
 Both fixtures satisfy the documented contract comfortably and were illegible
 anyway — which is the entire argument for fixing it in the package. Dark mode
@@ -432,16 +431,16 @@ never failed (6.05–8.21:1 before) and is now 12.45–13.13:1. The nav badge wa
 worst of the three, at 1.73:1 under the amber palette and 3.72:1 on the package
 default; it is now 9.09–12.63:1.
 
-| Claim | Why jsdom cannot make it | Gated at |
-| --- | --- | --- |
-| The fixture palette clears AA as a FILL | unresolved `var(--…)` | ≥4.5:1 — if this fails the FIXTURE is wrong, not the shell |
-| The active nav label clears AA on its chrome | no stylesheet, no `color-mix` resolution | ≥4.5:1 |
-| The nav badge count clears AA on its tint | as above, over two stacked tints | ≥4.5:1 |
-| The active state does not rest on the indicator alone | no cascade, no computed weight | `aria-current="page"` **and** weight 400→500 **and** ink differs |
-| The brand indicator against the chrome | — | recorded, not gated (see below) |
-| An inverted chrome moves the nav ink | a cascade fact — needs an engine | ink ≠ the page's own, and ≥4.5:1 on the inverted chrome |
-| …and does NOT drag a secondary nav with it (`?sidebar=1`) | as above | a route-scoped column stays exactly on the page's own ink |
-| The resting nav label clears AA | unresolved `var(--…)` | ≥4.5:1 |
+| Claim                                                     | Why jsdom cannot make it                 | Gated at                                                         |
+| --------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
+| The fixture palette clears AA as a FILL                   | unresolved `var(--…)`                    | ≥4.5:1 — if this fails the FIXTURE is wrong, not the shell       |
+| The active nav label clears AA on its chrome              | no stylesheet, no `color-mix` resolution | ≥4.5:1                                                           |
+| The nav badge count clears AA on its tint                 | as above, over two stacked tints         | ≥4.5:1                                                           |
+| The active state does not rest on the indicator alone     | no cascade, no computed weight           | `aria-current="page"` **and** weight 400→500 **and** ink differs |
+| The brand indicator against the chrome                    | —                                        | recorded, not gated (see below)                                  |
+| An inverted chrome moves the nav ink                      | a cascade fact — needs an engine         | ink ≠ the page's own, and ≥4.5:1 on the inverted chrome          |
+| …and does NOT drag a secondary nav with it (`?sidebar=1`) | as above                                 | a route-scoped column stays exactly on the page's own ink        |
+| The resting nav label clears AA                           | unresolved `var(--…)`                    | ≥4.5:1                                                           |
 
 **Why the indicator bar is recorded and not gated.** WCAG 1.4.11 holds a state
 indicator to 3:1 only when the state is not conveyed some other way. Here it is
@@ -496,11 +495,11 @@ painted into the canvas and compared as pixels.
 Three avatars driven over the real network: a URL that 404s, an inline image
 that decodes, and no source at all. Scripted in `drive.mjs`.
 
-| Claim | Observed |
-| --- | --- |
+| Claim                                                   | Observed                                                                  |
+| ------------------------------------------------------- | ------------------------------------------------------------------------- |
 | A source that cannot resolve falls back to the initials | `data-status="error"`, image `display: none`, fallback shown reading `OP` |
-| A source that resolves takes over | `data-status="loaded"`, image `display: block`, fallback `display: none` |
-| No source at all still shows the initials | fallback shown reading `OP` |
+| A source that resolves takes over                       | `data-status="loaded"`, image `display: block`, fallback `display: none`  |
+| No source at all still shows the initials               | fallback shown reading `OP`                                               |
 
 jsdom loads no resources, so its half of this (`src/test/avatar.test.ts`) stubs
 `Image` to fire the events bits-ui listens for. This is the leg where the request
@@ -523,11 +522,11 @@ page default, a subtree overriding every `--ds-color-*` key those utilities
 read to one colour, and a subtree carrying a scoped `.dark` class. Scripted in
 `drive.mjs`.
 
-| Claim | Observed |
-| --- | --- |
+| Claim                                                                              | Observed                                           |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------- |
 | The scoped `--ds-color-*` override reaches every utility in the subtree, uniformly | all eight slots resolve to the one override colour |
-| That is a genuine move, not a coincidence | none of the eight match the unscoped page default |
-| A scoped `.dark` wrapper moves the whole surface within it | none of the eight stay at the light root's value |
+| That is a genuine move, not a coincidence                                          | none of the eight match the unscoped page default  |
+| A scoped `.dark` wrapper moves the whole surface within it                         | none of the eight stay at the light root's value   |
 
 ### What this caught
 
@@ -550,11 +549,11 @@ resolve a `font-family` at all (`src/test/composed-chrome.test.ts` covers the
 class-name half only). Two panels, one per supported setting. Scripted in
 `drive.mjs`.
 
-| Claim | Observed |
-| --- | --- |
+| Claim                                                       | Observed                                                                          |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | Default (`titleFace` omitted) resolves the mono/code family | `"JetBrains Mono", "JetBrains Mono Variable", ui-monospace, "SF Mono", monospace` |
-| `titleFace="display"` resolves the display family | `Fraunces, ui-serif, Georgia, serif` |
-| The two settings resolve to different families | asserted directly, not inferred from the two rows above |
+| `titleFace="display"` resolves the display family           | `Fraunces, ui-serif, Georgia, serif`                                              |
+| The two settings resolve to different families              | asserted directly, not inferred from the two rows above                           |
 
 ## Console-dashboard primitives (`?surface=console`) — design-system#15
 
@@ -567,11 +566,11 @@ point coordinate) need no CSS resolution and are proved under jsdom in
 are scripted here. Scorecard and Sparkline render on this surface for visual
 completeness but carry no scripted check of their own.
 
-| Claim | Why jsdom cannot make it | Observed |
-| --- | --- | --- |
-| ArcGauge's `stroke` resolves to a real colour per tone (success/warning/error), not the unresolved `var(--ds-color-status-*)` literal | jsdom returns the literal and calls it a pass | three distinct resolved `rgb(...)` values |
-| StatusBadge's new `primary` chip/dot resolve to a real colour, distinct from every shared five-state chip's | same — and `primary` is not in the shared `Status` type, so nothing else proves it paints at all | `--ds-color-primary`'s resolved colour, different from success/warning/error/info/neutral |
-| BarRow's fill genuinely covers the percentage of its track `pct` asked for | jsdom has no layout, so "42% wide" and "0% wide with a `width: 42%` string" measure identically | fill/track `getBoundingClientRect()` ratio within 2% of 42% |
+| Claim                                                                                                                                 | Why jsdom cannot make it                                                                         | Observed                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| ArcGauge's `stroke` resolves to a real colour per tone (success/warning/error), not the unresolved `var(--ds-color-status-*)` literal | jsdom returns the literal and calls it a pass                                                    | three distinct resolved `rgb(...)` values                                                 |
+| StatusBadge's new `primary` chip/dot resolve to a real colour, distinct from every shared five-state chip's                           | same — and `primary` is not in the shared `Status` type, so nothing else proves it paints at all | `--ds-color-primary`'s resolved colour, different from success/warning/error/info/neutral |
+| BarRow's fill genuinely covers the percentage of its track `pct` asked for                                                            | jsdom has no layout, so "42% wide" and "0% wide with a `width: 42%` string" measure identically  | fill/track `getBoundingClientRect()` ratio within 2% of 42%                               |
 
 ## The Svelte/bits-ui pairing (no surface — a sweep)
 
@@ -584,13 +583,13 @@ It was swept before being encoded, in an isolated project holding nothing but
 `bits-ui@2.18.1`, one Svelte version, and the four overlay families, driven in a
 real browser:
 
-| Svelte | dialogue | menu | popover | select |
-| --- | --- | --- | --- | --- |
-| 5.30.0, 5.32.0 | open | open | open | open |
-| 5.33.0, 5.50.0, 5.51.0, 5.52.0 | open | open | open | open |
-| 5.53.0, 5.53.4, **5.53.5**, 5.53.6, 5.53.13 | open | open | open | open |
-| 5.54.0, 5.54.1, 5.55.0, 5.55.10 | open | open | open | open |
-| 5.56.0, **5.56.2**, 5.56.8 | open | open | open | open |
+| Svelte                                      | dialogue | menu | popover | select |
+| ------------------------------------------- | -------- | ---- | ------- | ------ |
+| 5.30.0, 5.32.0                              | open     | open | open    | open   |
+| 5.33.0, 5.50.0, 5.51.0, 5.52.0              | open     | open | open    | open   |
+| 5.53.0, 5.53.4, **5.53.5**, 5.53.6, 5.53.13 | open     | open | open    | open   |
+| 5.54.0, 5.54.1, 5.55.0, 5.55.10             | open     | open | open    | open   |
+| 5.56.0, **5.56.2**, 5.56.8                  | open     | open | open    | open   |
 
 Every version opened every overlay. The same sweep under jsdom agreed. A
 duplicate-instance hypothesis — two live Svelte copies in one graph, the classic
