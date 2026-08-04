@@ -18,11 +18,13 @@ differs by palette only (`master-project#174`, WP-51). `@poodle64/design-tokens`
 
 ## Publishing
 
-Public repo (GitHub Packages needs it for the household's consumption story); CI runs on GitHub-hosted runners, not the self-hosted `atlas` runner every other repo defaults to (`10-ci-workflow-standard.md` deviation, recorded in `.github/workflows/publish.yaml`). Auth is `secrets.GITHUB_TOKEN` — GitHub Actions mints it per run, so no human credential exists anywhere in the publish path.
+Public repo, published to **public npm** (`registry.npmjs.org`) under the `@poodle64` scope — no consumer auth token, no `.npmrc`. CI runs on GitHub-hosted runners, not the self-hosted `atlas` runner every other repo defaults to (`10-ci-workflow-standard.md` deviation, recorded in `.github/workflows/publish.yaml`). Auth for the publish step is `secrets.NPM_TOKEN`, an npm automation token for the `@poodle64` org — the workflow's "Require NPM_TOKEN" step fails fast with a clear message if it is unset, rather than a bare 401 from `npm publish`.
 
-Tags are **per-package** so each releases on its own cadence: `design-tokens-v<version>` publishes `@poodle64/design-tokens`, `ui-v<version>` publishes `@poodle64/ui`. `publish.yaml` resolves the package directory from the tag prefix, re-runs that package's build/test, verifies the tag version matches that package's `package.json`, and `npm publish`es from the package directory. Both are **live and published** to GitHub Packages under the `@poodle64` scope and consumed by ordinary `^2026.7.x` version specs. The retired repo-wide `v<version>` scheme (tags `v2026.7.0`–`v2026.7.2`) no longer triggers anything.
+Moved off GitHub Packages 2026-08-04: GitHub Packages' npm registry requires an authenticated request for every install, public packages included, so a consumer with no token configured could not `pnpm add` these packages — this broke onboarding at least twice (a collaborator machine with no `~/.npmrc`, and a previous collaborator before them).
 
-A consumer needs `@poodle64:registry=https://npm.pkg.github.com` in its `.npmrc` plus a token with `read:packages`; `@poodle64/ui` also needs its peers installed (`svelte`, `bits-ui`, and — where the sonner/theme components are used — `svelte-sonner` and `mode-watcher`).
+Tags are **per-package** so each releases on its own cadence: `design-tokens-v<version>` publishes `@poodle64/design-tokens`, `ui-v<version>` publishes `@poodle64/ui`. `publish.yaml` resolves the package directory from the tag prefix, re-runs that package's build/test, verifies the tag version matches that package's `package.json`, and `npm publish`es from the package directory. Both are **live and published** to public npm under the `@poodle64` scope and consumed by ordinary `^2026.7.x` version specs. The retired repo-wide `v<version>` scheme (tags `v2026.7.0`–`v2026.7.2`) no longer triggers anything.
+
+A consumer just `pnpm add`s the package — no registry config, no `.npmrc`, no token; `@poodle64/ui` also needs its peers installed (`svelte`, `bits-ui`, and — where the sonner/theme components are used — `svelte-sonner` and `mode-watcher`).
 
 ## Key Reminders
 

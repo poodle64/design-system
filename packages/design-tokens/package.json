@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": "github:poodle64/design-system",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
+    "registry": "https://registry.npmjs.org",
     "access": "public"
   },
   "files": [

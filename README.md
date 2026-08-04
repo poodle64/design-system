@@ -19,8 +19,9 @@ packages/
                      layer is active. See packages/ui/README.md.
 ```
 
-Both packages publish to GitHub Packages under the `@poodle64` scope. See each
-package's own README for its contents, consumption snippet, and release process.
+Both packages publish to public npm under the `@poodle64` scope — no registry
+config and no auth token needed to install either one. See each package's own
+README for its contents, consumption snippet, and release process.
 
 WP-51 background: `docs/development/wp51-canonical-shape.md` and
 `docs/master/templates/golden-patterns/app-shape-and-frontend.md` in
