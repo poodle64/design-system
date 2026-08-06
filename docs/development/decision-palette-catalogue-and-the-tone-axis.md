@@ -61,9 +61,14 @@ Its whole ladder scales the same way (background ×5, muted ×2.7, border ×3.2)
 A palette is **two knobs, and cannot express a third**:
 
 - **accent** — `--ds-color-primary` per mode, already sanctioned. Its
-  `-foreground` pair is _derived_ at build time (near-ink or near-white at the
-  accent's own hue, whichever measures better), so an illegible pair is
-  unrepresentable rather than merely caught.
+  `-foreground` pair is _derived_ at build time by `accentForeground()` in
+  `sd.config.js` (near-ink or near-white at the accent's own hue, whichever
+  measures better against it). The catalogue carries no `foreground` field at
+  all, so an illegible pair is unrepresentable rather than merely caught. That
+  distinction is load-bearing and was got wrong once: this document originally
+  claimed the derivation while the values were in fact hand-authored, which
+  adversarial review caught. `test/palettes.test.js` now asserts the emitted
+  value is one of the two candidates, so the claim has its own gate.
 - **tone** — a hue plus a per-mode chroma **scale**, applied to the neutral
   ladder in `tokens.tokens.json`. Every surface a palette emits is computed from
   that ladder at build time.
@@ -168,6 +173,7 @@ what a browser will actually resolve.
 | Claim                                                                             | Gate                                                       |
 | --------------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | A palette keeps the ladder's lightness exactly                                    | `packages/design-tokens/test/palettes.test.js`             |
+| The accent's label colour is derived, never authorable                            | same                                                       |
 | A palette invents no token, and reaches nothing beyond the sanctioned set         | same                                                       |
 | The status vocabulary is invariant                                                | same, and re-asserted from resolved colour in the browser  |
 | A palette block outranks `tokens.css` whatever the import order                   | same (specificity is `:root[data-…]`, not source position) |
