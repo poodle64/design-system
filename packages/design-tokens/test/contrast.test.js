@@ -31,27 +31,31 @@ const darkBlock = css.slice(darkStart);
 
 /** The declared value of `--ds-color-<name>` within `block`. */
 function colourValue(block, name) {
-  const match = new RegExp(`--ds-color-${name}:\\s*(oklch\\([^)]*\\))`).exec(block);
-  if (!match) throw new Error(`--ds-color-${name} not found in the expected block`);
-  return match[1];
+	const match = new RegExp(`--ds-color-${name}:\\s*(oklch\\([^)]*\\))`).exec(block);
+	if (!match) throw new Error(`--ds-color-${name} not found in the expected block`);
+	return match[1];
 }
 
 const SURFACES = ['background', 'surface-1', 'surface-2', 'surface-3'];
 
 for (const [mode, block] of [
-  ['light', lightBlock],
-  ['dark', darkBlock]
+	['light', lightBlock],
+	['dark', darkBlock]
 ]) {
-  const mutedForeground = colourValue(block, 'muted-foreground');
+	const mutedForeground = colourValue(block, 'muted-foreground');
 
-  test(`muted-foreground clears AA (${AA_NORMAL_TEXT}:1) against every ${mode} surface`, () => {
-    const failing = [];
-    for (const surface of SURFACES) {
-      const ratio = contrastRatio(mutedForeground, colourValue(block, surface));
-      if (ratio < AA_NORMAL_TEXT) {
-        failing.push(`${surface}: ${ratio.toFixed(2)}:1`);
-      }
-    }
-    assert.deepEqual(failing, [], `muted-foreground (${mode}) fails AA against: ${failing.join(', ')}`);
-  });
+	test(`muted-foreground clears AA (${AA_NORMAL_TEXT}:1) against every ${mode} surface`, () => {
+		const failing = [];
+		for (const surface of SURFACES) {
+			const ratio = contrastRatio(mutedForeground, colourValue(block, surface));
+			if (ratio < AA_NORMAL_TEXT) {
+				failing.push(`${surface}: ${ratio.toFixed(2)}:1`);
+			}
+		}
+		assert.deepEqual(
+			failing,
+			[],
+			`muted-foreground (${mode}) fails AA against: ${failing.join(', ')}`
+		);
+	});
 }

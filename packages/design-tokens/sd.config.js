@@ -45,46 +45,46 @@ import { fileHeader } from 'style-dictionary/utils';
  * need a specific mode's value.
  */
 const dsName = (parts) => {
-  const trimmed = parts[0] === 'semantic' ? parts.slice(1) : parts;
-  const mapped = trimmed.map((p) => (p === 'colour' ? 'color' : p));
-  const last = mapped[mapped.length - 1];
-  const mode = last === 'light' || last === 'dark' ? last : null;
-  return {
-    name: (mode ? mapped.slice(0, -1) : mapped).join('-'),
-    mode,
-  };
+	const trimmed = parts[0] === 'semantic' ? parts.slice(1) : parts;
+	const mapped = trimmed.map((p) => (p === 'colour' ? 'color' : p));
+	const last = mapped[mapped.length - 1];
+	const mode = last === 'light' || last === 'dark' ? last : null;
+	return {
+		name: (mode ? mapped.slice(0, -1) : mapped).join('-'),
+		mode
+	};
 };
 
 /** Depth-first walk over the resolved token tree, yielding [pathParts, node]. */
 const leaves = (tokens, path = []) => {
-  const out = [];
-  for (const [key, node] of Object.entries(tokens)) {
-    if (key.startsWith('$') || (path.length === 0 && key === 'meta')) continue;
-    if (node && node.$value !== undefined) out.push([[...path, key], node]);
-    else if (node && typeof node === 'object') out.push(...leaves(node, [...path, key]));
-  }
-  return out;
+	const out = [];
+	for (const [key, node] of Object.entries(tokens)) {
+		if (key.startsWith('$') || (path.length === 0 && key === 'meta')) continue;
+		if (node && node.$value !== undefined) out.push([[...path, key], node]);
+		else if (node && typeof node === 'object') out.push(...leaves(node, [...path, key]));
+	}
+	return out;
 };
 
 // ---------------------------------------------------------------------------
 // Custom format: scoped CSS custom properties with .dark overrides
 // ---------------------------------------------------------------------------
 StyleDictionary.registerFormat({
-  name: 'css/ds-variables',
-  format: async ({ dictionary, file }) => {
-    const header = await fileHeader({ file });
-    const rootLines = [];
-    const darkLines = [];
+	name: 'css/ds-variables',
+	format: async ({ dictionary, file }) => {
+		const header = await fileHeader({ file });
+		const rootLines = [];
+		const darkLines = [];
 
-    for (const [parts, node] of leaves(dictionary.tokens)) {
-      const { name, mode } = dsName(parts);
-      const line = `  --ds-${name}: ${node.$value};`;
-      if (mode === 'dark') darkLines.push(line);
-      else rootLines.push(line);
-    }
+		for (const [parts, node] of leaves(dictionary.tokens)) {
+			const { name, mode } = dsName(parts);
+			const line = `  --ds-${name}: ${node.$value};`;
+			if (mode === 'dark') darkLines.push(line);
+			else rootLines.push(line);
+		}
 
-    return `${header}:root {\n${rootLines.join('\n')}\n}\n\n.dark {\n${darkLines.join('\n')}\n}\n`;
-  },
+		return `${header}:root {\n${rootLines.join('\n')}\n}\n\n.dark {\n${darkLines.join('\n')}\n}\n`;
+	}
 });
 
 // ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ const THEME_EXCLUDED_NAMESPACES = new Set(['spacing', 'font-size']);
 
 /** Whether `name` falls under one of `THEME_EXCLUDED_NAMESPACES`. */
 const isThemeExcluded = (name) =>
-  [...THEME_EXCLUDED_NAMESPACES].some((prefix) => name === prefix || name.startsWith(`${prefix}-`));
+	[...THEME_EXCLUDED_NAMESPACES].some((prefix) => name === prefix || name.startsWith(`${prefix}-`));
 
 /**
  * Colour registration is `@theme inline`; radius/text/font stay plain `@theme`
@@ -152,108 +152,106 @@ const isThemeExcluded = (name) =>
  * and no reason to touch their (working) by-name lever.
  */
 StyleDictionary.registerFormat({
-  name: 'css/tailwind-v4-theme',
-  format: async ({ dictionary, file }) => {
-    const header = await fileHeader({ file });
-    const colourLines = [];
-    const otherLines = [];
-    const seen = new Set();
+	name: 'css/tailwind-v4-theme',
+	format: async ({ dictionary, file }) => {
+		const header = await fileHeader({ file });
+		const colourLines = [];
+		const otherLines = [];
+		const seen = new Set();
 
-    for (const [parts] of leaves(dictionary.tokens)) {
-      if (parts[0] !== 'semantic') continue; // palette primitives stay out of @theme
-      const { name } = dsName(parts);
-      if (isThemeExcluded(name)) continue;
-      if (seen.has(name)) continue; // light/dark pairs collapse to one alias
-      seen.add(name);
+		for (const [parts] of leaves(dictionary.tokens)) {
+			if (parts[0] !== 'semantic') continue; // palette primitives stay out of @theme
+			const { name } = dsName(parts);
+			if (isThemeExcluded(name)) continue;
+			if (seen.has(name)) continue; // light/dark pairs collapse to one alias
+			seen.add(name);
 
-      // Alias the live --ds-* custom property so .dark toggling and a scoped
-      // subtree override both flow through @theme utilities automatically.
-      // The normalised name already carries its Tailwind namespace
-      // (color-*, radius-*, text-*, font-*).
-      const line = `  --${name}: var(--ds-${name});`;
-      if (parts[1] === 'colour') colourLines.push(line);
-      else otherLines.push(line);
-    }
+			// Alias the live --ds-* custom property so .dark toggling and a scoped
+			// subtree override both flow through @theme utilities automatically.
+			// The normalised name already carries its Tailwind namespace
+			// (color-*, radius-*, text-*, font-*).
+			const line = `  --${name}: var(--ds-${name});`;
+			if (parts[1] === 'colour') colourLines.push(line);
+			else otherLines.push(line);
+		}
 
-    // Default Tailwind family hooks so font-sans / font-serif / font-mono
-    // resolve to the binding families without per-app wiring.
-    otherLines.push('  --font-sans: var(--ds-font-body);');
-    otherLines.push('  --font-serif: var(--ds-font-display);');
-    otherLines.push('  --font-mono: var(--ds-font-code);');
+		// Default Tailwind family hooks so font-sans / font-serif / font-mono
+		// resolve to the binding families without per-app wiring.
+		otherLines.push('  --font-sans: var(--ds-font-body);');
+		otherLines.push('  --font-serif: var(--ds-font-display);');
+		otherLines.push('  --font-mono: var(--ds-font-code);');
 
-    return `${header}@theme {\n${otherLines.join('\n')}\n}\n\n@theme inline {\n${colourLines.join('\n')}\n}\n`;
-  },
+		return `${header}@theme {\n${otherLines.join('\n')}\n}\n\n@theme inline {\n${colourLines.join('\n')}\n}\n`;
+	}
 });
 
 // ---------------------------------------------------------------------------
 // Custom formats: JS constants + type declarations (DS_* names)
 // ---------------------------------------------------------------------------
 const constEntries = (dictionary) =>
-  leaves(dictionary.tokens).map(([parts, node]) => {
-    const trimmed = parts[0] === 'semantic' ? parts.slice(1) : parts;
-    const mapped = trimmed.map((p) => (p === 'colour' ? 'color' : p));
-    const constName = `DS_${mapped.join('_').toUpperCase().replace(/-/g, '_')}`;
-    return [constName, node.$value];
-  });
+	leaves(dictionary.tokens).map(([parts, node]) => {
+		const trimmed = parts[0] === 'semantic' ? parts.slice(1) : parts;
+		const mapped = trimmed.map((p) => (p === 'colour' ? 'color' : p));
+		const constName = `DS_${mapped.join('_').toUpperCase().replace(/-/g, '_')}`;
+		return [constName, node.$value];
+	});
 
 StyleDictionary.registerFormat({
-  name: 'js/ds-constants',
-  format: async ({ dictionary, file }) => {
-    const header = await fileHeader({ file });
-    const lines = constEntries(dictionary).map(
-      ([name, value]) => `export const ${name} = ${JSON.stringify(value)};`,
-    );
-    return `${header}// Source: tokens/tokens.tokens.json\n\n${lines.join('\n')}\n`;
-  },
+	name: 'js/ds-constants',
+	format: async ({ dictionary, file }) => {
+		const header = await fileHeader({ file });
+		const lines = constEntries(dictionary).map(
+			([name, value]) => `export const ${name} = ${JSON.stringify(value)};`
+		);
+		return `${header}// Source: tokens/tokens.tokens.json\n\n${lines.join('\n')}\n`;
+	}
 });
 
 StyleDictionary.registerFormat({
-  name: 'ts/ds-declarations',
-  format: async ({ dictionary, file }) => {
-    const header = await fileHeader({ file });
-    const lines = constEntries(dictionary).map(
-      ([name, value]) => `export declare const ${name}: ${JSON.stringify(value)};`,
-    );
-    return `${header}${lines.join('\n')}\n`;
-  },
+	name: 'ts/ds-declarations',
+	format: async ({ dictionary, file }) => {
+		const header = await fileHeader({ file });
+		const lines = constEntries(dictionary).map(
+			([name, value]) => `export declare const ${name}: ${JSON.stringify(value)};`
+		);
+		return `${header}${lines.join('\n')}\n`;
+	}
 });
 
 // ---------------------------------------------------------------------------
 // Style Dictionary configuration
 // ---------------------------------------------------------------------------
 export default {
-  source: ['tokens/tokens.tokens.json'],
+	source: ['tokens/tokens.tokens.json'],
 
-  platforms: {
-    css: {
-      transformGroup: 'css',
-      buildPath: 'dist/',
-      files: [
-        { destination: 'tokens.css', format: 'css/ds-variables' },
-      ],
-    },
+	platforms: {
+		css: {
+			transformGroup: 'css',
+			buildPath: 'dist/',
+			files: [{ destination: 'tokens.css', format: 'css/ds-variables' }]
+		},
 
-    tw: {
-      transformGroup: 'css',
-      buildPath: 'dist/',
-      files: [
-        {
-          destination: 'tokens.tw.css',
-          format: 'css/tailwind-v4-theme',
-        },
-      ],
-    },
+		tw: {
+			transformGroup: 'css',
+			buildPath: 'dist/',
+			files: [
+				{
+					destination: 'tokens.tw.css',
+					format: 'css/tailwind-v4-theme'
+				}
+			]
+		},
 
-    js: {
-      transformGroup: 'js',
-      buildPath: 'dist/',
-      files: [
-        { destination: 'tokens.js', format: 'js/ds-constants' },
-        {
-          destination: 'tokens.d.ts',
-          format: 'ts/ds-declarations',
-        },
-      ],
-    },
-  },
+		js: {
+			transformGroup: 'js',
+			buildPath: 'dist/',
+			files: [
+				{ destination: 'tokens.js', format: 'js/ds-constants' },
+				{
+					destination: 'tokens.d.ts',
+					format: 'ts/ds-declarations'
+				}
+			]
+		}
+	}
 };
