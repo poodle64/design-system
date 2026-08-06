@@ -17,7 +17,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { contrastRatio } from './contrast-math.js';
+import { contrastRatio } from '../lib/contrast-math.js';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const css = readFileSync(join(repoRoot, 'dist', 'tokens.css'), 'utf8');

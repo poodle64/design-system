@@ -141,7 +141,7 @@ an entry to `tokens/palettes.json` and passing both.
 
 Why this shape rather than the full semantic override the showcase used, and
 what widening the sanctioned surface to a tone does and does not license:
-`docs/decisions/0001-palette-catalogue-and-the-tone-axis.md`.
+`docs/development/decision-palette-catalogue-and-the-tone-axis.md`.
 
 ## Token architecture
 

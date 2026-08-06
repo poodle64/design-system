@@ -31,12 +31,12 @@ either repo and the reference is dropped rather than left dangling.
 
 ## Documentation
 
-| Document                           | Scope                                                                     |
-| ---------------------------------- | ------------------------------------------------------------------------- |
-| `packages/design-tokens/README.md` | Token source, binding constraints, the palette catalogue, consumption     |
-| `packages/ui/README.md`            | The component layer and its consumption snippet                           |
-| `packages/ui/harness/drive.md`     | What is verified in a real browser, and what each gate caught             |
-| `docs/decisions/`                  | Decision records for changes that move a constraint rather than apply one |
+| Document                           | Scope                                                                                                  |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `packages/design-tokens/README.md` | Token source, binding constraints, the palette catalogue, consumption                                  |
+| `packages/ui/README.md`            | The component layer and its consumption snippet                                                        |
+| `packages/ui/harness/drive.md`     | What is verified in a real browser, and what each gate caught                                          |
+| `docs/development/`                | Contributor notes, including decision records for changes that move a constraint rather than apply one |
 
 ## Workspace commands
 

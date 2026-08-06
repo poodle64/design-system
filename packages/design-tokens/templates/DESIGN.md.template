@@ -300,6 +300,14 @@ change and the easier one: it carries an accent AND a surface tone, and every
 palette in the catalogue is gated for WCAG AA contrast in both modes, which a
 hand-picked accent is not until someone checks it.
 
+Pick one or the other, and mean it. A palette block is
+`:root[data-ds-palette='…']`, which outranks a plain `:root { --ds-color-primary: … }`
+on specificity — so an app that adopts a palette and ALSO leaves an old primary
+override in `app.css` keeps a block that now does nothing, with no error, no
+lint and no failing test to say so. Delete the override when you adopt a
+palette; a dead declaration someone later "fixes" by changing its value is
+worse than no declaration at all.
+
 ```css
 @import "@poodle64/design-tokens/palettes.css"; /* after tokens.css */
 ```

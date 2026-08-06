@@ -32,6 +32,7 @@
 import StyleDictionary from 'style-dictionary';
 import { fileHeader } from 'style-dictionary/utils';
 import { readFileSync } from 'node:fs';
+import { contrastRatio, parseOklch } from './lib/contrast-math.js';
 
 /**
  * Normalise a token path to its public --ds-* name:
@@ -293,15 +294,40 @@ function retone(step, tone, mode) {
 	return `oklch(${step.l.toFixed(3)} ${c.toFixed(4)} ${h})`;
 }
 
+/**
+ * The label colour for an accent: near-ink or near-white at the accent's own
+ * hue, whichever measures better against it.
+ *
+ * DERIVED rather than declared, which is the whole reason a palette carries no
+ * `foreground` field. The catalogue was lifted from a showcase where thirteen
+ * of twenty accent pairs sat below the 4.5:1 AA fill floor — papyrus-gold at
+ * 2.20:1, nile-teal 2.63:1, scribes-amber 2.71:1, each pairing a light accent
+ * with a near-white label. Deriving here makes that shape unrepresentable
+ * instead of merely caught: there is no field an author could put a bad value
+ * in. `test/palettes.test.js` still asserts the floor, because "unrepresentable"
+ * is a claim about this function and wants its own check.
+ *
+ * The two candidates mirror `palette.primary.foreground-{light,dark}` in the
+ * token source, so a catalogued accent lands on the same pair shape a
+ * hand-picked one does.
+ */
+function accentForeground(primary) {
+	const [, , hue] = parseOklch(primary);
+	const h = hue.toFixed(1);
+	const onInk = `oklch(0.200 0.030 ${h})`;
+	const onPaper = `oklch(0.990 0.005 ${h})`;
+	return contrastRatio(primary, onPaper) >= contrastRatio(primary, onInk) ? onPaper : onInk;
+}
+
 /** Every `--ds-color-*` declaration one palette makes, in one mode. */
 function paletteDeclarations(tokens, palette, mode) {
 	const lines = [];
 	for (const [name, ref] of Object.entries(NEUTRAL_SURFACES[mode])) {
 		lines.push(`  --ds-color-${name}: ${retone(ladderStep(tokens, ref), palette.tone, mode)};`);
 	}
-	const { primary, foreground } = palette.accent[mode];
+	const { primary } = palette.accent[mode];
 	lines.push(`  --ds-color-primary: ${primary};`);
-	lines.push(`  --ds-color-primary-foreground: ${foreground};`);
+	lines.push(`  --ds-color-primary-foreground: ${accentForeground(primary)};`);
 	// `ring` follows primary in the token source; a palette must not split them.
 	lines.push(`  --ds-color-ring: ${primary};`);
 	return lines.join('\n');

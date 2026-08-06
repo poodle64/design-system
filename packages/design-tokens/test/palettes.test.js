@@ -27,7 +27,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { contrastRatio } from './contrast-math.js';
+import { contrastRatio } from '../lib/contrast-math.js';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const paletteCss = readFileSync(join(repoRoot, 'dist', 'palettes.css'), 'utf8');
@@ -204,6 +204,25 @@ for (const mode of ['light', 'dark']) {
 			}
 		}
 		assert.deepEqual(failing, [], `below the AA text floor:\n  ${failing.join('\n  ')}`);
+	});
+
+	test(`the accent's label colour is derived, not authorable — ${mode}`, () => {
+		// The catalogue has no `foreground` field: `sd.config.js`'s
+		// `accentForeground` computes it from the accent's own hue. This is what
+		// makes "an illegible pair is unrepresentable" a checked claim rather
+		// than a comment — if someone reintroduces an authored foreground, the
+		// emitted value stops being one of the two candidates and this fails.
+		for (const name of NAMES) {
+			const c = block(name, mode);
+			const [, , hue] = /oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)/.exec(c.primary).slice(1);
+			const h = Number(hue).toFixed(1);
+			assert.ok(
+				[`oklch(0.200 0.030 ${h})`, `oklch(0.990 0.005 ${h})`].includes(c['primary-foreground']),
+				`'${name}' (${mode}) has a primary-foreground that is not one of the two derived candidates at hue ${h}: ${c['primary-foreground']}`
+			);
+		}
+		const authored = JSON.stringify(source.palettes).includes('"foreground"');
+		assert.equal(authored, false, 'a palette declares a foreground; it must be derived instead');
 	});
 
 	test(`every palette's accent clears AA (${AA_NORMAL_TEXT}:1) as a fill — ${mode}`, () => {

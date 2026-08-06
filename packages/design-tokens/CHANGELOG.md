@@ -32,7 +32,7 @@ in one version. The number gets spent when an app adopts a palette.
   This does widen the sanctioned override surface from one knob to two, which
   is a governance change rather than an implementation detail; the argument,
   the measurement behind it, and what it does and does not license are in
-  `docs/decisions/0001-palette-catalogue-and-the-tone-axis.md`.
+  `docs/development/decision-palette-catalogue-and-the-tone-axis.md`.
 
 - **`test/palettes.test.js`** gates the catalogue: every palette keeps the
   ladder's lightness exactly, invents no token name, reaches nothing beyond the

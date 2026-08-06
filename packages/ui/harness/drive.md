@@ -497,7 +497,7 @@ painted into the canvas and compared as pixels.
 Twenty named OKLCH palettes, absorbed from the master project's standalone
 shadcn showcase, which had carried them since 2026-03-11 and predated both
 this package and `@poodle64/design-tokens` entirely (design-system#25; the
-reasoning is `docs/decisions/0001-palette-catalogue-and-the-tone-axis.md`). A
+reasoning is `docs/development/decision-palette-catalogue-and-the-tone-axis.md`). A
 palette here is two knobs — an **accent**, and a **tone** (a hue plus a
 per-mode chroma scale) — projected at build time through the neutral ladder
 in `tokens.tokens.json`. There is no field for a lightness, so the ladder's
