@@ -28,6 +28,7 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, 'dist');
@@ -82,6 +83,84 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 	await page.goto(`http://127.0.0.1:${PORT}/index.html?${query}`, { waitUntil: 'load' });
 	return { context, page, errors };
 }
+
+// `.ds-nav-item` transitions `color` over 150ms, and a custom-property swap
+// starts that transition. Reading `getComputedStyle` mid-flight returns the
+// INTERPOLATED colour — serialised as oklab, and still most of the way back at
+// the old hue — so the first run of the #11 gate measured the package default
+// while believing it was measuring the override. Every measurement taken
+// through this is of a settled resting state, so the transition is switched off
+// rather than waited out. The palette gate below depends on it even harder: it
+// swaps palettes on ONE page rather than reloading, so without this every
+// reading after the first would be mid-flight between two palettes.
+const SETTLE = '*, *::before, *::after { transition: none !important; animation: none !important; }';
+
+/**
+ * Everything a page needs to answer "what colour is actually painted here",
+ * injected as a real script tag: `page.evaluate` cannot close over module
+ * scope. Shared by the nav-ink gate (#11) and the palette catalogue gate (#25),
+ * which ask the same question of different surfaces.
+ */
+const PROBE = `
+(() => {
+const canvas = document.createElement('canvas');
+canvas.width = canvas.height = 1;
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+// Composite a bottom-to-top stack of CSS colours and read the resulting
+// opaque pixel. Letting the engine do it is the point: an oklch(), a
+// color-mix() result and an rgba() all parse and blend exactly as they do on
+// screen, so no colour-space or premultiplication assumption of ours can be
+// wrong. The white base only shows through if every layer is transparent,
+// which is the browser's own canvas default too.
+const composite = (layers) => {
+	ctx.clearRect(0, 0, 1, 1);
+	ctx.fillStyle = '#fff';
+	ctx.fillRect(0, 0, 1, 1);
+	for (const layer of layers) {
+		ctx.fillStyle = layer;
+		ctx.fillRect(0, 0, 1, 1);
+	}
+	const d = ctx.getImageData(0, 0, 1, 1).data;
+	return [d[0] / 255, d[1] / 255, d[2] / 255];
+};
+
+/** Every background between <html> and \`el\`, bottom first. */
+const stack = (el, includeSelf) => {
+	const layers = [];
+	for (let n = includeSelf ? el : el.parentElement; n; n = n.parentElement) {
+		layers.push(getComputedStyle(n).backgroundColor);
+	}
+	return layers.reverse();
+};
+
+const channel = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const luminance = ([r, g, b]) =>
+	0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+const contrast = (a, b) => {
+	const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+	return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
+};
+
+/** Contrast of an element's ink against everything painted behind it. */
+const inkRatio = (el, pseudo) => {
+	if (!el) return null;
+	const colour = getComputedStyle(el, pseudo ?? undefined).color;
+	const behind = stack(el, true);
+	return contrast(composite([...behind, colour]), composite(behind));
+};
+
+/** Contrast of an element's own fill against everything behind it. */
+const fillRatio = (el, pseudo) => {
+	if (!el) return null;
+	const fill = getComputedStyle(el, pseudo ?? undefined).backgroundColor;
+	const behind = stack(el, false);
+	return contrast(composite([...behind, fill]), composite(behind));
+};
+
+window.__probe = { composite, stack, contrast, inkRatio, fillRatio };
+})();
+`;
 
 // ── The overlay transitions (#6) ────────────────────────────────────────────
 // A class-name assertion passes today while the transition is dead, and jsdom
@@ -423,15 +502,6 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 		}
 	];
 
-	// `.ds-nav-item` transitions `color` over 150ms, and a custom-property swap
-	// starts that transition. Reading `getComputedStyle` mid-flight returns the
-	// INTERPOLATED colour — serialised as oklab, and still most of the way back
-	// at the old hue — so the first run of this gate measured the package
-	// default while believing it was measuring the override. Every measurement
-	// here is of a settled resting state, so the transition is switched off
-	// rather than waited out.
-	const SETTLE = '*, *::before, *::after { transition: none !important; animation: none !important; }';
-
 	/** The override a consuming app writes: the sanctioned surface, nothing else. */
 	function paletteCss(palette) {
 		if (!palette.light) return SETTLE;
@@ -443,70 +513,6 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 			`        --ds-color-primary-foreground: ${palette.dark.foreground}; }`
 		].join('\n');
 	}
-
-	// Everything the page needs to answer "what colour is actually painted
-	// here", injected as a real script tag: `page.evaluate` cannot close over
-	// module scope, and a probe the page owns can be reused by both passes below.
-	const PROBE = `
-	(() => {
-	const canvas = document.createElement('canvas');
-	canvas.width = canvas.height = 1;
-	const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-	// Composite a bottom-to-top stack of CSS colours and read the resulting
-	// opaque pixel. Letting the engine do it is the point: an oklch(), a
-	// color-mix() result and an rgba() all parse and blend exactly as they do on
-	// screen, so no colour-space or premultiplication assumption of ours can be
-	// wrong. The white base only shows through if every layer is transparent,
-	// which is the browser's own canvas default too.
-	const composite = (layers) => {
-		ctx.clearRect(0, 0, 1, 1);
-		ctx.fillStyle = '#fff';
-		ctx.fillRect(0, 0, 1, 1);
-		for (const layer of layers) {
-			ctx.fillStyle = layer;
-			ctx.fillRect(0, 0, 1, 1);
-		}
-		const d = ctx.getImageData(0, 0, 1, 1).data;
-		return [d[0] / 255, d[1] / 255, d[2] / 255];
-	};
-
-	/** Every background between <html> and \`el\`, bottom first. */
-	const stack = (el, includeSelf) => {
-		const layers = [];
-		for (let n = includeSelf ? el : el.parentElement; n; n = n.parentElement) {
-			layers.push(getComputedStyle(n).backgroundColor);
-		}
-		return layers.reverse();
-	};
-
-	const channel = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-	const luminance = ([r, g, b]) =>
-		0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-	const contrast = (a, b) => {
-		const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-		return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
-	};
-
-	/** Contrast of an element's ink against everything painted behind it. */
-	const inkRatio = (el, pseudo) => {
-		if (!el) return null;
-		const colour = getComputedStyle(el, pseudo ?? undefined).color;
-		const behind = stack(el, true);
-		return contrast(composite([...behind, colour]), composite(behind));
-	};
-
-	/** Contrast of an element's own fill against everything behind it. */
-	const fillRatio = (el, pseudo) => {
-		if (!el) return null;
-		const fill = getComputedStyle(el, pseudo ?? undefined).backgroundColor;
-		const behind = stack(el, false);
-		return contrast(composite([...behind, fill]), composite(behind));
-	};
-
-	window.__probe = { composite, stack, contrast, inkRatio, fillRatio };
-	})();
-	`;
 
 	for (const palette of PALETTES) {
 		const css = paletteCss(palette);
@@ -699,6 +705,204 @@ async function open(query, viewport = { width: 1440, height: 900 }, colorScheme 
 				measured.secondaryActive.ratio >= 4.5,
 			`resting ${measured.secondaryResting.rgb} at ${measured.secondaryResting.ratio}:1, active ${measured.secondaryActive.rgb} at ${measured.secondaryActive.ratio}:1 (page ink ${measured.pageMuted} / ${measured.pageInk}; the chrome's is ${measured.railActive.rgb})`
 		);
+		await context.close();
+	}
+}
+
+// ── The palette catalogue (#25) ─────────────────────────────────────────────
+// The master project's standalone shadcn showcase advertised "WCAG AA
+// compliance indicators" for its twenty palettes and never gated one of them.
+// Thirteen of its twenty accent pairs were below the 4.5:1 fill floor when they
+// were lifted into this package — papyrus-gold at 2.20:1, nile-teal 2.63:1,
+// scribes-amber 2.71:1, each pairing a light accent with a near-white
+// foreground — and zinc's `destructive-foreground` was byte-identical to its
+// `destructive`, a 1:1 label on a button. All of it rendered perfectly happily
+// for five months, because rendering was the only thing anyone checked.
+//
+// `test/palettes.test.js` in the token package now holds the arithmetic floor,
+// computed from the built stylesheet. This is the half it cannot reach: the
+// same colours COMPOSITED over the real ancestor stack, which for the nav is
+// three layers deep (a 12% tint over `bg-shell/80` over the page) and for a
+// card is the palette's own surface over its own ground. A palette can satisfy
+// the arithmetic against a flat surface and still be illegible on the surface a
+// component actually paints it on — that is precisely what #11 was.
+{
+	// One page per theme, palettes swapped on it by attribute. A fresh context
+	// per palette would be 40 loads for no gain: the whole claim is that a
+	// palette IS an attribute swap and nothing more, so driving it as one is
+	// closer to the thing under test, not a shortcut around it. SETTLE is what
+	// makes it sound — without it every reading after the first would be caught
+	// mid-transition between two palettes.
+	// Resolved through the package's own exports map rather than by guessing a
+	// node_modules path: the catalogue this gate measures has to be the one a
+	// consumer would get, and a hand-built path would keep working after the
+	// export was renamed or dropped.
+	const catalogue = JSON.parse(
+		readFileSync(createRequire(import.meta.url).resolve('@poodle64/design-tokens/palettes.json'), 'utf8')
+	).palettes;
+	const names = Object.keys(catalogue);
+	check('palette catalogue: the harness sees every catalogued palette', names.length === 20, `${names.length} palettes`);
+
+	const STATUS_SWATCHES = [
+		'status-success',
+		'status-warning',
+		'status-error',
+		'status-info',
+		'status-neutral'
+	];
+
+	/** Read every claim this gate makes, at whatever palette is currently set. */
+	const READ = () => {
+		const { inkRatio, composite, contrast } = window.__probe;
+		const q = (sel) => document.querySelector(sel);
+		const swatches = Object.fromEntries(
+			[...document.querySelectorAll('[data-swatch]')].map((el) => [
+				el.dataset.swatch,
+				getComputedStyle(el).backgroundColor
+			])
+		);
+
+		const active = q('.ds-nav-item[data-active="true"]');
+		const resting = q('.ds-nav-item:not([data-active])');
+		const badge = active?.querySelector('.ds-nav-badge');
+		const primaryButton = q('[data-probe="button-default-default"]');
+
+		return {
+			swatches,
+			// Ink on the ordinary page ground and on a card, which are the two
+			// surfaces a palette moves that an app's own copy actually sits on.
+			bodyInk: inkRatio(q('[data-probe="card-body"]')),
+			mutedInk: inkRatio(q('[data-probe="card-nested"] p')),
+			pageMutedInk: inkRatio(q('[data-probe="palette-strategy"]')),
+			// #11's claim, now under every catalogued palette rather than three
+			// hand-written fixtures.
+			activeNavInk: inkRatio(active),
+			restingNavInk: inkRatio(resting),
+			badgeInk: badge ? inkRatio(badge) : null,
+			// The documented fill constraint, measured on a REAL Button rather
+			// than a synthetic probe span: the claim is about the artefact a
+			// consumer installs, and only the component knows which utilities it
+			// actually resolves.
+			buttonInk: inkRatio(primaryButton),
+			buttonFill: primaryButton ? getComputedStyle(primaryButton).backgroundColor : null,
+			// The pair as the template states it, so a failure can be told apart
+			// from a failure of the surface the button happens to sit on.
+			fillPair: (() => {
+				const probeEl = document.createElement('span');
+				probeEl.style.background = 'var(--primary)';
+				probeEl.style.color = 'var(--primary-foreground)';
+				document.body.appendChild(probeEl);
+				const s = getComputedStyle(probeEl);
+				const ratio = contrast(
+					composite([s.backgroundColor, s.color]),
+					composite([s.backgroundColor])
+				);
+				probeEl.remove();
+				return ratio;
+			})()
+		};
+	};
+
+	for (const mode of ['light', 'dark']) {
+		const { context, page, errors } = await open(
+			'surface=palette',
+			{ width: 1440, height: 900 },
+			mode
+		);
+		await page.addStyleTag({ content: SETTLE });
+		await page.addScriptTag({ content: PROBE });
+		await page.waitForSelector('.ds-nav-item[data-active="true"]');
+		// Which theme is on screen decides which half of every palette block
+		// applies, so it is waited on and never assumed.
+		await page.waitForFunction(
+			(want) => document.documentElement.classList.contains('dark') === (want === 'dark'),
+			mode
+		);
+
+		// The baseline: no palette attribute at all. Everything below is measured
+		// as a MOVE from this, so "the palette applied" is a real observation
+		// rather than a value that happens to look plausible.
+		const base = await page.evaluate(READ);
+
+		for (const name of names) {
+			await page.evaluate((n) => {
+				document.documentElement.dataset.dsPalette = n;
+			}, name);
+			const m = await page.evaluate(READ);
+			const where = `${name}/${mode}`;
+			const declared = catalogue[name].accent[mode];
+
+			// Applied at all. A palette whose block never won the cascade would
+			// otherwise pass every contrast check below on the package's own
+			// colours — the silent half-application the `:root[data-…]` anchor
+			// exists to prevent, seen from the other end.
+			check(
+				`${where}: the palette actually reaches the page`,
+				m.swatches.primary !== base.swatches.primary ||
+					m.swatches.background !== base.swatches.background,
+				`primary ${base.swatches.primary} -> ${m.swatches.primary}, background ${base.swatches.background} -> ${m.swatches.background}`
+			);
+
+			// The status vocabulary is invariant. Asserted from RESOLVED colour
+			// rather than from the emitter's output, because an app-level
+			// `@theme` collision could move a status colour without any palette
+			// declaring one.
+			const movedStatus = STATUS_SWATCHES.filter((s) => m.swatches[s] !== base.swatches[s]);
+			check(
+				`${where}: the status vocabulary is untouched`,
+				movedStatus.length === 0,
+				movedStatus.length ? `moved: ${movedStatus.join(', ')}` : 'all five identical to the default'
+			);
+
+			check(
+				`${where}: body copy on a card clears AA`,
+				m.bodyInk >= 4.5,
+				`${m.bodyInk}:1 (needs 4.5)`
+			);
+			check(
+				`${where}: muted copy in a nested well clears AA`,
+				m.mutedInk >= 4.5,
+				`${m.mutedInk}:1 (needs 4.5)`
+			);
+			check(
+				`${where}: muted copy on the page ground clears AA`,
+				m.pageMutedInk >= 4.5,
+				`${m.pageMutedInk}:1 (needs 4.5)`
+			);
+			// The three the showcase's own palettes would have failed loudest.
+			check(
+				`${where}: the accent clears AA as a fill, as the template requires`,
+				m.fillPair >= 4.5,
+				`primary under primary-foreground: ${m.fillPair}:1 (declared ${declared.primary} / ${declared.foreground})`
+			);
+			check(
+				`${where}: a real Button's label clears AA on its own fill`,
+				m.buttonInk >= 4.5,
+				`${m.buttonInk}:1 on ${m.buttonFill}`
+			);
+			// #11 under all twenty. The nav label is the strictest surface in the
+			// package — three composited layers — and it is the one the shell was
+			// shipping a consumer-owned colour onto.
+			check(
+				`${where}: the active nav label clears AA on the chrome`,
+				m.activeNavInk >= 4.5,
+				`${m.activeNavInk}:1 (needs 4.5)`
+			);
+			check(
+				`${where}: the resting nav label clears AA on the chrome`,
+				m.restingNavInk >= 4.5,
+				`${m.restingNavInk}:1 (needs 4.5)`
+			);
+			if (m.badgeInk !== null) {
+				check(
+					`${where}: the nav badge count clears AA on its tint`,
+					m.badgeInk >= 4.5,
+					`${m.badgeInk}:1 (needs 4.5)`
+				);
+			}
+		}
+
+		check(`palette catalogue/${mode}: no page error`, errors.length === 0, JSON.stringify(errors));
 		await context.close();
 	}
 }

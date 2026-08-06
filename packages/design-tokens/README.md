@@ -7,6 +7,7 @@ The household web design-language factory. One DTCG token source, built by Style
 ```text
 tokens/
   tokens.tokens.json    DTCG 2025.10 token source — the single source of truth
+  palettes.json         Palette catalogue: 20 named personalities (accent + tone)
 sd.config.js            Style Dictionary v4 config (css / tw / js platforms)
 templates/
   DESIGN.md.template    Per-app North Star template (copy → DESIGN.md, fill in)
@@ -16,11 +17,16 @@ dist/                   Generated — run `pnpm build`; never edit by hand
   tokens.tw.css         Tailwind v4 @theme block (aliases the --ds-* vars)
   tokens.js             JS constants (DS_*)
   tokens.d.ts           Type declarations for tokens.js
+  palettes.css          One :root[data-ds-palette='…'] block per catalogued palette
+  palettes.js           The catalogue as data (DS_PALETTES, DS_PALETTE_NAMES)
+  palettes.d.ts         Type declarations for palettes.js
 ```
 
 ## Binding constraints
 
-Non-negotiable across every household app. Per-app exceptions are not permitted on named semantic tokens.
+Non-negotiable across every household app. Per-app exceptions are not permitted
+on named semantic tokens: an app never invents a value for one. The two things
+an app does choose are its accent and a catalogued palette, both below.
 
 | Constraint         | Value                                                         |
 | ------------------ | ------------------------------------------------------------- |
@@ -69,12 +75,73 @@ Fonts are self-hosted per app: add `@fontsource-variable/fraunces`, `@fontsource
 
 ## Per-app customisation
 
-Only the primary accent changes between apps. Every other semantic token is used as-is.
+An app's personality is exactly two knobs: its **accent**, and optionally a
+**palette** from the catalogue below. Every other semantic token is used as-is,
+and an app never hand-writes a value for one.
 
 1. Copy `templates/DESIGN.md.template` to the app repo as `DESIGN.md`.
 2. Fill in all `REQUIRED` fields (name, description, primary colours).
 3. Add the per-app `:root` override from §8 of the template to `app.css`.
 4. Delete template comments before committing.
+
+## The palette catalogue
+
+Twenty named personalities, absorbed from the master project's standalone
+shadcn showcase (design-system#25). A palette is an **accent** plus a **tone**:
+a hue and a per-mode chroma scale, applied to this package's own neutral
+ladder. It is projected through that ladder at build time, so a palette cannot
+drift from it, and it has no field for a lightness at all. The ladder's
+lightness steps stay package-owned because they are what every contrast
+guarantee here is computed from. The status vocabulary is invariant across
+palettes: a warning has to read as a warning in every app.
+
+Adopt one by importing the stylesheet and naming the palette on the root
+element. Nothing else changes, and no component knows it happened.
+
+```css
+/* after tokens.css; the blocks are :root-anchored, so order cannot bite */
+@import '@poodle64/design-tokens/palettes.css';
+```
+
+```html
+<html data-ds-palette="parchment"></html>
+```
+
+Or copy that palette's block out of `dist/palettes.css` into the app's own
+`:root`, if pinning the values matters more than tracking the catalogue.
+
+| Palette          | Strategy                       | Use case                              |
+| ---------------- | ------------------------------ | ------------------------------------- |
+| `zinc`           | Neutral baseline               | shadcn-svelte default; no personality |
+| `slate`          | Cool blue-grey                 | Corporate, conservative               |
+| `burnt-sienna`   | Warm earth tones               | Warm, approachable                    |
+| `violet`         | Saturated cool purple          | Distinctive, modern                   |
+| `eucalyptus`     | Cool green                     | Australian identity                   |
+| `teal`           | Cool cyan-green                | Fresh, modern                         |
+| `parchment`      | Warm beige (Flexoki-inspired)  | Reading comfort                       |
+| `sage`           | Cool muted green               | Softer alternative                    |
+| `rosewood`       | Warm muted pink                | Approachable, rare                    |
+| `army`           | Warm olive-drab                | Australian Army identity              |
+| `airforce`       | Cool RAAF blue                 | Service identity                      |
+| `navy`           | Deep navy with gold accent     | RAN identity                          |
+| `supabase`       | Jungle green                   | Data platform identity                |
+| `scribes-amber`  | Warm amber                     | Thoth identity                        |
+| `papyrus-gold`   | Gold leaf on dark papyrus      | Egyptian heritage                     |
+| `nile-teal`      | Deep teal                      | Egyptian faience                      |
+| `midnight-lapis` | Deep saturated blue            | Lapis lazuli                          |
+| `ithildin`       | Cool violet on a silver ground | Moon-letter silver                    |
+| `mithril`        | Cool blue-silver               | Restrained, metallic                  |
+| `silmaril-teal`  | Bright teal on a silver ground | Luminous, cool                        |
+
+Every palette is gated for contrast in both modes: `test/palettes.test.js`
+computes the floors from the built stylesheet, and `packages/ui/harness`
+(`?surface=palette`) drives the same colours in a real browser, composited over
+the surfaces components actually paint them on. Adding a palette means adding
+an entry to `tokens/palettes.json` and passing both.
+
+Why this shape rather than the full semantic override the showcase used, and
+what widening the sanctioned surface to a tone does and does not license:
+`docs/decisions/0001-palette-catalogue-and-the-tone-axis.md`.
 
 ## Token architecture
 

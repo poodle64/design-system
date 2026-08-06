@@ -1,10 +1,11 @@
 # Real-browser verification
 
-Ten surfaces, selected by `?surface=`: the default `shell` (AppShell, below),
-plus `states` (the async-outcome surfaces), `card` (CardTitle's heading mode),
-`overlays`, `overflow`, `avatar`, `theming`, `detail-panel`, `nested` (nested
-navigation) and `console` (the console-dashboard primitives) — each in its own
-section at the end.
+Eleven surfaces, selected by `?surface=`: the default `shell` (AppShell,
+below), plus `states` (the async-outcome surfaces), `card` (CardTitle's
+heading mode), `overlays`, `overflow`, `avatar`, `palette` (the palette
+catalogue), `theming`, `detail-panel`, `nested` (nested navigation) and
+`console` (the console-dashboard primitives) — each in its own section at the
+end.
 
 ## Two ways to drive it
 
@@ -490,6 +491,79 @@ reads back as `oklch(60% .012 85)` where the `color` that consumed it reads back
 as `oklch(0.6 0.012 85)`. A string compare between the two is a tautology that
 passes on the broken build as readily as the fixed one, so both sides are
 painted into the canvas and compared as pixels.
+
+## The palette catalogue (`?surface=palette`) — #25
+
+Twenty named OKLCH palettes, absorbed from the master project's standalone
+shadcn showcase, which had carried them since 2026-03-11 and predated both
+this package and `@poodle64/design-tokens` entirely (design-system#25; the
+reasoning is `docs/decisions/0001-palette-catalogue-and-the-tone-axis.md`). A
+palette here is two knobs — an **accent**, and a **tone** (a hue plus a
+per-mode chroma scale) — projected at build time through the neutral ladder
+in `tokens.tokens.json`. There is no field for a lightness, so the ladder's
+lightness steps — the axis every contrast guarantee in this package is
+computed from — cannot be reached from a palette.
+
+The showcase's README advertised "WCAG AA compliance indicators" and gated
+nothing. Measured on the way in: 13 of the 20 accent pairs were below the
+4.5:1 AA fill floor (papyrus-gold 2.20:1, nile-teal 2.63:1, scribes-amber
+2.71:1, each pairing a light accent with a near-white label); zinc's
+`destructive-foreground` was byte-identical to its `destructive` — a 1:1
+label on a button; and supabase declared the same `muted-foreground` in both
+modes, so its dark mode used a colour picked against a white page. All of it
+rendered perfectly happily for five months, because rendering was the only
+thing anyone did with it.
+
+`packages/design-tokens/test/palettes.test.js` holds the arithmetic half of
+the gate, computed from the built stylesheet. Scripted here in `drive.mjs` is
+the composited half: the same colours over the real ancestor stack a
+component actually paints them on, which for the nav is three layers deep — a
+12% tint over `bg-shell/80` over the page. A palette can satisfy flat
+arithmetic and still be illegible on the surface a component paints it on —
+that is exactly what #11 was, now asked of all twenty catalogued palettes
+rather than three hand-written fixtures.
+
+Method:
+
+- **One page per theme, palettes swapped by attribute**, not one page load
+  per palette. `document.documentElement.dataset.dsPalette` is set directly —
+  closer to the thing under test, since a palette IS an attribute swap and
+  nothing more. It depends on the shared SETTLE stylesheet: without
+  transitions disabled, every reading after the first would be caught
+  mid-flight between two palettes, the same trap #11 found first.
+- **A no-palette baseline is read first.** Every check below is a MOVE from
+  that baseline, not a value that happens to look plausible on its own —
+  "the palette actually reaches the page" fails a palette block that never
+  won the cascade, which would otherwise pass every contrast check below on
+  the package's own colours.
+
+| Claim                                                    | Why jsdom cannot make it                                                    | Observed                                                                                    |
+| -------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| The palette actually reaches the page                    | unresolved `var(--…)`, no cascade to resolve it against                     | primary or background differs from the baseline, all 40                                     |
+| The status vocabulary is untouched                       | a resolved-colour comparison needs a cascade                                | all five status swatches identical to the default, all 40                                   |
+| Body copy on a card clears AA                            | no stylesheet                                                               | ≥4.5:1, all 40                                                                              |
+| Muted copy in a nested well clears AA                    | no stylesheet, no nested cascade                                            | ≥4.5:1, all 40                                                                              |
+| Muted copy on the page ground clears AA                  | no stylesheet                                                               | ≥4.5:1, all 40 — tightest margin 5.24:1 (ithildin, mithril, silmaril-teal, supabase; light) |
+| The accent clears AA as a fill, as the template requires | unresolved `var(--…)`                                                       | ≥4.5:1, all 40                                                                              |
+| A real Button's label clears AA on its own fill          | not a synthetic probe — the claim is about the artefact a consumer installs | ≥4.5:1, all 40                                                                              |
+| The active nav label clears AA on the chrome             | three-layer `color-mix` composite — #11's claim, under every palette        | ≥4.5:1, all 40                                                                              |
+| The resting nav label clears AA on the chrome            | unresolved `var(--…)`                                                       | ≥4.5:1, all 40                                                                              |
+| The nav badge count clears AA on its tint                | two stacked tints                                                           | ≥4.5:1, all 40                                                                              |
+
+Every row above runs 40 times — 20 palettes × 2 modes. Across the whole
+`drive.mjs` run — every surface, not just this one — that is part of 638
+checks, all passing.
+
+### What this caught
+
+Driven red before being kept, the way every gate in this file is. Restoring
+papyrus-gold's original near-white foreground — the exact defect the
+catalogue's decision record fixed — fails both the fill check and the real
+Button check at 2.19:1, and `drive.mjs` exits 1. `palettes.test.js` reports
+2.20:1 for the same defect. The two layers agreeing to within 0.01 is what
+says they are measuring the same thing by two different routes: one reading
+the emitted stylesheet directly, the other reading a real page that had to
+resolve `color-mix()`, inheritance and the cascade to get there.
 
 ## The avatar load state (`?surface=avatar`)
 

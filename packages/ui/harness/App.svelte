@@ -46,6 +46,16 @@
 	import type { NavSource } from '../dist/components/ui/app-shell/types.js';
 	import { SHELL_MEASURES, type ShellMeasure } from '../dist/components/ui/app-shell/measure.js';
 	import { SHELL_TEXTURES, type ShellTexture } from '../dist/components/ui/app-shell/texture.js';
+	import Button from '../dist/components/ui/button/button.svelte';
+	import Badge from '../dist/components/ui/badge/badge.svelte';
+	import Input from '../dist/components/ui/input/input.svelte';
+	import Label from '../dist/components/ui/label/label.svelte';
+	import Checkbox from '../dist/components/ui/checkbox/checkbox.svelte';
+	import Switch from '../dist/components/ui/switch/switch.svelte';
+	import Skeleton from '../dist/components/ui/skeleton/skeleton.svelte';
+	import Separator from '../dist/components/ui/separator/separator.svelte';
+	import { Alert, AlertTitle, AlertDescription } from '../dist/components/ui/alert/index.js';
+	import { DS_PALETTES } from '@poodle64/design-tokens/palettes';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import Package from '@lucide/svelte/icons/package';
 	import KeySquare from '@lucide/svelte/icons/key-square';
@@ -186,6 +196,47 @@
 	// only for visual completeness.
 	const ARC_TONES = ['success', 'warning', 'error'] as const;
 	const BADGE_STATUSES = ['success', 'warning', 'error', 'info', 'neutral', 'primary'] as const;
+
+	// `?surface=palette&palette=<name>` (design-system#25) is the gallery the
+	// master project's standalone shadcn showcase used to be: every component
+	// across its states, under one of the catalogued palettes, so "what does this
+	// look like under palette X" has one answer in one place.
+	//
+	// The palette is applied the way a consuming app applies it — an attribute on
+	// the root element, resolving `:root[data-ds-palette=…]` out of
+	// `@poodle64/design-tokens/palettes.css` — and nothing else about the page
+	// changes. That is the whole claim: a palette is an accent and a surface
+	// tone, and it reaches every component without any component knowing.
+	//
+	// Set at module scope rather than in an effect, so the first paint is already
+	// the right palette and a driver never measures a frame of the default.
+	const paletteParam = params.get('palette');
+	if (surface === 'palette' && paletteParam) {
+		document.documentElement.dataset.dsPalette = paletteParam;
+	}
+	// The swatch grid the showcase had, kept because it is the one part of the
+	// page that names tokens rather than components: it gives the driver a stable
+	// element per token to read a RESOLVED colour off, which is what turns "the
+	// palette renders" into "the palette resolves to these values".
+	const SWATCHES = [
+		'background',
+		'foreground',
+		'surface-1',
+		'surface-2',
+		'surface-3',
+		'muted-foreground',
+		'border',
+		'border-strong',
+		'primary',
+		'primary-foreground',
+		'status-success',
+		'status-warning',
+		'status-error',
+		'status-info',
+		'status-neutral'
+	] as const;
+	const BUTTON_VARIANTS = ['default', 'secondary', 'outline', 'ghost', 'destructive', 'link'] as const;
+	const BUTTON_SIZES = ['sm', 'default', 'lg'] as const;
 
 	let overlayDialogOpen = $state(false);
 	// A 1x1 transparent GIF, inline: the harness serves no assets and the claim
@@ -471,6 +522,154 @@
 			/>
 		</div>
 	</div>
+{:else if surface === 'palette'}
+	<!-- The palette gallery (design-system#25), inside the shell rather than on a
+	     bare page: the nav ink sits on the chrome's own tinted surface, which is
+	     the composite #11 exists for, and it has to be measured under EVERY
+	     catalogued palette rather than the three fixtures that section carries. -->
+	<AppShell {nav} {currentPath} brandTitle="Palette">
+		{#snippet identity()}
+			<button class="flex w-full items-center gap-2.5 px-3 py-3 text-sm" data-testid="identity">
+				<span
+					class="bg-primary/15 text-primary grid size-8 flex-none place-items-center rounded-full text-xs font-semibold"
+					>OP</span
+				>
+				<span>Operator</span>
+			</button>
+		{/snippet}
+		<div class="flex flex-col gap-8" data-probe="palette-gallery">
+			<div>
+				<h1 class="font-display text-display font-semibold" data-probe="palette-title">
+					{DS_PALETTES.find((p) => p.name === paletteParam)?.title ?? 'Package default'}
+				</h1>
+				<p class="text-muted-foreground mt-2 text-sm" data-probe="palette-strategy">
+					{DS_PALETTES.find((p) => p.name === paletteParam)?.strategy ?? 'No palette applied'}
+				</p>
+			</div>
+
+			<!-- Swatches first: the tokens, before anything built out of them. Each
+			     carries its own `data-swatch`, so the driver reads a resolved colour
+			     per token instead of inferring one from a component that happens to
+			     use it. -->
+			<section class="flex flex-wrap gap-3" data-probe="swatches">
+				{#each SWATCHES as token (token)}
+					<div class="flex w-32 flex-col gap-1">
+						<div
+							data-swatch={token}
+							class="border-border h-12 rounded-md border"
+							style="background: var(--ds-color-{token})"
+						></div>
+						<span class="text-muted-foreground text-2xs">{token}</span>
+					</div>
+				{/each}
+			</section>
+
+			<Separator />
+
+			<section class="flex flex-col gap-3" data-probe="buttons">
+				{#each BUTTON_SIZES as size (size)}
+					<div class="flex flex-wrap items-center gap-2">
+						{#each BUTTON_VARIANTS as variant (variant)}
+							<Button {variant} {size} data-probe="button-{variant}-{size}">{variant}</Button>
+						{/each}
+						<Button variant="default" {size} disabled data-probe="button-disabled-{size}">
+							disabled
+						</Button>
+					</div>
+				{/each}
+			</section>
+
+			<section class="flex flex-wrap items-end gap-4" data-probe="form">
+				<div class="flex flex-col gap-1.5">
+					<Label for="palette-text">Text input</Label>
+					<Input id="palette-text" placeholder="Placeholder copy" data-probe="input" />
+				</div>
+				<div class="flex flex-col gap-1.5">
+					<Label for="palette-disabled">Disabled</Label>
+					<Input id="palette-disabled" value="Locked" disabled />
+				</div>
+				<div class="flex items-center gap-2">
+					<Checkbox id="palette-check" checked data-probe="checkbox" />
+					<Label for="palette-check">Checked</Label>
+				</div>
+				<div class="flex items-center gap-2">
+					<Switch id="palette-switch" checked data-probe="switch" />
+					<Label for="palette-switch">On</Label>
+				</div>
+			</section>
+
+			<section class="flex flex-wrap items-center gap-2" data-probe="badges">
+				{#each BADGE_STATUSES as status (status)}
+					<StatusBadge {status} label={status} />
+				{/each}
+				<Badge>Badge</Badge>
+				<Badge variant="outline">Outline</Badge>
+			</section>
+
+			<section class="flex flex-col gap-3" data-probe="alerts">
+				<Alert>
+					<AlertTitle>An ordinary notice</AlertTitle>
+					<AlertDescription>Body copy on the alert surface.</AlertDescription>
+				</Alert>
+				<Alert variant="destructive">
+					<AlertTitle>Something went wrong</AlertTitle>
+					<AlertDescription>The destructive variant, unchanged by the palette.</AlertDescription>
+				</Alert>
+			</section>
+
+			<section class="flex flex-wrap gap-4" data-probe="cards">
+				<div class="w-80">
+					<Card>
+						<CardHeader>
+							<CardTitle level={2}>Card on the ground</CardTitle>
+							<CardDescription>Secondary copy in muted-foreground.</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<p class="text-sm" data-probe="card-body">Body copy at the ordinary text size.</p>
+							<div class="bg-muted mt-3 rounded-md p-3" data-probe="card-nested">
+								<p class="text-muted-foreground text-sm">A nested well inside the card.</p>
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+				<div class="w-80">
+					<Card>
+						<CardHeader>
+							<CardTitle level={2}>Loading</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<div class="flex flex-col gap-2">
+								<Skeleton class="h-4 w-full" />
+								<Skeleton class="h-4 w-2/3" />
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			</section>
+
+			<section data-probe="table">
+				<Table.Root>
+					<Table.Header>
+						<Table.Row>
+							{#each ['Identifier', 'Owner', 'Rotated', 'Status'] as head (head)}
+								<Table.Head>{head}</Table.Head>
+							{/each}
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each ['alpha', 'beta', 'gamma'] as row (row)}
+							<Table.Row>
+								<Table.Cell>credential-{row}</Table.Cell>
+								<Table.Cell>platform</Table.Cell>
+								<Table.Cell>2026-07-01</Table.Cell>
+								<Table.Cell><StatusBadge status="success" label="active" /></Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			</section>
+		</div>
+	</AppShell>
 {:else if surface === 'nested'}
 	<!-- The path is inside the Education section, so the group is open on first
 	     paint with nothing having been clicked — the derived default, which is

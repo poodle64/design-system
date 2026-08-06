@@ -280,7 +280,9 @@ html {
   font-size: var(--ds-font-size-base);
 }
 
-/* Per-app primary override — the ONLY change from shared defaults. */
+/* Per-app primary override — one of the only two changes from shared
+   defaults. Skip this block entirely if you adopt a catalogued palette
+   below: a palette already sets primary, its foreground and ring. */
 :root {
   --ds-color-primary: oklch(0.50 0.155 XXX);
   --ds-color-primary-foreground: oklch(0.99 0.005 XXX);
@@ -292,6 +294,24 @@ html {
   --ds-color-ring: oklch(0.70 0.140 XXX);
 }
 ```
+
+**Or adopt a catalogued palette instead**, which is the other sanctioned
+change and the easier one: it carries an accent AND a surface tone, and every
+palette in the catalogue is gated for WCAG AA contrast in both modes, which a
+hand-picked accent is not until someone checks it.
+
+```css
+@import "@poodle64/design-tokens/palettes.css"; /* after tokens.css */
+```
+
+```html
+<html data-ds-palette="parchment"></html>
+```
+
+The twenty palettes and what each is for are in
+`@poodle64/design-tokens`'s README. Pick one by eye at
+`?surface=palette` in `packages/ui/harness`, which renders the whole component
+set under it. Nothing else in the app changes, and no component knows.
 
 **Do not hand-write a shadcn alias layer.** Every app used to declare
 `--card` / `--popover` / `--muted` / `--accent` / `--secondary` / `--input` /

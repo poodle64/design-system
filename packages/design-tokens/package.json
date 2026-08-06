@@ -22,7 +22,13 @@
 		},
 		"./tokens.css": "./dist/tokens.css",
 		"./tokens.tw.css": "./dist/tokens.tw.css",
-		"./tokens.json": "./tokens/tokens.tokens.json"
+		"./tokens.json": "./tokens/tokens.tokens.json",
+		"./palettes.css": "./dist/palettes.css",
+		"./palettes.json": "./tokens/palettes.json",
+		"./palettes": {
+			"types": "./dist/palettes.d.ts",
+			"default": "./dist/palettes.js"
+		}
 	},
 	"scripts": {
 		"build": "style-dictionary build --config sd.config.js",

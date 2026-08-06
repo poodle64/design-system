@@ -2,6 +2,44 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [Unreleased]
+
+Harness and verification only. Nothing in `dist/` changed, so there is nothing
+here for a consumer to upgrade to and no version is spent.
+
+### Added
+
+- **`?surface=palette`, the palette gallery** (design-system#25), replacing the
+  master project's standalone `dev/shadcn-showcase/` app. It renders the
+  component set across its states plus a token swatch grid, inside `AppShell`
+  so the nav ink sits on the chrome's own tinted surface, under any palette
+  from `@poodle64/design-tokens`'s catalogue. The palette is applied exactly as
+  a consuming app applies it, an attribute on the root element and nothing
+  else, which is the claim: a palette reaches every component without any
+  component knowing.
+
+- **A per-palette contrast gate in `harness/drive.mjs`**, so `pnpm run
+test:browser` now covers all twenty catalogued palettes in both modes. Per
+  palette it asserts that the palette actually reaches the page (measured as a
+  move from a no-palette baseline, so a block that never won the cascade fails
+  rather than passing on the package's own colours), that the five status
+  colours are unchanged, and that body copy, muted copy on two surfaces, the
+  accent as a fill, a real `Button`'s label on its own fill, and the active,
+  resting and badge nav inks each clear 4.5:1 — composited over the real
+  ancestor stack, which for the nav is three layers deep. That extends #11's
+  claim from three hand-written fixtures to the whole catalogue. 638 checks in
+  the suite, all passing; the tightest margin is 5.24:1.
+
+  Driven red before being kept: restoring papyrus-gold's original near-white
+  foreground fails both the fill check and the real-Button check at 2.19:1 and
+  exits 1, against 2.20:1 from the token package's own arithmetic gate.
+
+### Changed
+
+- `harness/drive.mjs`'s canvas compositing probe and its transition-disabling
+  stylesheet are hoisted to module scope, now that the palette gate is a second
+  consumer of both. No behaviour change to the #11 section that had them.
+
 ## [2026.8.4] - 2026-08-04
 
 ### Added

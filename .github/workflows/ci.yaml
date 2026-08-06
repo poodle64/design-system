@@ -64,6 +64,20 @@ jobs:
           fi
           grep -q 'DS_COLOR_STATUS_SUCCESS' "$DIST/tokens.js"
 
+          # The palette catalogue (design-system#25). test/palettes.test.js holds
+          # the real contract; these three lines only assert the artefacts exist
+          # and carry the shape a consumer imports, so a build that silently
+          # stopped emitting them fails here rather than at an adopting app.
+          test -f "$DIST/palettes.css" || { echo "missing palettes.css" >&2; exit 1; }
+          grep -q "DS_PALETTE_NAMES" "$DIST/palettes.js"
+          # Every palette block must be :root-anchored, or it ties with
+          # tokens.css's own :root on specificity and applies or does not
+          # depending purely on which stylesheet an app imported first.
+          if grep -E '^\s*\[data-ds-palette' "$DIST/palettes.css"; then
+            echo "palette selector not anchored at :root" >&2
+            exit 1
+          fi
+
       - name: Assert @poodle64/ui subpath exports resolve
         run: |
           set -e

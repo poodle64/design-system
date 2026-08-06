@@ -2,6 +2,66 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [Unreleased]
+
+Not versioned yet, deliberately: nothing consumes the catalogue, and
+`10-git-workflow.md` §Release Cadence puts an unconsumed thing's whole first cut
+in one version. The number gets spent when an app adopts a palette.
+
+### Added
+
+- **The palette catalogue** (design-system#25). Twenty named OKLCH palettes,
+  absorbed from the master project's standalone `dev/shadcn-showcase/`, which
+  had carried them since 2026-03-11 in the pre-`--ds-*` namespace and predated
+  this package by four months. New source `tokens/palettes.json`; new emitted
+  artefacts `dist/palettes.css` (one `:root[data-ds-palette='…']` block per
+  palette per mode), `dist/palettes.js` and `dist/palettes.d.ts`
+  (`DS_PALETTES`, `DS_PALETTE_NAMES`); new exports `./palettes.css`,
+  `./palettes.json` and `./palettes`.
+
+  A palette is exactly two knobs and cannot express a third: an **accent**, and
+  a **tone** (a hue plus a per-mode chroma scale) projected at build time
+  through the neutral ladder in `tokens.tokens.json`. There is no field for a
+  lightness, so the ladder's lightness steps stay package-owned and unreachable
+  from a palette; they carry every contrast guarantee this package makes. There
+  is no field for a status colour either, since a warning has to read as a
+  warning in every app. Because palettes are projected through the ladder
+  rather than declared beside it, the catalogue cannot drift from it, and it is
+  not a second token source.
+
+  This does widen the sanctioned override surface from one knob to two, which
+  is a governance change rather than an implementation detail; the argument,
+  the measurement behind it, and what it does and does not license are in
+  `docs/decisions/0001-palette-catalogue-and-the-tone-axis.md`.
+
+- **`test/palettes.test.js`** gates the catalogue: every palette keeps the
+  ladder's lightness exactly, invents no token name, reaches nothing beyond the
+  sanctioned set, leaves the status vocabulary alone, emits `:root`-anchored
+  selectors that outrank `tokens.css` whatever order an app imports them in,
+  and clears the 4.5:1 AA floor for body text, muted text and the accent as a
+  fill, in both modes. The composited half of the same claim is driven in a
+  real browser by `packages/ui/harness` (`?surface=palette`).
+
+### Fixed
+
+- **Three defects carried by the showcase's palettes for five months**, none of
+  which anything had ever checked, since its README advertised "WCAG AA
+  compliance indicators" and gated nothing. Thirteen of the twenty accent pairs
+  were below the 4.5:1 AA fill floor (papyrus-gold 2.20:1, nile-teal 2.63:1,
+  scribes-amber 2.71:1, each pairing a light accent with a near-white label);
+  zinc's `destructive-foreground` was byte-identical to its `destructive`, a
+  1:1 label on a button; and supabase declared the same `muted-foreground` in
+  both modes, so its dark mode used a colour picked against a white page.
+
+  Fixed structurally rather than by correcting values. The accent's foreground
+  is now DERIVED at build time (near-ink or near-white at the accent's own hue,
+  whichever measures better), so an illegible pair is unrepresentable; and no
+  palette declares a status colour at all, so the `destructive` defect has
+  nowhere to live. Five accents then still sat mid-lightness and cleared
+  neither candidate by enough (teal 4.45, mithril 4.43, silmaril-teal 4.58
+  light; army 4.28, ithildin 4.27 dark); their hue and chroma were held and
+  their lightness walked by the smallest step clearing 4.6, at most 0.05.
+
 ## [2026.7.5] - 2026-07-31
 
 ### Changed

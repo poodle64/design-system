@@ -31,6 +31,7 @@
 
 import StyleDictionary from 'style-dictionary';
 import { fileHeader } from 'style-dictionary/utils';
+import { readFileSync } from 'node:fs';
 
 /**
  * Normalise a token path to its public --ds-* name:
@@ -219,6 +220,158 @@ StyleDictionary.registerFormat({
 });
 
 // ---------------------------------------------------------------------------
+// Custom formats: the palette catalogue (design-system#25)
+// ---------------------------------------------------------------------------
+
+/**
+ * The catalogue is a set of named personalities an app adopts wholesale. It is
+ * deliberately NOT a second token source: a palette declares an accent and a
+ * TONE (a hue plus a per-mode chroma scale), and every surface it emits is
+ * computed here from the ladder in `tokens.tokens.json`. There is no field for
+ * a lightness, so the ladder's L steps — which carry every contrast guarantee
+ * this package makes — cannot be reached from a palette at all, and a palette
+ * cannot drift from the ladder because it is projected through it on each
+ * build.
+ *
+ * The status vocabulary is invariant across palettes by the same reasoning
+ * inverted: a warning has to read as a warning in every app, so no palette may
+ * touch it.
+ */
+const PALETTES = JSON.parse(readFileSync(new URL('tokens/palettes.json', import.meta.url), 'utf8'));
+
+/**
+ * Which semantic colour each neutral ladder step feeds, per mode. Mirrors
+ * `semantic.colour.*` in the token file; asserted against it by
+ * `test/palettes.test.js`, so a token rename cannot leave this list stale.
+ */
+const NEUTRAL_SURFACES = {
+	light: {
+		background: 'neutral.50',
+		foreground: 'neutral.800',
+		'surface-1': 'neutral.100',
+		'surface-2': 'neutral.0',
+		'surface-3': 'neutral.150',
+		'muted-foreground': 'neutral.500',
+		border: 'neutral.300',
+		'border-strong': 'neutral.400'
+	},
+	dark: {
+		background: 'neutral.850',
+		foreground: 'neutral.990',
+		'surface-1': 'neutral.900',
+		'surface-2': 'neutral.920',
+		'surface-3': 'neutral.940',
+		'muted-foreground': 'neutral.970',
+		border: 'neutral.950',
+		'border-strong': 'neutral.960'
+	}
+};
+
+const OKLCH = /oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)/;
+
+/** The raw ladder value at `palette.neutral.<step>`, straight from the source. */
+function ladderStep(tokens, ref) {
+	const node = ref.split('.').reduce((n, k) => n?.[k], tokens.palette);
+	const parsed = OKLCH.exec(node?.$value ?? '');
+	if (!parsed) throw new Error(`palette.${ref} is not a plain oklch() value`);
+	return { l: +parsed[1], c: +parsed[2], h: +parsed[3] };
+}
+
+/**
+ * Re-tone one ladder step: keep its LIGHTNESS exactly, scale its chroma, adopt
+ * the palette's hue.
+ *
+ * A step at chroma 0 stays at chroma 0 and so keeps no hue of its own. That is
+ * `surface-2` in light mode — `neutral.0`, named "absolute white" in the token
+ * source — and leaving it alone is the point rather than an oversight: it is
+ * what gives a warm-surface palette its paper-on-desk read, a white card
+ * sitting on a tinted ground.
+ */
+function retone(step, tone, mode) {
+	const c = step.c * tone.chromaScale[mode];
+	const h = c === 0 ? 0 : tone.hue;
+	return `oklch(${step.l.toFixed(3)} ${c.toFixed(4)} ${h})`;
+}
+
+/** Every `--ds-color-*` declaration one palette makes, in one mode. */
+function paletteDeclarations(tokens, palette, mode) {
+	const lines = [];
+	for (const [name, ref] of Object.entries(NEUTRAL_SURFACES[mode])) {
+		lines.push(`  --ds-color-${name}: ${retone(ladderStep(tokens, ref), palette.tone, mode)};`);
+	}
+	const { primary, foreground } = palette.accent[mode];
+	lines.push(`  --ds-color-primary: ${primary};`);
+	lines.push(`  --ds-color-primary-foreground: ${foreground};`);
+	// `ring` follows primary in the token source; a palette must not split them.
+	lines.push(`  --ds-color-ring: ${primary};`);
+	return lines.join('\n');
+}
+
+StyleDictionary.registerFormat({
+	name: 'css/ds-palettes',
+	format: async ({ dictionary, file }) => {
+		const header = await fileHeader({ file });
+		const blocks = [];
+
+		for (const [name, palette] of Object.entries(PALETTES.palettes)) {
+			// `:root[data-ds-palette=…]` rather than a bare attribute selector, so
+			// the block outranks tokens.css's own `:root` (0,1,0 vs 0,2,0) whatever
+			// order an app imports the two stylesheets in. A bare `[data-ds-palette]`
+			// ties with `:root` on specificity and would be decided by source order
+			// alone — which fails silently and only in LIGHT mode, since the dark
+			// block carries an extra `.dark` class and wins either way. A palette
+			// that applies in one mode and not the other is exactly the shape of
+			// dead affordance `theme-coverage.test.ts` calls worse than a missing
+			// key.
+			blocks.push(
+				`/* ${palette.title} — ${palette.strategy}; ${palette.useCase} */\n` +
+					`:root[data-ds-palette='${name}'] {\n${paletteDeclarations(dictionary.tokens, palette, 'light')}\n}`
+			);
+			blocks.push(
+				`:root[data-ds-palette='${name}'].dark {\n${paletteDeclarations(dictionary.tokens, palette, 'dark')}\n}`
+			);
+		}
+
+		return `${header}${blocks.join('\n\n')}\n`;
+	}
+});
+
+/** The catalogue as data, so a consumer (and the browser gate) can iterate it
+ *  rather than re-parsing the emitted CSS. */
+const paletteMeta = () =>
+	Object.entries(PALETTES.palettes).map(([name, p]) => ({
+		name,
+		title: p.title,
+		strategy: p.strategy,
+		useCase: p.useCase
+	}));
+
+StyleDictionary.registerFormat({
+	name: 'js/ds-palettes',
+	format: async ({ file }) => {
+		const header = await fileHeader({ file });
+		return (
+			`${header}// Source: tokens/palettes.json\n\n` +
+			`export const DS_PALETTES = ${JSON.stringify(paletteMeta(), null, 2)};\n\n` +
+			`export const DS_PALETTE_NAMES = DS_PALETTES.map((p) => p.name);\n`
+		);
+	}
+});
+
+StyleDictionary.registerFormat({
+	name: 'ts/ds-palettes',
+	format: async ({ file }) => {
+		const header = await fileHeader({ file });
+		return (
+			`${header}export interface DsPalette {\n` +
+			`  name: string;\n  title: string;\n  strategy: string;\n  useCase: string;\n}\n\n` +
+			`export declare const DS_PALETTES: DsPalette[];\n` +
+			`export declare const DS_PALETTE_NAMES: string[];\n`
+		);
+	}
+});
+
+// ---------------------------------------------------------------------------
 // Style Dictionary configuration
 // ---------------------------------------------------------------------------
 export default {
@@ -228,7 +381,12 @@ export default {
 		css: {
 			transformGroup: 'css',
 			buildPath: 'dist/',
-			files: [{ destination: 'tokens.css', format: 'css/ds-variables' }]
+			files: [
+				{ destination: 'tokens.css', format: 'css/ds-variables' },
+				// Projected through the same ladder this platform emits, so the
+				// catalogue cannot drift from it (design-system#25).
+				{ destination: 'palettes.css', format: 'css/ds-palettes' }
+			]
 		},
 
 		tw: {
@@ -250,7 +408,9 @@ export default {
 				{
 					destination: 'tokens.d.ts',
 					format: 'ts/ds-declarations'
-				}
+				},
+				{ destination: 'palettes.js', format: 'js/ds-palettes' },
+				{ destination: 'palettes.d.ts', format: 'ts/ds-palettes' }
 			]
 		}
 	}
