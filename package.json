@@ -9,5 +9,5 @@
     "test": "pnpm -r run test",
     "check": "pnpm -r --if-present run check"
   },
-  "packageManager": "pnpm@10.28.0"
+  "packageManager": "pnpm@10.34.5"
 }
