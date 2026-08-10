@@ -2,6 +2,42 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.8.7] - 2026-08-10
+
+### Added
+
+- **`AppShell` gains `searchPlacement: 'leading' | 'trailing'`** (default
+  `'leading'`). Search is a global affordance, and where it sits changes what
+  it reads as. `'leading'` keeps its historical position just after the
+  `context` slot — so a shell that never names the prop is byte-identical —
+  and `'trailing'` moves the SAME button (same
+  `data-testid="ds-shell-search"`, same keyboard and aria behaviour) into the
+  right-hand group with the theme toggle and identity. It is the lever for the
+  shell-inversion layout: once `context` carries a module name and a view
+  switcher, a search sitting beside it read as though it belonged to the
+  switcher rather than being a global control. In the trailing group the
+  button sizes to its clamp instead of stretching the row.
+
+### Changed
+
+- **BREAKING (visual): `AppShell`'s collapse control moved from the rail foot
+  to the rail head, onto the brand row.** The API is unchanged —
+  `collapsible` and the bound `collapsed` behave exactly as before — but every
+  consuming app that sets `collapsible` will see its chrome change, and that
+  is intended, not a tweak. The full-width "Collapse" row at the bottom of the
+  rail is gone; in its place is an icon-only toggle at the rail's own top edge,
+  right of the wordmark (`PanelLeftClose` expanded, `PanelLeftOpen` collapsed).
+  When the rail is collapsed the head has no room beside the mark, so the
+  toggle stacks under it, centred. The reasoning: a control that acts on the
+  rail belongs at the rail's top edge, where every comparable shell puts it
+  (Notion, Linear, GitHub's newer nav); the foot spent a full nav-item's width
+  and vertical weight on a rarely-used control, sitting directly above the
+  identity surface and competing with it; and a full-width labelled row read
+  like a navigation destination rather than a control acting on the rail. The
+  accessible name ("Collapse sidebar" / "Expand sidebar") and a tooltip are
+  kept, and `[` now toggles the rail (shown in the tooltip), guarded so it
+  never fires while focus is on an editable field.
+
 ## [2026.8.6] - 2026-08-10
 
 ### Added

@@ -12,10 +12,23 @@
 	 *
 	 * There is now exactly one composition, no variant prop to choose it: a
 	 * permanent side rail on md+ (an overlay drawer below it) carrying primary
-	 * navigation, brand and the collapse toggle, PLUS a real top navbar (search,
-	 * leading/trailing slots, theme toggle, identity) — always both together.
-	 * Operator ruling, 31/07/2026: every household app renders one shell shape;
-	 * apps do not choose variants.
+	 * navigation and a brand row that also carries the collapse toggle, PLUS a
+	 * real top navbar (search, leading/trailing slots, theme toggle, identity) —
+	 * always both together. Operator ruling, 31/07/2026: every household app
+	 * renders one shell shape; apps do not choose variants.
+	 *
+	 * The collapse toggle sits at the rail's own top edge, on the brand row,
+	 * where every comparable shell puts a control that acts on the rail — icon
+	 * only, right of the wordmark, stacking under the mark when the rail is
+	 * collapsed. The foot is left to the app.
+	 *
+	 * Search can sit in either of two places, because it reads as a different
+	 * thing depending on what is beside it. `searchPlacement` defaults to
+	 * `leading` — its historical spot just after the `context` slot, so a shell
+	 * that never names the prop is unchanged — and `trailing` moves it into the
+	 * right-hand group with the theme toggle and identity, so that when `context`
+	 * carries route content the global affordance reads as global rather than as
+	 * part of the switcher next to it.
 	 *
 	 * Content WIDTH is the one dimension that came back, as `measure`, and it
 	 * came back on a measurement rather than on taste. "Always full-width" did
@@ -84,6 +97,7 @@
 		onSearch,
 		searchLabel = 'Search…',
 		searchShortcut = '⌘K',
+		searchPlacement = 'leading',
 		themeToggle = true,
 		onToggleTheme,
 		padded = true,
@@ -109,7 +123,7 @@
 		 * a component that is framework-agnostic and genuinely drivable.
 		 */
 		currentPath?: string;
-		/** Offer an icon-only collapse toggle at the rail foot. */
+		/** Offer an icon-only collapse toggle at the rail head, on the brand row. */
 		collapsible?: boolean;
 		/** Rail collapse state. Bind it to persist the choice across sessions. */
 		collapsed?: boolean;
@@ -136,6 +150,14 @@
 		searchLabel?: string;
 		/** The shortcut hint rendered in the search affordance; '' hides the kbd. */
 		searchShortcut?: string;
+		/**
+		 * Where the search affordance sits in the top bar. `leading` (default)
+		 * keeps its historical position just after the `context` slot; `trailing`
+		 * moves it into the right-hand group with the theme toggle and identity —
+		 * for when `context` carries route content and search should read as a
+		 * global control rather than as part of it.
+		 */
+		searchPlacement?: 'leading' | 'trailing';
 		themeToggle?: boolean;
 		/** Override the theme action. Defaults to mode-watcher's toggleMode. */
 		onToggleTheme?: () => void;
@@ -223,6 +245,10 @@
 	// that), so this can never suppress a legitimate desktop collapse.
 	const railCollapsed = $derived(collapsible && collapsed && !mobileNavOpen);
 
+	// The collapse toggle's accessible name states what pressing it will DO, so it
+	// flips with the state: collapsed → "Expand", expanded → "Collapse".
+	const collapseLabel = $derived(collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+
 	// Focus follows the overlay, in both directions. Opening a drawer and leaving
 	// the caret behind it strands a keyboard user in a page they can no longer
 	// see; closing it without returning focus drops them at the top of the
@@ -289,11 +315,39 @@
 		if (onToggleTheme) onToggleTheme();
 		else toggleMode();
 	}
+
+	// `[` toggles the rail — but only when it is not a character the user is
+	// trying to TYPE. A bare printable key bound globally would otherwise eat every
+	// `[` typed into a search field, a JSON editor or any input the consumer
+	// renders, so the shortcut yields whenever focus is on an editable element.
+	// This rides the window keydown the shell already owns for Escape rather than
+	// adding a second document-level listener.
+	function isTypingTarget(target: EventTarget | null): boolean {
+		const el = target as HTMLElement | null;
+		if (!el || typeof el.tagName !== 'string') return false;
+		return (
+			el.tagName === 'INPUT' ||
+			el.tagName === 'TEXTAREA' ||
+			el.tagName === 'SELECT' ||
+			el.isContentEditable
+		);
+	}
 </script>
 
 <svelte:window
 	onkeydown={(e) => {
-		if (e.key === 'Escape') closeMobileNav();
+		if (e.key === 'Escape') {
+			closeMobileNav();
+		} else if (
+			collapsible &&
+			e.key === '[' &&
+			!e.metaKey &&
+			!e.ctrlKey &&
+			!e.altKey &&
+			!isTypingTarget(e.target)
+		) {
+			collapsed = !collapsed;
+		}
 	}}
 />
 
@@ -320,6 +374,33 @@
 			{/if}
 		{/if}
 	</a>
+{/snippet}
+
+<!--
+	One search button, rendered in one of two places by `searchPlacement`. It is a
+	snippet rather than two literals so the two positions cannot drift apart — same
+	markup, same `data-testid`, same behaviour; only the sizing classes differ.
+	`sizing` is where the difference lives: leading fills the row (`flex-1`),
+	trailing sizes to its clamp without stretching the right-hand group.
+-->
+{#snippet searchButton(sizing: string)}
+	<button
+		onclick={onSearch}
+		class={cn(
+			'border-border text-shell-muted-foreground hover:text-shell-foreground flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors',
+			sizing
+		)}
+		data-testid="ds-shell-search"
+	>
+		<Search class="size-4 flex-none" />
+		<span class="truncate">{searchLabel}</span>
+		{#if searchShortcut}
+			<kbd
+				class="border-border bg-background text-shell-muted-foreground text-2xs ml-auto hidden rounded border px-1.5 py-0.5 font-mono sm:block"
+				>{searchShortcut}</kbd
+			>
+		{/if}
+	</button>
 {/snippet}
 
 <div class="ds-shell bg-background text-foreground flex h-dvh overflow-hidden">
@@ -371,7 +452,41 @@
 				</button>
 			{/if}
 
-			{@render brandLockup()}
+			<!--
+				The collapse toggle rides the brand row, at the rail's own top edge —
+				where a control that acts on the rail belongs (Notion, Linear, GitHub's
+				newer nav all put it there), rather than a full-width labelled row at
+				the foot that read as a navigation destination. Expanded, it sits right
+				of the wordmark (`ml-auto`); collapsed, the head has no room beside the
+				mark, so the row becomes a column and the toggle stacks under it,
+				centred. `md:grid` keeps it off the mobile drawer, where collapse does
+				not apply — the same reason the foot control carried `md:flex`.
+			-->
+			{#if collapsible}
+				<div class={cn('flex items-center', railCollapsed ? 'flex-col gap-1 py-2' : 'pr-2')}>
+					{@render brandLockup()}
+					<button
+						type="button"
+						onclick={() => (collapsed = !collapsed)}
+						class={cn(
+							'text-shell-muted-foreground hover:text-shell-foreground hidden size-8 flex-none place-items-center rounded-md transition-colors md:grid',
+							!railCollapsed && 'ml-auto'
+						)}
+						aria-label={collapseLabel}
+						aria-pressed={collapsed}
+						title={`${collapseLabel} (press [)`}
+						data-testid="ds-rail-collapse"
+					>
+						{#if collapsed}
+							<PanelLeftOpen class="size-4" />
+						{:else}
+							<PanelLeftClose class="size-4" />
+						{/if}
+					</button>
+				</div>
+			{:else}
+				{@render brandLockup()}
+			{/if}
 			<AppNav
 				{nav}
 				{currentPath}
@@ -379,24 +494,6 @@
 				label={navLabel}
 				onNavigate={() => (mobileNavOpen = false)}
 			/>
-
-			{#if collapsible}
-				<button
-					type="button"
-					onclick={() => (collapsed = !collapsed)}
-					class="text-shell-muted-foreground hover:text-shell-foreground hidden items-center gap-2.5 px-4 py-2 text-sm transition-colors md:flex"
-					aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
-					aria-pressed={collapsed}
-					data-testid="ds-rail-collapse"
-				>
-					{#if collapsed}
-						<PanelLeftOpen class="size-4 flex-none" />
-					{:else}
-						<PanelLeftClose class="size-4 flex-none" />
-						<span>Collapse</span>
-					{/if}
-				</button>
-			{/if}
 		</aside>
 	{/if}
 
@@ -434,24 +531,15 @@
 
 			{#if context}{@render context()}{/if}
 
-			{#if onSearch}
-				<button
-					onclick={onSearch}
-					class="border-border text-shell-muted-foreground hover:text-shell-foreground flex min-w-0 flex-1 items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors sm:w-[clamp(200px,32vw,560px)] sm:flex-none"
-					data-testid="ds-shell-search"
-				>
-					<Search class="size-4 flex-none" />
-					<span class="truncate">{searchLabel}</span>
-					{#if searchShortcut}
-						<kbd
-							class="border-border bg-background text-shell-muted-foreground text-2xs ml-auto hidden rounded border px-1.5 py-0.5 font-mono sm:block"
-							>{searchShortcut}</kbd
-						>
-					{/if}
-				</button>
+			{#if onSearch && searchPlacement === 'leading'}
+				{@render searchButton('min-w-0 flex-1 sm:w-[clamp(200px,32vw,560px)] sm:flex-none')}
 			{/if}
 
 			<div class="ml-auto flex flex-none items-center gap-2 sm:gap-3">
+				{#if onSearch && searchPlacement === 'trailing'}
+					{@render searchButton('min-w-0 flex-none sm:w-[clamp(200px,32vw,560px)]')}
+				{/if}
+
 				{#if actions}{@render actions()}{/if}
 
 				{#if themeToggle}

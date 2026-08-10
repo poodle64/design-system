@@ -15,7 +15,8 @@
 		navLabel,
 		measure,
 		texture,
-		mainClass
+		mainClass,
+		searchPlacement
 	}: {
 		currentPath?: string;
 		collapsible?: boolean;
@@ -28,6 +29,9 @@
 		/** The pre-existing seam, so the texture is driven composed with an app's
 		    own class rather than only on its own. */
 		mainClass?: string;
+		/** Undefined by default, so the leading default is what the unset harness
+		    drives — same additivity contract as measure/texture. */
+		searchPlacement?: 'leading' | 'trailing';
 	} = $props();
 
 	const nav: NavSource = [
@@ -62,6 +66,7 @@
 	{measure}
 	{texture}
 	{mainClass}
+	{searchPlacement}
 	bind:collapsed
 	brandTitle="Harness"
 	onSearch={() => (paletteOpen = true)}

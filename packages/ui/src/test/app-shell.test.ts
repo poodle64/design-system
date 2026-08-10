@@ -202,9 +202,7 @@ describe('AppShell — the drawer is a real modal', () => {
 			matchMedia.mock.results.forEach((r) => ((r.value as { matches: boolean }).matches = true));
 			listeners.forEach((fn) => fn());
 
-			await waitFor(() =>
-				expect(screen.queryByTestId('ds-shell-drawer')).not.toBeInTheDocument()
-			);
+			await waitFor(() => expect(screen.queryByTestId('ds-shell-drawer')).not.toBeInTheDocument());
 		} finally {
 			Object.defineProperty(window, 'matchMedia', { writable: true, value: original });
 		}
@@ -285,11 +283,15 @@ describe('AppShell — rail collapse', () => {
 		await fireEvent.click(screen.getByTestId('ds-rail-collapse'));
 		// The bound prop is the outcome: an app persists this, so a collapse that
 		// only changed an internal flag would silently fail to survive a reload.
-		await waitFor(() => expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('collapsed'));
+		await waitFor(() =>
+			expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('collapsed')
+		);
 		expect(screen.getByTestId('ds-rail-collapse')).toHaveAttribute('aria-pressed', 'true');
 
 		await fireEvent.click(screen.getByTestId('ds-rail-collapse'));
-		await waitFor(() => expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('expanded'));
+		await waitFor(() =>
+			expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('expanded')
+		);
 	});
 
 	it('keeps every label reachable to assistive tech when collapsed', async () => {
@@ -299,10 +301,139 @@ describe('AppShell — rail collapse', () => {
 		// Icon-only must not mean name-less: the accessible name survives as
 		// sr-only text plus a title, so the rail stays navigable by screen reader.
 		await waitFor(() => {
-			const link = document.querySelector<HTMLAnchorElement>('.ds-shell-rail a[href="/identities"]')!;
+			const link = document.querySelector<HTMLAnchorElement>(
+				'.ds-shell-rail a[href="/identities"]'
+			)!;
 			expect(link).toHaveAttribute('title', 'Identities');
 			expect(link.textContent).toContain('Identities');
 		});
+	});
+
+	it('sits in the rail head, on the brand row, above the nav — not at the foot', () => {
+		// The move that motivated this: a control acting on the rail belongs at the
+		// rail's own top edge, sharing the brand row, not a full-width row at the
+		// foot reading like a navigation destination. Proven by DOM order, since
+		// jsdom applies no layout — the toggle shares the brand link's parent and
+		// precedes the nav body.
+		render(ShellHarness, { props: { collapsible: true } });
+		const rail = document.querySelector('.ds-shell-rail')!;
+		const toggle = screen.getByTestId('ds-rail-collapse');
+		const brand = rail.querySelector<HTMLElement>('a[aria-label="Harness"]')!;
+		const nav = rail.querySelector('nav')!;
+
+		expect(toggle.parentElement).toContainElement(brand);
+		expect(
+			toggle.compareDocumentPosition(nav) & Node.DOCUMENT_POSITION_FOLLOWING,
+			'the toggle should precede the nav body'
+		).toBeTruthy();
+	});
+
+	it('names the toggle for its action in both states', async () => {
+		// Icon-only in both states, so the accessible name is the whole label and
+		// has to say what pressing it will DO — which flips with the state.
+		render(ShellHarness, { props: { collapsible: true } });
+		const toggle = screen.getByTestId('ds-rail-collapse');
+		expect(toggle).toHaveAttribute('aria-label', 'Collapse sidebar');
+		expect(toggle).toHaveAttribute('aria-pressed', 'false');
+		expect(toggle).toHaveAttribute('title', 'Collapse sidebar (press [)');
+
+		await fireEvent.click(toggle);
+
+		await waitFor(() => expect(toggle).toHaveAttribute('aria-label', 'Expand sidebar'));
+		expect(toggle).toHaveAttribute('aria-pressed', 'true');
+		expect(toggle).toHaveAttribute('title', 'Expand sidebar (press [)');
+	});
+
+	it('toggles the rail from the [ keyboard shortcut', async () => {
+		// The shortcut rides the window keydown the shell already owns for Escape,
+		// so this is a real outcome (the bound state flips), not a render.
+		render(ShellHarness, { props: { collapsible: true } });
+		expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('expanded');
+
+		await fireEvent.keyDown(window, { key: '[' });
+		await waitFor(() =>
+			expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('collapsed')
+		);
+
+		await fireEvent.keyDown(window, { key: '[' });
+		await waitFor(() =>
+			expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('expanded')
+		);
+	});
+
+	it('leaves the [ shortcut alone while the user is typing in a field', async () => {
+		// A bare printable key bound globally would eat every `[` typed into an
+		// input; the guard yields when focus is on an editable element.
+		render(ShellHarness, { props: { collapsible: true } });
+		const input = document.createElement('input');
+		document.body.appendChild(input);
+		try {
+			input.focus();
+			await fireEvent.keyDown(input, { key: '[' });
+			expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('expanded');
+		} finally {
+			input.remove();
+		}
+	});
+
+	it('offers no [ shortcut when the app did not ask for a collapse control', async () => {
+		render(ShellHarness);
+		await fireEvent.keyDown(window, { key: '[' });
+		// Nothing to toggle: the harness stays expanded and no toggle exists.
+		expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('expanded');
+		expect(screen.queryByTestId('ds-rail-collapse')).not.toBeInTheDocument();
+	});
+});
+
+describe('AppShell — searchPlacement', () => {
+	// Search is a global affordance. Where it sits changes what it reads AS: after
+	// the `context` slot it looks like route context; over with the theme toggle
+	// and identity it reads as global. The prop moves the SAME button — same
+	// testid, same behaviour — so these assert position, not a second control.
+	it('renders search in the leading position by default', () => {
+		render(ShellHarness);
+		const search = screen.getByTestId('ds-shell-search');
+		// Leading sits directly on the bar, ahead of the right-hand controls group,
+		// not inside it.
+		expect(search.parentElement).toHaveClass('ds-shell-bar');
+		expect(search.closest('.ml-auto')).toBeNull();
+	});
+
+	it('moves search into the trailing controls group, before actions, when asked', () => {
+		render(ShellHarness, { props: { searchPlacement: 'trailing' } });
+		const search = screen.getByTestId('ds-shell-search');
+		const group = search.closest('.ml-auto');
+
+		// Now inside the same right-hand group as the theme toggle...
+		expect(group).not.toBeNull();
+		expect(group).toContainElement(screen.getByTestId('ds-shell-theme'));
+		// ...and ahead of the app's own `actions` in that group.
+		const action = screen.getByTestId('action');
+		expect(
+			search.compareDocumentPosition(action) & Node.DOCUMENT_POSITION_FOLLOWING,
+			'search should precede actions in the trailing group'
+		).toBeTruthy();
+	});
+
+	it('still opens the palette from the trailing position', async () => {
+		// Position is the only thing that changes: the button is the same one, so
+		// its behaviour has to survive the move.
+		render(ShellHarness, { props: { searchPlacement: 'trailing' } });
+		expect(screen.getByTestId('probe-palette')).toHaveTextContent('closed');
+
+		await fireEvent.click(screen.getByTestId('ds-shell-search'));
+
+		await waitFor(() => expect(screen.getByTestId('probe-palette')).toHaveTextContent('open'));
+	});
+
+	it('renders exactly one search button in either placement', () => {
+		// Never both positions at once — the prop chooses one home for the button.
+		const { unmount } = render(ShellHarness);
+		expect(screen.getAllByTestId('ds-shell-search')).toHaveLength(1);
+		unmount();
+
+		render(ShellHarness, { props: { searchPlacement: 'trailing' } });
+		expect(screen.getAllByTestId('ds-shell-search')).toHaveLength(1);
 	});
 });
 
