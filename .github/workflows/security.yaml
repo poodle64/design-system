@@ -1,0 +1,41 @@
+name: Security
+
+# Supply-chain and vulnerability scanning on every push and PR: secret scan
+# (gitleaks), Node dependency audit (Trivy over the pnpm lockfile), and a
+# Trivy filesystem scan. Pure-Node root: no Python audit/SBOM. All scan jobs
+# live in the master-project factory reusable; this is the thin caller.
+# master-project#169.
+#
+# Restored 2026-08-10 after a bare, unexplained revert (a5fb094, 2026-08-06)
+# left this repo — which publishes @poodle64/ui to the whole estate — with no
+# dependency scanning at all. The revert carried no rationale, and
+# master/umbrella.md treats an unexplained difference as a defect rather than
+# a choice. The likely cause is that the shared gitleaks job was broken
+# fleet-wide at the time: it used gitleaks/gitleaks-action, which downloads a
+# dynamically-linked release binary that cannot execute on the NixOS runner,
+# so every repo's scan died with "Unable to locate executable file: gitleaks".
+# That was fixed in the reusable on 2026-08-10 (the runner's own gitleaks CLI,
+# scanned over a bounded commit range), so this caller works now.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    name: Security checks
+    uses: poodle64/master-project/.github/workflows/security-checks.yaml@main
+    permissions:
+      contents: read
+    with:
+      # No pyproject.toml or uv.lock here — this is a pure-Node package repo,
+      # so the Python audit and the CycloneDX SBOM (which derives from the
+      # Python export) are both switched off. Node coverage comes from
+      # node-dir below, which points Trivy at the pnpm lockfile at the root.
+      python: false
+      node-dir: '.'
