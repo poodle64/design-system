@@ -1,47 +1,51 @@
 # Design System
 
-The household web design-language factory: a pnpm workspace publishing two
-packages every SvelteKit app consumes to converge on one look — personality
-differs by palette only (`master-project#174`, WP-51). `@poodle64/design-tokens`
-(`packages/design-tokens/`) is the token layer; `@poodle64/ui`
-(`packages/ui/`) is the shared shadcn-svelte component layer. The
-`wp51/shared-ui-package` restructure is merged — `packages/` and
-`pnpm-workspace.yaml` are the live layout.
+The household web design-language factory: a pnpm workspace publishing
+`@poodle64/design-tokens` and `@poodle64/ui`, the two packages every
+SvelteKit app consumes to converge on one look — personality differs by
+palette only (`master-project#174`, WP-51).
 
-## Dev Environment
+## Scope
 
-- pnpm workspace (`pnpm-workspace.yaml` → `packages/*`); the repo root is a private workspace root, never a published package. pnpm `10.28.0` pinned via `packageManager`; Node `22` (CI floor, `.github/workflows/ci.yaml`)
-- `pnpm install`, then `pnpm build` / `pnpm test` / `pnpm check` fan out with `pnpm -r`. Scope to one package with `pnpm --filter @poodle64/ui run test`
-- `packages/design-tokens/`: `tokens/tokens.tokens.json` is the single DTCG source; `sd.config.js` is the Style Dictionary v4 config; `templates/DESIGN.md.template` is the per-app North Star template consuming apps copy in; build emits `dist/tokens.{css,tw.css,js,d.ts}`
-- `packages/ui/`: `svelte-package` build (`dist/components/ui/<name>/index.js` per component, plus `dist/utils.js`), `svelte-check` type gate, `vitest` + `@testing-library/svelte` interaction tests, `publint` on the emitted package
-- No lint tooling is configured yet (no ESLint) — do not assume it is wired into CI or pre-commit. `.prettierrc` exists only to RECORD the house style (tabs, printWidth 100, single quotes); nothing runs it in CI or pre-commit either. It is there because a prettier invoked without it walks up to the master-project root's 2-space config and reindents whole files
+- An app's personality is exactly two sanctioned knobs: the **accent**
+  (`--ds-color-primary` and its pair) and a **palette** from
+  `packages/design-tokens/tokens/palettes.json` — a hue plus a chroma scale
+  projected through the shared neutral ladder. A palette carries no field
+  for a lightness or a status colour; the ladder's own steps carry every
+  contrast guarantee. Widening this surface is a governance change argued
+  in writing (`docs/development/decision-palette-catalogue-and-the-tone-axis.md`
+  is the precedent) — an app never hand-writes a value for a named
+  semantic token, and this repo never grants a per-app exception.
+- Non-negotiable design constraints (corner radius, fonts, OKLCH colour
+  space, the `--ds-*` namespace) are recorded once, in
+  `packages/design-tokens/README.md` — do not restate them here.
 
-## Publishing
+## Pitfalls
 
-Public repo, published to **public npm** (`registry.npmjs.org`) under the `@poodle64` scope — no consumer auth token, no `.npmrc`. CI runs on GitHub-hosted runners, not the self-hosted `atlas` runner every other repo defaults to (`10-ci-workflow-standard.md` deviation, recorded in `.github/workflows/publish.yaml`). Auth for the publish step is `secrets.NPM_TOKEN`, an npm automation token for the `@poodle64` org — the workflow's "Require NPM_TOKEN" step fails fast with a clear message if it is unset, rather than a bare 401 from `npm publish`.
-
-Moved off GitHub Packages 2026-08-04: GitHub Packages' npm registry requires an authenticated request for every install, public packages included, so a consumer with no token configured could not `pnpm add` these packages — this broke onboarding at least twice (a collaborator machine with no `~/.npmrc`, and a previous collaborator before them).
-
-Tags are **per-package** so each releases on its own cadence: `design-tokens-v<version>` publishes `@poodle64/design-tokens`, `ui-v<version>` publishes `@poodle64/ui`. `publish.yaml` resolves the package directory from the tag prefix, re-runs that package's build/test, verifies the tag version matches that package's `package.json`, and `npm publish`es from the package directory. Both are **live and published** to public npm under the `@poodle64` scope and consumed by ordinary `^2026.7.x` version specs. The retired repo-wide `v<version>` scheme (tags `v2026.7.0`–`v2026.7.2`) no longer triggers anything.
-
-A consumer just `pnpm add`s the package — no registry config, no `.npmrc`, no token; `@poodle64/ui` also needs its peers installed (`svelte`, `bits-ui`, and — where the sonner/theme components are used — `svelte-sonner` and `mode-watcher`).
-
-## Key Reminders
-
-- Non-negotiable design constraints (corner radius, fonts, OKLCH colour space, the `--ds-*` namespace) live in `README.md` — do not duplicate or restate them here, and do not grant a per-app exception on a named semantic token
-- An app's personality is exactly two sanctioned knobs, and a third is a governance change, not an implementation detail: the **accent** (`--ds-color-primary` and its pair) and a **palette** from the catalogue (`packages/design-tokens/tokens/palettes.json`), which is a hue plus a chroma scale projected through the package's own neutral ladder. A palette has no field for a lightness and none for a status colour — deliberately, since the ladder's lightness steps carry every contrast guarantee here. Widening that surface again needs the argument written down the way `docs/development/decision-palette-catalogue-and-the-tone-axis.md` writes this one. This does NOT relax the line above: an app still never hand-writes a value for a named semantic token
-- `dist/` is generated by `pnpm build`; never hand-edit it
-
-## Sources of Truth
-
-| Asset                                         | Location                                                                                                                                                                                           |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Token source                                  | `packages/design-tokens/tokens/tokens.tokens.json`                                                                                                                                                 |
-| Palette catalogue                             | `packages/design-tokens/tokens/palettes.json` — 20 named personalities, projected through the ladder into `dist/palettes.css`; absorbed from the master project's standalone shadcn showcase (#25) |
-| Decision records                              | `docs/development/`                                                                                                                                                                                  |
-| Style Dictionary config                       | `packages/design-tokens/sd.config.js`                                                                                                                                                              |
-| Per-app North Star template                   | `packages/design-tokens/templates/DESIGN.md.template`                                                                                                                                              |
-| Shared components                             | `packages/ui/src/lib/components/ui/<name>/` (primitives and composed page chrome share one directory and one `./*` subpath export)                                                                 |
-| Component stylesheet                          | `packages/ui/src/lib/styles.css` — the `ds-*` classes and scale keys the composed components need; consuming apps import it as `@poodle64/ui/styles.css`                                           |
-| WP-51 background (workspace + `@poodle64/ui`) | `master-project#174`; `docs/master/templates/golden-patterns/app-shape-and-frontend.md` in `poodle64/master-project`                                                                               |
-| Changelog                                     | one per package: `packages/design-tokens/CHANGELOG.md`, `packages/ui/CHANGELOG.md`                                                                                                                 |
+- `pnpm --filter @poodle64/ui run <script>` builds/tests only that
+  package's own directory — its tests compile against
+  `@poodle64/design-tokens`' emitted stylesheets, so a scoped run against
+  an unbuilt `design-tokens` finds nothing. Use
+  `pnpm --filter '{./packages/ui}...' run <script>` (includes workspace
+  deps in dependency order), or the root `pnpm build`/`pnpm test`, which
+  already builds the whole workspace via `pnpm -r`.
+- No lint tooling is wired into CI or pre-commit anywhere in this repo (no
+  ESLint). `.prettierrc` exists only to RECORD the house style (tabs,
+  printWidth 100, single quotes) — nothing runs it; it exists because a
+  prettier invoked without it walks up to the master-project root's
+  2-space config and reindents whole files.
+- Publishes to **public npm**, not GitHub Packages: GitHub Packages
+  requires an authenticated request for every install, public packages
+  included, so a consumer with no token configured could not `pnpm add`
+  these packages — broke onboarding twice. No consumer auth, no
+  `.npmrc`, is needed today.
+- CI runs on GitHub-hosted runners, not the self-hosted `atlas` runner
+  every other repo defaults to — a deliberate `ci-workflow-standard.md`
+  deviation for this public repo, recorded in both
+  `.github/workflows/ci.yaml` and `.github/workflows/publish.yaml`.
+- Release tags are **per-package**, not the household's global
+  `v{YYYY}.{M}.{x}` scheme: `design-tokens-v<version>` publishes
+  `@poodle64/design-tokens`, `ui-v<version>` publishes `@poodle64/ui`.
+  `publish.yaml` resolves the package directory from the tag prefix and
+  re-runs that package's own build/test before publishing — a tag in the
+  household's ordinary global scheme triggers nothing here.
