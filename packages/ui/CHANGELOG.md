@@ -2,12 +2,34 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
-## [Unreleased]
-
-Harness and verification only. Nothing in `dist/` changed, so there is nothing
-here for a consumer to upgrade to and no version is spent.
+## [2026.8.5] - 2026-08-10
 
 ### Added
+
+- **`TileGrid`, an auto-filling tile grid** (`@poodle64/ui/tile-grid`,
+  `master-project#241`). It emits a single
+  `repeat(auto-fill, minmax(min(<min>, 100%), 1fr))` track that fits as many
+  whole tiles as the width allows and collapses to one column on a phone,
+  replacing the fixed `sm:grid-cols-2` every index hand-rolled — a fixed column
+  count cannot use width, it can only stretch, so giving the shell a wider
+  `measure` made those indexes worse rather than better. `min` (default
+  `16rem`) is the one sizing knob — a denser index passes a smaller one — `gap`
+  defaults to `0.75rem`, and `tag` (`'div' | 'ul'`) keeps an index its list
+  semantics when its tiles are links. Tiles stay the caller's business; this
+  owns the track and nothing else.
+
+  Promoted from cadmus, its one existing consumer, because `master-project#241`
+  is about to adopt `AppShell`'s `measure` prop across nine apps and each would
+  otherwise re-solve filling the widened content the same way — the
+  second-consumer promotion `canonical-app-shape.md` calls for, arriving nine at
+  once. `AppShell` and its `measure` default are untouched: adoption stays
+  per-app and deliberate.
+
+  The `min()` wrapper is load-bearing and silently regressible — a bare
+  `minmax(16rem, 1fr)` track cannot shrink below its minimum, so at 360px the
+  row overflows the viewport instead of falling to one column. It renders
+  identically at every other width, so nothing catches its loss visually; the
+  test asserts it as a string.
 
 - **`?surface=palette`, the palette gallery** (design-system#25), replacing the
   master project's standalone `dev/shadcn-showcase/` app. It renders the
