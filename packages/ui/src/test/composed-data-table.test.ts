@@ -17,6 +17,23 @@ function renderedNames(): string[] {
 	);
 }
 
+/** The `<th>` whose rendered header text matches, by walking the DOM rather than
+ *  assuming a column index — new meta-only columns append after `name`/`state`. */
+function headerCellFor(label: string): HTMLElement | undefined {
+	return [...document.querySelectorAll('thead th')].find(
+		(th) => th.textContent?.trim() === label
+	) as HTMLElement | undefined;
+}
+
+/** Every row's `<td>` for the column whose header text matches. */
+function bodyCellsFor(label: string): HTMLElement[] {
+	const headers = [...document.querySelectorAll('thead th')];
+	const index = headers.findIndex((th) => th.textContent?.trim() === label);
+	return [...document.querySelectorAll('tbody tr')].map(
+		(tr) => tr.querySelectorAll('td')[index] as HTMLElement
+	);
+}
+
 describe('DataTableTanstack — sorting', () => {
 	it('reorders the rendered rows when a sort is applied', async () => {
 		render(DataTableHarness);
@@ -112,6 +129,48 @@ describe('DataTableTanstack — master-detail selection', () => {
 		await waitFor(() => {
 			expect(screen.getByTestId('selected-id')).toHaveTextContent('r3');
 		});
+	});
+});
+
+describe('DataTableTanstack — column meta class slots', () => {
+	it('applies meta.class to both the header and every body cell', () => {
+		render(DataTableHarness);
+
+		expect(headerCellFor('Class Only')?.classList.contains('meta-class-both')).toBe(true);
+		for (const cell of bodyCellsFor('Class Only')) {
+			expect(cell.classList.contains('meta-class-both')).toBe(true);
+		}
+	});
+
+	it('applies meta.headClass to the header only, never the body cells', () => {
+		render(DataTableHarness);
+
+		expect(headerCellFor('Head Only')?.classList.contains('meta-head-only')).toBe(true);
+		for (const cell of bodyCellsFor('Head Only')) {
+			expect(cell.classList.contains('meta-head-only')).toBe(false);
+		}
+	});
+
+	it('applies meta.cellClass to the body cells only, never the header', () => {
+		render(DataTableHarness);
+
+		expect(headerCellFor('Cell Only')?.classList.contains('meta-cell-only')).toBe(false);
+		for (const cell of bodyCellsFor('Cell Only')) {
+			expect(cell.classList.contains('meta-cell-only')).toBe(true);
+		}
+	});
+
+	it('renders a body cell carrying both meta.class and meta.cellClass, header carrying class alone', () => {
+		render(DataTableHarness);
+
+		const header = headerCellFor('Combo');
+		expect(header?.classList.contains('w-full')).toBe(true);
+		expect(header?.classList.contains('max-w-0')).toBe(false);
+
+		for (const cell of bodyCellsFor('Combo')) {
+			expect(cell.classList.contains('w-full')).toBe(true);
+			expect(cell.classList.contains('max-w-0')).toBe(true);
+		}
 	});
 });
 

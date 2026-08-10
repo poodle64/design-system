@@ -2,6 +2,21 @@
 	// Re-exported so a page importing the table also gets the column-def type from
 	// one place, and never needs its own @tanstack/table-core dependency.
 	export type { ColumnDef } from '@tanstack/table-core';
+
+	// Module augmentation is TanStack's own extension point for `columnDef.meta`
+	// (it ships as an empty interface for exactly this). Declaring it here means
+	// every consumer importing `ColumnDef` from this package gets autocomplete
+	// and a type error on a typo, with no cast anywhere in this component.
+	declare module '@tanstack/table-core' {
+		interface ColumnMeta<TData, TValue> {
+			/** Applied to both the header (`<th>`) and body (`<td>`) cell. */
+			class?: string;
+			/** Applied to the header cell only, additive on top of `class`. */
+			headClass?: string;
+			/** Applied to the body cell only, additive on top of `class`. */
+			cellClass?: string;
+		}
+	}
 </script>
 
 <script lang="ts" generics="TData">
@@ -15,7 +30,11 @@
 	 *   - per-column faceted filters (setFilterValue on a column)
 	 *   - row selection for master-detail (onclick → selectedId, data-state=selected)
 	 *   - custom row left-border style via getRowStyle
-	 *   - responsive column hiding via column meta.class
+	 *   - responsive column hiding via column meta.class (both cells), or meta.headClass /
+	 *     meta.cellClass for a class that must differ between the `<th>` and the `<td>`
+	 *     (e.g. a truncating column needs `max-w-0` on the cell only — on the header it
+	 *     collapses the heading text). All three are additive; the cell-specific slot
+	 *     wins over `class` on a conflicting Tailwind utility.
 	 *   - opt-in bulk row selection via `selectable` prop (leading checkbox column)
 	 *
 	 * The page owns the Table instance (createSvelteTable from
@@ -37,6 +56,7 @@
 	import { Checkbox } from '../checkbox/index.js';
 	import type { Component } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { cn } from '$lib/utils.js';
 
 	interface Props<TRow> {
 		table: Table<TRow>;
@@ -146,10 +166,13 @@
 								</TableHead>
 							{/if}
 							{#each headerGroup.headers as header (header.id)}
-								{@const meta = header.column.columnDef.meta as Record<string, unknown> | undefined}
+								{@const meta = header.column.columnDef.meta}
 								<TableHead
-									class="text-muted-foreground border-border text-2xs tracking-eyebrow border-b px-3 py-1.5 text-left font-medium whitespace-nowrap uppercase {meta?.class ??
-										''}"
+									class={cn(
+										'text-muted-foreground border-border text-2xs tracking-eyebrow border-b px-3 py-1.5 text-left font-medium whitespace-nowrap uppercase',
+										meta?.class,
+										meta?.headClass
+									)}
 								>
 									{#if !header.isPlaceholder}
 										<FlexRender
@@ -208,8 +231,10 @@
 								</TableCell>
 							{/if}
 							{#each row.getVisibleCells() as cell (cell.id)}
-								{@const meta = cell.column.columnDef.meta as Record<string, unknown> | undefined}
-								<TableCell class="px-3 py-1.5 text-sm whitespace-nowrap {meta?.class ?? ''}">
+								{@const meta = cell.column.columnDef.meta}
+								<TableCell
+									class={cn('px-3 py-1.5 text-sm whitespace-nowrap', meta?.class, meta?.cellClass)}
+								>
 									<FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
 								</TableCell>
 							{/each}

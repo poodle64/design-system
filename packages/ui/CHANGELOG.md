@@ -2,6 +2,37 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.8.6] - 2026-08-10
+
+### Added
+
+- **`data-table-tanstack` column meta gains `headClass` and `cellClass`**,
+  additive on top of the existing `meta.class` (which keeps meaning "both
+  cells", unchanged). Each new slot reaches its own cell only, and wins over
+  `class` on a conflicting Tailwind utility — `cn()` (the package's existing
+  clsx + tailwind-merge helper) does the merge, nothing hand-rolled.
+
+  Fixes a real regression: the shared table conflated the `<th>` and `<td>`
+  class into one string, so a truncating column had no way to put `max-w-0`
+  on the body cell alone — that class is what lets the column absorb leftover
+  width and ellipsis instead of pushing every other column out of the card.
+  Putting it in `meta.class` (both cells) collapsed the heading over its
+  neighbour instead. The local table this component replaced already had
+  separate `headClass`/`cellClass`; every consumer with a truncating column
+  had been repeating an arbitrary-variant workaround
+  (`meta: { class: 'w-full [&:where(td)]:max-w-0' }`) since. Now:
+
+  ```ts
+  { accessorKey: 'filename', header: 'Document', meta: { class: 'w-full', cellClass: 'max-w-0' } }
+  ```
+
+  `columnDef.meta` is also properly typed for the first time, via a
+  `declare module '@tanstack/table-core'` augmentation (TanStack's own
+  extension point for `ColumnMeta`) — every consumer importing `ColumnDef`
+  from this package now gets autocomplete and a type error on a typo, and the
+  component itself drops the `meta as Record<string, unknown>` cast it used
+  to need.
+
 ## [2026.8.5] - 2026-08-10
 
 ### Added

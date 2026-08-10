@@ -486,6 +486,17 @@ that does not earn a table instance, `@poodle64/ui/table` also exports the
 `TH_CLASS` / `TD_CLASS` / `TH_HIDDEN_UNTIL_XL` constants for the raw-`<table>`
 idiom.
 
+A column's `meta.class` reaches both its `<th>` and its `<td>`; `meta.headClass`
+/ `meta.cellClass` reach one cell only, additive on top of `class` (the
+cell-specific slot wins on a conflicting Tailwind utility). Reach for the split
+whenever a class must differ between the two — a truncating column needs
+`max-w-0` on the `<td>` to ellipsis instead of pushing every other column out,
+but the same class on the `<th>` collapses the heading over its neighbour:
+
+```ts
+{ accessorKey: 'filename', header: 'Document', meta: { class: 'w-full', cellClass: 'max-w-0' } }
+```
+
 ## Consuming the package
 
 Published to public npm under the `@poodle64` scope, same as `@poodle64/design-tokens`

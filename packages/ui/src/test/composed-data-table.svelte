@@ -26,7 +26,34 @@
 
 	const columns: ColumnDef<Row>[] = [
 		{ accessorKey: 'name', header: 'Name' },
-		{ accessorKey: 'state', header: 'State', filterFn: 'equalsString' }
+		{ accessorKey: 'state', header: 'State', filterFn: 'equalsString' },
+		// The four columns below exist only to drive the meta class-slot tests in
+		// composed-data-table.test.ts — one column per case (`class` alone,
+		// `headClass` alone, `cellClass` alone, and the `class` + `cellClass`
+		// combination that motivated the split in the first place).
+		{ id: 'classOnly', header: 'Class Only', cell: () => 'both', meta: { class: 'meta-class-both' } },
+		{
+			id: 'headOnly',
+			header: 'Head Only',
+			cell: () => 'head-only',
+			meta: { headClass: 'meta-head-only' }
+		},
+		{
+			id: 'cellOnly',
+			header: 'Cell Only',
+			cell: () => 'cell-only',
+			meta: { cellClass: 'meta-cell-only' }
+		},
+		{
+			id: 'combo',
+			header: 'Combo',
+			cell: () => 'combo',
+			// Mirrors the godswood truncating-column case: `w-full` lets the column
+			// absorb leftover width, `max-w-0` (cell only) is what lets it ellipsis
+			// instead of pushing every other column out — on the header it would
+			// collapse the heading text instead.
+			meta: { class: 'w-full', cellClass: 'max-w-0' }
+		}
 	];
 
 	let sorting = $state<SortingState>([]);
