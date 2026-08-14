@@ -12,12 +12,16 @@ name: Publish Package
 # packages even though the repo and package are both public. Public npm
 # needs no token to install.
 #
-# Authenticates by OIDC trusted publishing, so there is NO npm token here and
-# no NPM_TOKEN secret to rotate: npm verifies this repo and this workflow
-# filename against a trusted publisher configured per package on npmjs, and
-# mints provenance attestations as a side effect. Renaming this file, or moving
-# the job to a reusable workflow, breaks publishing until the trusted-publisher
-# entry is updated to match.
+# Authenticates with the NPM_TOKEN secret. That is the WRONG end state and it is
+# on a vendor clock: npm is restricting bypass-2FA granular tokens for direct
+# publishing (https://gh.io/npm-gat-bypass2fa-deprecation), and this token also
+# expires. OIDC trusted publishing replaces it and needs no credential at all.
+#
+# It is not wired up yet because configuring a trusted publisher requires a real
+# second factor — npm refuses the operation from a bypass-2FA token by design, so
+# no unattended path exists. master-project#276 carries the switch; do NOT drop
+# the token from this workflow before that lands, or every release fails
+# authentication with nothing to fall back on.
 #
 # Deviation from 10-ci-workflow-standard (jobs on [self-hosted, atlas]),
 # dated 2026-07-03: this repo is PUBLIC, and exposing a self-hosted runner
@@ -42,9 +46,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      # Mints the OIDC token npm exchanges for publish rights. Without it the
-      # publish step fails authentication with no token to fall back on.
-      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -82,13 +83,6 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           scope: '@poodle64'
 
-      # Node 22 satisfies trusted publishing's own floor (>= 22.14) but bundles
-      # npm 10.x, and OIDC publishing needs npm >= 11.5.1. Upgrading npm alone
-      # keeps the toolchain identical to ci.yaml, which a Node major bump would
-      # not.
-      - name: Upgrade npm for trusted publishing
-        run: npm install -g npm@^11.5.1
-
       - name: Install
         run: pnpm install --frozen-lockfile
 
@@ -117,3 +111,5 @@ jobs:
       - name: Publish
         working-directory: ${{ steps.pkg.outputs.dir }}
         run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
