@@ -12,9 +12,12 @@ name: Publish Package
 # packages even though the repo and package are both public. Public npm
 # needs no token to install.
 #
-# Requires the NPM_TOKEN repository secret (an npm automation token scoped
-# to the @poodle64 org) — the "Require NPM_TOKEN" step below fails fast with
-# a clear message if it is missing.
+# Authenticates by OIDC trusted publishing, so there is NO npm token here and
+# no NPM_TOKEN secret to rotate: npm verifies this repo and this workflow
+# filename against a trusted publisher configured per package on npmjs, and
+# mints provenance attestations as a side effect. Renaming this file, or moving
+# the job to a reusable workflow, breaks publishing until the trusted-publisher
+# entry is updated to match.
 #
 # Deviation from 10-ci-workflow-standard (jobs on [self-hosted, atlas]),
 # dated 2026-07-03: this repo is PUBLIC, and exposing a self-hosted runner
@@ -24,40 +27,47 @@ name: Publish Package
 on:
   push:
     tags: ['design-tokens-v*', 'ui-v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing release tag to publish (e.g. ui-v2026.8.7)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      # Mints the OIDC token npm exchanges for publish rights. Without it the
+      # publish step fails authentication with no token to fall back on.
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-
-      - name: Require NPM_TOKEN
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NPM_TOKEN" ]; then
-            echo "::error::NPM_TOKEN secret is not set on this repository. An npm automation token for the @poodle64 org must be added as the NPM_TOKEN repository secret before this workflow can publish — ask the repo owner (poodle64) to add it." >&2
-            exit 1
-          fi
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
 
       - name: Resolve package from tag
         id: pkg
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -e
-          case "$GITHUB_REF_NAME" in
+          case "$RELEASE_TAG" in
             design-tokens-v*)
               echo "dir=packages/design-tokens" >> "$GITHUB_OUTPUT"
-              echo "version=${GITHUB_REF_NAME#design-tokens-v}" >> "$GITHUB_OUTPUT"
+              echo "version=${RELEASE_TAG#design-tokens-v}" >> "$GITHUB_OUTPUT"
               ;;
             ui-v*)
               echo "dir=packages/ui" >> "$GITHUB_OUTPUT"
-              echo "version=${GITHUB_REF_NAME#ui-v}" >> "$GITHUB_OUTPUT"
+              echo "version=${RELEASE_TAG#ui-v}" >> "$GITHUB_OUTPUT"
               ;;
             *)
-              echo "unrecognised tag: $GITHUB_REF_NAME" >&2
+              echo "unrecognised tag: $RELEASE_TAG" >&2
               exit 1
               ;;
           esac
@@ -71,6 +81,13 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           scope: '@poodle64'
+
+      # Node 22 satisfies trusted publishing's own floor (>= 22.14) but bundles
+      # npm 10.x, and OIDC publishing needs npm >= 11.5.1. Upgrading npm alone
+      # keeps the toolchain identical to ci.yaml, which a Node major bump would
+      # not.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@^11.5.1
 
       - name: Install
         run: pnpm install --frozen-lockfile
@@ -100,5 +117,3 @@ jobs:
       - name: Publish
         working-directory: ${{ steps.pkg.outputs.dir }}
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
