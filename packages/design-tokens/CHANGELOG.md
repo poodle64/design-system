@@ -2,11 +2,7 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
-## [Unreleased]
-
-Not versioned yet, deliberately: nothing consumes the catalogue, and
-`10-git-workflow.md` §Release Cadence puts an unconsumed thing's whole first cut
-in one version. The number gets spent when an app adopts a palette.
+## [2026.8.0] - 2026-08-14
 
 ### Added
 
