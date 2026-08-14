@@ -14,7 +14,15 @@
  * pass on a completely unregistered colour. Hence compile-and-flatten.
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+	cpSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	statSync,
+	writeFileSync
+} from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 
@@ -53,12 +61,25 @@ export interface CompileOptions {
 /** Compile `candidates` as class names and return the emitted CSS. */
 export function compile(candidates: string[], options: CompileOptions = {}): string {
 	const { designSystem = true, extraCss = '', reverseChain = false } = options;
-	// The fixture lives under node_modules so `@import "tailwindcss"` resolves
-	// against this package's own dependency tree.
-	const dir = mkdtempSync(join(packageRoot, 'node_modules', '.tw-probe-'));
+	// `source(none)` turns Tailwind's automatic content detection OFF, so the
+	// ONLY candidates considered are the ones written into probe.html and reached
+	// through the explicit @source below — one known file, scanned once. Without
+	// it every compile also walks the whole repo for class names, and this suite
+	// runs ~24 files in parallel each spawning that walk while creating and
+	// deleting its own probe dirs: in CI the concurrent walks non-deterministically
+	// dropped a compile's candidates, so a variant utility compiled to nothing on
+	// one runner and fine on the next (the same commit passed and failed). A
+	// single explicit source removes the walk and makes the compile deterministic.
+	//
+	// The fixture sits directly under the package root, NOT under node_modules —
+	// Tailwind excludes node_modules from scanning, so an @source reaching into it
+	// is the fragile escape-hatch path rather than the ordinary one. `@import
+	// "tailwindcss"` still resolves because packages/ui's own node_modules is an
+	// ancestor of this directory.
+	const dir = mkdtempSync(join(packageRoot, '.tw-probe-'));
 	try {
 		writeFileSync(join(dir, 'probe.html'), `<div class="${candidates.join(' ')}"></div>\n`);
-		const imports = ['@import "tailwindcss";'];
+		const imports = ['@import "tailwindcss" source(none);'];
 		if (designSystem) {
 			const chain = reverseChain ? [...CONSUMER_CHAIN].reverse() : CONSUMER_CHAIN;
 			for (const [name, source] of chain) {
