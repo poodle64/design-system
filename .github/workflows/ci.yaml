@@ -9,6 +9,11 @@ on:
     branches: [main]
   pull_request:
 
+# This workflow only reads the repo (checkout, install, build, test) — no
+# write scope is needed. publish.yaml declares its own id-token scope for OIDC.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -89,6 +94,27 @@ jobs:
             test -f "$f" || { echo "missing built component: $f" >&2; exit 1; }
           done
           test -f packages/ui/dist/utils.js || { echo "missing dist/utils.js" >&2; exit 1; }
+
+      - name: Assert the situation→component map generated and shipped
+        run: |
+          set -e
+          # The map is the registry an agent retrieves from (master-project#250).
+          # `pnpm -r run test` already ran the ui build, which regenerates it and
+          # fails outright on an unclassified component; this asserts the shipped
+          # artefacts exist and that every situation carries a component, so a
+          # build that silently stopped emitting them fails here, not at a
+          # consuming app.
+          MAP=packages/ui/registry/component-map
+          test -f "$MAP.md" || { echo "missing registry/component-map.md" >&2; exit 1; }
+          test -f "$MAP.json" || { echo "missing registry/component-map.json" >&2; exit 1; }
+          node -e '
+            const m = require("./packages/ui/registry/component-map.json");
+            if (!m.situations?.length) { console.error("no situations in map"); process.exit(1); }
+            for (const s of m.situations)
+              if (!s.components?.every((c) => c.import && c.props))
+                { console.error("situation " + s.key + " has an under-specified component"); process.exit(1); }
+            console.log(m.situations.length + " situations, " + m.meta.componentCount + " components — map OK");
+          '
 
   # A separate job because it needs a browser binary, and because the two
   # failure modes are worth telling apart at a glance: `build` failing means
