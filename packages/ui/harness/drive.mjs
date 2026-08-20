@@ -639,13 +639,12 @@ window.__probe = { composite, stack, contrast, inkRatio, fillRatio };
 	// correct in isolation; what decides it is which element the winning
 	// declaration sits on, which is a cascade fact only an engine resolves.
 	{
-		// `sidebar=1` puts a SECOND AppNav on the page background, outside the
-		// chrome, because the rule under test has to give two opposite answers at
-		// once: the rail follows the chrome's ink, and a route-scoped secondary
-		// column must NOT be dragged along with it. Only asserting the loud half
-		// would let the quiet half break silently — which is the shape of every
-		// defect this harness exists for.
-		const { context, page } = await open('surface=shell&sidebar=1');
+		// `pagenav=1` puts a SECOND AppNav in the page body, outside the chrome,
+		// because the rule under test has to give two opposite answers at once: the
+		// rail follows the chrome's ink, and a nav on the page must NOT be dragged
+		// along with it. Only asserting the loud half would let the quiet half break
+		// silently — which is the shape of every defect this harness exists for.
+		const { context, page } = await open('surface=shell&pagenav=1');
 		await page.addStyleTag({
 			content: `${SETTLE}\n:root { --ds-shell-chrome: oklch(0.30 0.03 260); --ds-shell-chrome-foreground: oklch(0.97 0.01 260); --ds-shell-chrome-muted-foreground: oklch(0.80 0.02 260); }`
 		});

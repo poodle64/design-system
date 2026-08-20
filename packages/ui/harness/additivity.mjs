@@ -46,7 +46,7 @@ const baseRef = process.argv[2] ?? 'HEAD~1';
 const PORT = 4186;
 
 /** The surfaces an existing consumer already renders, at the widths that bite. */
-const SURFACES = ['shell', 'shell&sidebar=1', 'overflow', 'nested', 'measure&measure=page'];
+const SURFACES = ['shell', 'shell&pagenav=1', 'overflow', 'nested', 'measure&measure=page'];
 const WIDTHS = [2560, 1440, 360];
 
 const MIME = {

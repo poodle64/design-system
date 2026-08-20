@@ -147,7 +147,6 @@ That is the whole minimum. Everything below is optional.
 | `identity`                                        | The signed-in surface. Rendered once, at the end of the top bar.                                                        |
 | `context`, `actions`                              | Leading and trailing top-bar slots: a store/tenant switcher, app-level action buttons.                                  |
 | `banner`                                          | Full-width region under the bar: reconnect notices, trial warnings.                                                     |
-| `sidebar`                                         | A secondary, route-scoped column between the nav and the page body.                                                     |
 | `onSearch`, `searchLabel`, `searchShortcut`       | Provide `onSearch` to render the search affordance at all.                                                              |
 | `themeToggle`, `onToggleTheme`                    | Defaults to `mode-watcher`. Set `themeToggle={false}` when the app puts theming inside its own user menu.               |
 | `measure`                                         | How wide the page body may get, from a named scale. Defaults to `full` (no cap).                                        |
@@ -176,10 +175,15 @@ it did before the field existed.
 
 It exists because the alternative was two left-hand columns: an app whose
 sections have inner navigation had nowhere to put it in the rail, so it put
-modules in `nav` and the current section's pages in `sidebar`. The other way out
-(modules along the top bar, rail for the current module) was rejected on mobile:
-it leaves two navigation surfaces that both need collapsing and both want the
-same hamburger. One nested tree collapses to one drawer.
+modules in `nav` and the current section's pages in a `sidebar` slot. The other
+way out (modules along the top bar, rail for the current module) was rejected on
+mobile: it leaves two navigation surfaces that both need collapsing and both want
+the same hamburger. One nested tree collapses to one drawer.
+
+Since **2026.8.11 it is the only way in**: the `sidebar` slot is gone. What it
+produced was the shell shape differing per app, and in one app per MODULE — two
+of its sections rendered their pages beside the rail and the rest rendered them
+inside it. Operator ruling, 21/08/2026: no app supports an additional sidebar.
 
 The behaviour, and why:
 
@@ -213,9 +217,11 @@ deep, so a section whose own navigation is itself grouped under sub-headings, or
 whose rows disclose a third level, does not lift into the rail whole. The rail is
 not the place to fix that. At 15.5rem a third level leaves roughly 128px for the
 label, which is about fifteen characters. A section that deep keeps its deepest
-level on its own page, where there is width for it, and the `sidebar` snippet
-stays the right home for a column that is not `NavItem`-shaped at all: a document
-tree, a table of contents, a filter panel.
+level on its own page, where there is width for it. A column that is not
+`NavItem`-shaped at all — a document tree, a table of contents, a filter panel —
+belongs in the page too, as a sibling of the article it serves, and not in the
+shell: it is part of that page's own reading surface, it wants that page's
+breakpoints, and no other route should be paying rail width for it.
 
 `NavItem` / `NavGroup` are exported so an app types its own config against them.
 They carry **no notion of who may see an item**: two surveyed apps gate
@@ -260,8 +266,8 @@ palette:
 }
 ```
 
-`AppNav` used outside the chrome (the `sidebar` slot's own column) keeps the
-page's ink, so inverting the rail does not drag a secondary nav with it.
+`AppNav` used outside the chrome (a navigation list inside a page) keeps the
+page's ink, so inverting the rail does not drag it along.
 
 ### The content measure
 

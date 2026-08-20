@@ -56,10 +56,20 @@
 	 * remembered. `collapsible` is on for the same reason.
 	 *
 	 * Everything else the surveyed apps differed on turned out to be a slot, not
-	 * a variant: the brand, the identity surface, a context switcher, a banner, a
-	 * secondary column. Those are snippets, so this package imports no app store,
-	 * no app route and no app brand — the coupling that made the best shell in
-	 * the estate unliftable in the first place.
+	 * a variant: the brand, the identity surface, a context switcher, a banner.
+	 * Those are snippets, so this package imports no app store, no app route and
+	 * no app brand — the coupling that made the best shell in the estate
+	 * unliftable in the first place.
+	 *
+	 * There is NO second navigation column, and there is no slot to make one.
+	 * `sidebar` was such a slot until 2026.8.11, and what it produced was two
+	 * apps rendering a module's own pages beside the rail while the other seven
+	 * rendered them inside it — the shell shape differing per app, and in one app
+	 * per MODULE, which is the thing this component exists to stop. Operator
+	 * ruling, 21/08/2026, on seeing one app's two modules disagree: no app
+	 * supports an additional sidebar; a section's own pages roll out beneath it
+	 * in the rail. That is `NavItem.children` (see types.ts), which the rail
+	 * already discloses at every width and folds into the one drawer on a phone.
 	 *
 	 * The minimum useful call is two props:
 	 *
@@ -96,7 +106,6 @@
 		context,
 		actions,
 		identity,
-		sidebar,
 		onSearch,
 		searchLabel = 'Search…',
 		searchShortcut = '⌘K',
@@ -154,8 +163,6 @@
 		actions?: Snippet;
 		/** The signed-in user surface. Rendered once, at the end of the top bar. */
 		identity?: Snippet;
-		/** A secondary, route-scoped column between the nav and the page body. */
-		sidebar?: Snippet;
 		/** Provide to render the search affordance. Usually opens a CommandPalette. */
 		onSearch?: () => void;
 		searchLabel?: string;
@@ -590,11 +597,6 @@
 		{#if banner}{@render banner()}{/if}
 
 		<div class="flex min-h-0 min-w-0 flex-1">
-			{#if sidebar}
-				<div class="border-border hidden min-h-0 flex-none border-r md:flex">
-					{@render sidebar()}
-				</div>
-			{/if}
 			<!--
 				The scrolling content region, and the element a consumer's
 				"no horizontal overflow" test must measure.

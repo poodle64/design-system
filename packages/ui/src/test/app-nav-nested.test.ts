@@ -376,6 +376,28 @@ describe('nested nav — the vocabulary', () => {
 		]);
 	});
 
+	it('names each destination once, so a section root repeated as its own first child cannot collide', () => {
+		// A section's landing page is named twice by nature — the parent row goes
+		// there, and the section's first child row is that same page under its own
+		// name. Both are wanted in the rail, which renders them in different keyed
+		// blocks; flattened they collide, and every consumer keys this list by
+		// href, so Svelte throws `each_key_duplicate` and takes the palette's whole
+		// content with it. The parent's entry survives: it carries the section name.
+		const items = toItems([
+			{
+				label: 'Property',
+				href: '/property',
+				children: [
+					{ label: 'Dashboard', href: '/property' },
+					{ label: 'P&L', href: '/property/pnl' }
+				]
+			}
+		]);
+
+		expect(items.map((item) => item.href)).toEqual(['/property', '/property/pnl']);
+		expect(items[0]?.label).toBe('Property');
+	});
+
 	it('leaves a childless nav flattening exactly as it always did', () => {
 		expect(
 			toItems([

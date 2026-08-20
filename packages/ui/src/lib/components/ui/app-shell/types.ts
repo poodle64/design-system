@@ -57,10 +57,12 @@ export interface NavItem {
 	 *
 	 * Without this, an app whose sections have their own inner navigation has
 	 * nowhere to put it inside the rail. The observed workaround was modules in
-	 * `nav` and the current module's pages in the `sidebar` snippet — two
+	 * `nav` and the current module's pages in AppShell's `sidebar` snippet — two
 	 * left-hand columns on a desktop, and, the reason this shape won over moving
 	 * modules to a top bar, two surfaces on a phone that both want the same
-	 * hamburger. One nested tree collapses to one drawer.
+	 * hamburger. One nested tree collapses to one drawer. That slot is gone as
+	 * of 2026.8.11 and this is the only way in, so a section's navigation is in
+	 * the same place in every app and on every route.
 	 *
 	 * Named `children`, not `items`, for a mechanical reason as well as a
 	 * readable one: `isNavGroup` narrows on `'items' in entry`, so an item
@@ -139,18 +141,41 @@ export function navChildren(item: NavItem): readonly NavChildItem[] {
 
 /**
  * Every item in source order, ignoring grouping — a parent immediately followed
- * by its own children. Used by the command palette.
+ * by its own children, each destination appearing ONCE. Used by the command
+ * palette.
  *
  * Children are included because they are destinations like any other, and the
  * palette is the fastest route to a page three levels into a section. An item
  * with no children flattens exactly as it always did.
+ *
+ * The de-duplication is not tidiness. A section that discloses its own pages
+ * names its landing page twice by nature — the parent row goes there, and the
+ * section's first child row is that same page under its own name ("Property",
+ * then "Dashboard"). Both rows are wanted in the rail, where they render in
+ * different `{#each}` blocks; flattened they collide, and every consumer keys
+ * this list by `href`, so Svelte throws `each_key_duplicate` and the throw
+ * takes the palette's whole content with it. Measured in a consumer: ⌘K opened
+ * an empty sheet on every module route until the app hand-filtered its own nav
+ * before passing it. An app should not have to know that.
+ *
+ * First occurrence wins, so the surviving entry is the parent's — the row
+ * carrying the section's own name, which is what someone typing into a palette
+ * is looking for.
  */
 export function toItems(nav: NavSource | undefined): NavItem[] {
 	if (!nav) return [];
-	return nav.flatMap((entry) => {
-		const items = isNavGroup(entry) ? entry.items : [entry];
-		return items.flatMap((item) => [item, ...navChildren(item)]);
-	});
+	const seen = new Set<string>();
+	const items: NavItem[] = [];
+	for (const entry of nav) {
+		for (const item of isNavGroup(entry) ? entry.items : [entry]) {
+			for (const candidate of [item, ...navChildren(item)]) {
+				if (seen.has(candidate.href)) continue;
+				seen.add(candidate.href);
+				items.push(candidate);
+			}
+		}
+	}
+	return items;
 }
 
 /** Prefix-match `path` against `prefix`, without running past a path segment. */

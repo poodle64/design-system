@@ -441,7 +441,7 @@ default; it is now 9.09–12.63:1.
 | The active state does not rest on the indicator alone     | no cascade, no computed weight           | `aria-current="page"` **and** weight 400→500 **and** ink differs |
 | The brand indicator against the chrome                    | —                                        | recorded, not gated (see below)                                  |
 | An inverted chrome moves the nav ink                      | a cascade fact — needs an engine         | ink ≠ the page's own, and ≥4.5:1 on the inverted chrome          |
-| …and does NOT drag a secondary nav with it (`?sidebar=1`) | as above                                 | a route-scoped column stays exactly on the page's own ink        |
+| …and does NOT drag an in-page nav with it (`?pagenav=1`)   | as above                                 | a nav in the page body stays exactly on the page's own ink       |
 | The resting nav label clears AA                           | unresolved `var(--…)`                    | ≥4.5:1                                                           |
 
 **Why the indicator bar is recorded and not gated.** WCAG 1.4.11 holds a state
@@ -478,11 +478,11 @@ that exact shape of dead affordance; `theme-coverage.test.ts` calls it "worse
 than a missing key" and it was right.
 
 The rule has to give **two opposite answers at once**, so both are asserted.
-`AppNav` is also exported in its own right, as a route-scoped secondary column
+`AppNav` is also exported in its own right, for a navigation list inside a page
 on the ordinary page background, and that one must NOT follow the chrome — an
 inverted chrome would otherwise paint near-white ink on a near-white surface.
-`?sidebar=1` puts one on the page beside the inverted rail and pins both halves
-in the same pass. Gating only the loud half would leave the quiet half free to
+`?pagenav=1` puts one in the page body beside the inverted rail and pins both
+halves in the same pass. Gating only the loud half would leave the quiet half free to
 break silently, which is the shape of every defect this harness exists for.
 
 One trap worth inheriting from writing that check: **a custom property and a
@@ -863,7 +863,7 @@ It builds the package at the base ref in a throwaway git worktree (a full
 install, deliberately: borrowing this checkout's `node_modules` would resolve the
 workspace links back into current sources and silently build the "base" from the
 new code), renders the five surfaces an existing consumer already has — `shell`,
-`shell&sidebar=1`, `overflow`, `nested`, `measure&measure=page` — at 2560px,
+`shell&pagenav=1`, `overflow`, `nested`, `measure&measure=page` — at 2560px,
 1440px and 360px, and diffs, per pair: the whole `<main>` subtree's `outerHTML`,
 its full attribute set, the content box's attribute set, `<main>`'s computed
 `background-image`, `background-color`, `background-size`, `background-repeat`,

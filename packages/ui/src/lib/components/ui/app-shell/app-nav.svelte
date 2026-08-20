@@ -3,19 +3,19 @@
 	 * The vertical navigation list.
 	 *
 	 * Rendered by AppShell in the rail/drawer (one element, two states — see
-	 * app-shell.svelte) and exported in its own right so an app with a SECOND,
-	 * route-scoped navigation column (a per-module sidebar) uses the same
-	 * affordance rather than hand-building a near-copy.
-	 * That was the concrete shape of the drift in the estate: one app's inner
-	 * sidebar had reimplemented the active indicator, the group separators and
-	 * the collapse behaviour independently of its own top bar.
+	 * app-shell.svelte), and exported in its own right for a navigation list that
+	 * belongs in a PAGE — so it is built from the same affordance rather than
+	 * hand-copied. That was the concrete shape of the drift in the estate: one
+	 * app's inner nav had reimplemented the active indicator, the group
+	 * separators and the collapse behaviour independently of its own top bar.
 	 *
-	 * An item carrying `children` discloses them in place, beneath itself. That
-	 * is the same drift arriving from the other direction: an app whose sections
-	 * have their own navigation had nowhere to put it inside the rail, so it put
-	 * its modules here and its per-section pages in AppShell's `sidebar` snippet,
-	 * and shipped two left-hand columns. See `types.ts` on `children` for why the
-	 * nested rail won over modules-on-the-top-bar, and why the depth cap is one.
+	 * It is no longer how an app gets a second navigation COLUMN, because there
+	 * is no longer such a thing: AppShell's `sidebar` slot was removed in
+	 * 2026.8.11 (operator ruling, 21/08/2026 — no app supports an additional
+	 * sidebar). An item carrying `children` discloses them in place, beneath
+	 * itself, and that is where a section's own pages go at every width. See
+	 * `types.ts` on `children` for why the nested rail won over
+	 * modules-on-the-top-bar, and why the depth cap is one.
 	 */
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import {

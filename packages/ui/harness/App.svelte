@@ -160,9 +160,11 @@
 	// guarantee under it (its own box stays the content box) rather than to
 	// claim an overflow that is the page's to solve.
 	const overflowContent = params.get('content') ?? 'table';
-	// `?sidebar=1` adds a route-scoped secondary AppNav on the page background,
-	// so the half of the nav-ink rule that must NOT follow the chrome is driven too.
-	const withSidebar = params.get('sidebar') === '1';
+	// `?pagenav=1` adds an AppNav inside the PAGE BODY, so the half of the nav-ink
+	// rule that must NOT follow the chrome is driven too. It is in the body and
+	// not a shell slot because the shell has no second-column slot to put it in —
+	// `sidebar` was removed in 2026.8.11.
+	const withPageNav = params.get('pagenav') === '1';
 	// `?surface=measure&measure=<tier>` drives the content measure. Every claim
 	// it makes is a resolved length — `80rem` against the root font size, `72ch`
 	// against the body face, a cap that binds only once the viewport is wide
@@ -733,18 +735,6 @@
 		<div data-probe="texture-spacer" style="height: 3200px; flex: none"></div>
 	</AppShell>
 {:else}
-	{#snippet secondaryNav()}
-		<!-- A route-scoped secondary nav: the OTHER surface AppNav is rendered on,
-		     the ordinary page background, OUTSIDE the shell's chrome. It has to
-		     keep the PAGE's ink at the same moment the rail follows
-		     `--ds-shell-chrome-foreground` — one rule, two opposite answers, and
-		     the half that is easy to break while the loud half still passes. So it
-		     is driven rather than argued.
-
-		     Behind `?sidebar=1` because a second nav landmark changes the landmark
-		     and tab-stop counts the hand-driven checks in `drive.md` pin. -->
-		<AppNav {nav} {currentPath} label="Section" class="w-56" />
-	{/snippet}
 	<AppShell
 		{nav}
 		{collapsible}
@@ -753,7 +743,6 @@
 		brandTitle="Harness"
 		onSearch={() => (paletteOpen = true)}
 		{searchPlacement}
-		sidebar={withSidebar ? secondaryNav : undefined}
 	>
 		{#snippet brandMark()}
 			<span class="text-primary text-xs font-bold">H</span>
@@ -767,6 +756,17 @@
 				<span>Operator</span>
 			</button>
 		{/snippet}
+		{#if withPageNav}
+			<!-- An in-page nav: the OTHER surface AppNav is rendered on, the ordinary
+			     page background, OUTSIDE the shell's chrome. It has to keep the PAGE's
+			     ink at the same moment the rail follows `--ds-shell-chrome-foreground`
+			     — one rule, two opposite answers, and the half that is easy to break
+			     while the loud half still passes. So it is driven rather than argued.
+
+			     Behind `?pagenav=1` because a second nav landmark changes the landmark
+			     and tab-stop counts the hand-driven checks in `drive.md` pin. -->
+			<AppNav {nav} {currentPath} label="Section" class="mb-6 w-56" />
+		{/if}
 		<h1 class="font-display text-display font-semibold">Page body</h1>
 		<p class="text-muted-foreground mt-2 text-sm">
 			Content the shell frames. Everything around it is the shared component.

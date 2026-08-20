@@ -2,6 +2,48 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.8.11] - 2026-08-21
+
+### Removed
+
+- **BREAKING: `AppShell` no longer has a `sidebar` slot, and no app has a second
+  navigation column.** The slot let an app render a section's own pages beside
+  the rail instead of inside it, and the estate's answer was two apps using it
+  and seven not — with one of those two disagreeing with ITSELF: its Travel
+  section rendered a second left-hand column while its Securities section put
+  the same kind of links in a top rail. Operator ruling, 21/08/2026, on seeing
+  those two modules side by side: no app supports an additional sidebar; a
+  section's own pages roll out beneath it in the rail.
+
+  `NavItem.children` (2026.8.7) is the one way in. It already discloses in
+  place, auto-opens the section you are inside, and folds into the single drawer
+  on a phone — which is why it won over modules-on-a-top-bar in the first place.
+
+  A column that is not `NavItem`-shaped at all — a document's table of contents,
+  a corpus tree, a filter panel — belongs in the page, as a sibling of the
+  article it serves. It wants that page's breakpoints, and no other route should
+  pay rail width for it.
+
+### Fixed
+
+- **`toItems` names each destination once.** A section that discloses its own
+  pages names its landing page twice by nature: the parent row goes there, and
+  the section's first child row is that same page under its own name
+  ("Property", then "Dashboard"). Both rows are wanted in the rail, which
+  renders them in different keyed blocks — but flattened for the command palette
+  they collide, and every consumer keys the flattened list by `href`, so Svelte
+  throws `each_key_duplicate` and the throw takes the palette's whole content
+  with it. Measured in a consumer: ⌘K opened an empty sheet on every module
+  route, and the app had to hand-filter its own nav before passing it. First
+  occurrence wins, so the surviving row carries the section's own name.
+
+### Changed
+
+- The harness's second-`AppNav` surface moved from the removed slot into the
+  page body and is now `?pagenav=1` (was `?sidebar=1`); `additivity.mjs` and
+  `drive.md` follow. The nav-ink rule it pins is unchanged — a nav on the page
+  keeps the page's ink while the rail follows the chrome's.
+
 ## [2026.8.10] - 2026-08-20
 
 ### Fixed
