@@ -11,10 +11,10 @@
  *
  * So this file proves only the DOM CONTRACT: which class and which attribute the
  * shell writes, on WHICH element, that it adds no box while doing it, and — the
- * load-bearing half — that a shell which never mentions `texture` writes
- * neither. Whether the texture paints, sits behind content, travels with the
- * scroll and disappears on paper is measured in a real browser, in
- * `harness/drive.mjs`.
+ * load-bearing half — that `texture="none"` writes neither, so an app that must
+ * opt out lands on a genuinely bare region. Whether the texture paints, sits
+ * behind content, travels with the scroll and disappears on paper is measured in
+ * a real browser, in `harness/drive.mjs`.
  */
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/svelte';
@@ -34,40 +34,38 @@ function attributes(el: HTMLElement): Record<string, string> {
 }
 
 describe('AppShell — the texture is additive', () => {
-	// The guarantee the operator asked for, as a gate rather than a claim: no
-	// consumer that omits `texture` may render one pixel differently. The pixel
-	// half is measured across two builds by `harness/additivity.mjs`, which
-	// renders the opt-in-free surfaces at 2560/1440/360px on a base ref and on
-	// the working tree and diffs markup, computed boxes, geometry and pixels
-	// (`node harness/additivity.mjs ui-v2026.8.3` — 15 pairs, 105 fields,
-	// identical). This holds the half a test can hold permanently, on every run.
-	it('writes no texture class and no texture attribute when the prop is never named', () => {
+	// The house atmosphere arrives without an app asking. It shipped opt-in so its
+	// introduction moved nobody, and the estate's answer was that five of nine
+	// apps wore it and three of those had hand-rolled their own copy — an opt-in
+	// house style measures who remembered, not what the house looks like.
+	it('paints the texture when the prop is never named', () => {
 		const { container } = render(ShellHarness);
 		const main = contentRegion(container);
 
-		expect(main.classList.contains('ds-shell-texture')).toBe(false);
-		expect(main.hasAttribute('data-texture')).toBe(false);
-		// Not passing by rendering nothing: the region is still the scroller it
-		// always was, and still the element `measure`'s box hangs off.
+		expect(main.classList.contains('ds-shell-texture')).toBe(true);
+		expect(main.getAttribute('data-texture')).toBe('grid');
+		// Still the scroller it always was, and still the element `measure`'s box
+		// hangs off — the texture rides the region rather than replacing it.
 		expect(main.className).toContain('overflow-y-auto');
 		expect(main.className).toContain('relative');
 	});
 
-	it('treats texture="none" as indistinguishable from omitting it', () => {
-		// `none` is the default, so the two paths must converge on the same DOM
-		// rather than merely look similar — an app adopting the texture and then
-		// deciding one layout wants none of it must land exactly where it started.
-		const omitted = attributes(contentRegion(render(ShellHarness).container));
-		const explicit = attributes(
+	it('treats texture="none" as a genuinely bare region', () => {
+		// `none` is the opt-out, and it has to be complete: an app that turns the
+		// texture off must land on the region as it was before the feature existed,
+		// not on a class with a neutered rule behind it.
+		const bare = attributes(
 			contentRegion(render(ShellHarness, { props: { texture: 'none' } }).container)
 		);
 
-		expect(explicit).toEqual(omitted);
+		expect(bare.class.split(/\s+/)).not.toContain('ds-shell-texture');
+		expect(bare['data-texture']).toBeUndefined();
 	});
 
 	it('treats a null texture as no texture, rather than half of one', () => {
 		// The type forbids `null`, but a loosely-typed prop bag, a spread config or
-		// a nullable route field still delivers it, and Svelte's two halves are
+		// a nullable route field still delivers it — and unlike an omitted prop,
+		// `null` does NOT fall back to the default. Svelte's two halves are
 		// asymmetric: an attribute whose value is null is omitted while a class
 		// token under the same test survives. Guarded once for `measure` (2026.8.3)
 		// and the same shape here, because a class with no matching rule is exactly
@@ -81,12 +79,15 @@ describe('AppShell — the texture is additive', () => {
 		expect(main.hasAttribute('data-texture')).toBe(false);
 	});
 
-	it('adds exactly one class and one attribute when a texture IS named', () => {
+	it('adds exactly one class and one attribute over the untextured region', () => {
 		// The size of the change, pinned. A future refactor reaching for a wrapper
 		// element, an overlay child or a swapped class would be a behaviour change
 		// for consumers styling or querying this region, and fails here rather than
-		// in an app.
-		const omitted = attributes(contentRegion(render(ShellHarness).container));
+		// in an app. Measured against `none` rather than against an omitted prop,
+		// because omitting it now yields the painted region.
+		const omitted = attributes(
+			contentRegion(render(ShellHarness, { props: { texture: 'none' } }).container)
+		);
 		const painted = attributes(
 			contentRegion(render(ShellHarness, { props: { texture: 'grid' } }).container)
 		);
@@ -112,7 +113,7 @@ describe('AppShell — the texture is additive', () => {
 		// that already fights for `min-height: 0`. A background layer has none of
 		// those failure modes — and the way to keep it that way is to assert that
 		// nothing was added.
-		const bare = contentRegion(render(ShellHarness).container);
+		const bare = contentRegion(render(ShellHarness, { props: { texture: 'none' } }).container);
 		const { container } = render(ShellHarness, { props: { texture: 'grid' } });
 		const main = contentRegion(container);
 
@@ -169,13 +170,14 @@ describe('AppShell — the texture vocabulary', () => {
 		}
 	});
 
-	it('is a closed scale of two, the untextured default first', () => {
-		// One picture, not a menu. The two surveyed apps wanted the same texture and
-		// differed only on ink and pitch, which are custom properties rather than
-		// names — a plain wash is `--ds-shell-texture-grid-ink: transparent`, not a
-		// second value here. A value added without a rule in styles.css would render
-		// a class with nothing behind it, the dead-utility failure this package
-		// gates for everywhere else.
+	it('is a closed scale of two, the opt-out first', () => {
+		// One picture, not a menu. The three apps that hand-rolled this texture wanted
+		// the same picture and differed only on ink and pitch, which are custom
+		// properties rather than names — a plain wash is
+		// `--ds-shell-texture-grid-ink: transparent`, not a second value here. A
+		// value added without a rule in styles.css would render a class with nothing
+		// behind it, the dead-utility failure this package gates for everywhere else.
+		// The order is the documentation order, not a default: `grid` is the default.
 		expect([...SHELL_TEXTURES]).toEqual(['none', 'grid']);
 	});
 });

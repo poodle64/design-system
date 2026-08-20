@@ -2,6 +2,32 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.8.8] - 2026-08-20
+
+### Changed
+
+- **BREAKING (visual): `AppShell` now paints the house texture and offers the
+  rail collapse control by default.** `texture` defaults to `'grid'` (was
+  `'none'`) and `collapsible` to `true` (was `false`). Both shipped opt-in so
+  their arrival moved no consumer, and the estate's answer to opt-in was
+  measured across the nine stamped apps: two rails could collapse and seven
+  could not, and five apps wore the texture — three of them through a
+  hand-rolled `*-dotgrid` class in their own `app.css`, under three names, two
+  ink variables and two grid pitches, only one of which carried the
+  `background-attachment: local` that stops the floor sliding under the
+  scroller. An opt-in house style measures who remembered, not what the house
+  looks like. The shell shape is not an app's to pick (operator ruling,
+  31/07/2026), so it is now the shell that decides.
+- `texture="none"` and `collapsible={false}` remain the complete opt-outs, and
+  both are gated: `none` renders the region exactly as it was before the
+  feature existed, and `collapsible={false}` withdraws both the control and its
+  `[` shortcut. The additivity tests now measure `grid` against `none` rather
+  than against an omitted prop, since omitting it is what paints.
+- The shell's own test harness stopped defaulting `collapsible` to `false`. It
+  had been passing its own value, so the package default was never driven and
+  the flip broke no test — the harness now forwards `undefined`, as it already
+  did for `measure` and `texture`.
+
 ## [2026.8.7] - 2026-08-10
 
 ### Added

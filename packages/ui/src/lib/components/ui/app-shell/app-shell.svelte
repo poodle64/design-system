@@ -50,7 +50,10 @@
 	 * applied it as a helper class per route, so it reached four routes out of
 	 * about fifteen. Which pages wore the house atmosphere was decided by which
 	 * pages someone had happened to touch. `texture` is one named picture the
-	 * SHELL paints once, off by default, its inks tuned by custom properties.
+	 * SHELL paints once, its inks tuned by custom properties. It shipped off by
+	 * default so its arrival moved nobody; it is ON by default now, because an
+	 * opt-in house style is not a house style — it is a survey of who
+	 * remembered. `collapsible` is on for the same reason.
 	 *
 	 * Everything else the surveyed apps differed on turned out to be a slot, not
 	 * a variant: the brand, the identity surface, a context switcher, a banner, a
@@ -83,7 +86,7 @@
 		nav,
 		navLabel = 'Primary',
 		currentPath,
-		collapsible = false,
+		collapsible = true,
 		collapsed = $bindable(false),
 		brand,
 		brandTitle,
@@ -102,7 +105,7 @@
 		onToggleTheme,
 		padded = true,
 		measure = 'full',
-		texture = 'none',
+		texture = 'grid',
 		mainClass,
 		children
 	}: {
@@ -123,7 +126,15 @@
 		 * a component that is framework-agnostic and genuinely drivable.
 		 */
 		currentPath?: string;
-		/** Offer an icon-only collapse toggle at the rail head, on the brand row. */
+		/**
+		 * Offer an icon-only collapse toggle at the rail head, on the brand row.
+		 *
+		 * Defaults ON. It was opt-in while the control was being introduced, and
+		 * two of nine household apps opted in — so seven rails could not be
+		 * collapsed, for no reason anyone had chosen. The shell shape is not an
+		 * app's to pick (operator ruling, 31/07/2026); set `false` only where a
+		 * rail genuinely must not collapse.
+		 */
 		collapsible?: boolean;
 		/** Rail collapse state. Bind it to persist the choice across sessions. */
 		collapsed?: boolean;
@@ -178,12 +189,15 @@
 		 * The house atmosphere on the content region: `grid` (a dot-grid floor
 		 * plus a corner vignette) or `none`.
 		 *
-		 * Defaults to `none`, so a shell that does not mention it is unchanged.
-		 * Set it in the layout, once — that the SHELL paints it is the whole
-		 * point, because a helper class apps apply per route is how one consumer
-		 * ended up wearing the house texture on four routes out of fifteen. The
-		 * inks and the pitch are `--ds-shell-texture-*` custom properties an app
-		 * retunes in one declaration.
+		 * Defaults to `grid` — the house atmosphere every app wears. It shipped
+		 * as `none` so its introduction moved nobody, and the result was the drift
+		 * it was built to end: five of nine apps had it, three of those through a
+		 * hand-rolled `*-dotgrid` class in their own app.css under three names,
+		 * two ink variables and two pitches, only one carrying the
+		 * `background-attachment: local` that stops the floor sliding under the
+		 * scroller. One default retires all three. The inks and the pitch are
+		 * `--ds-shell-texture-*` custom properties an app retunes in one
+		 * declaration; `none` turns it off.
 		 */
 		texture?: ShellTexture;
 		/** Extra classes on the scrolling content container. */

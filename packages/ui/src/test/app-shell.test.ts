@@ -271,8 +271,16 @@ describe('AppShell — the toggle and the region it opens are related (#12)', ()
 });
 
 describe('AppShell — rail collapse', () => {
-	it('does not offer a collapse control unless the app asks for one', () => {
+	it('offers the collapse control without the app asking for one', () => {
+		// On by default. It was opt-in while the control was being introduced and
+		// two of nine household apps opted in, so seven rails could not be collapsed
+		// for no reason anyone had chosen — the shell shape is not an app's to pick.
 		render(ShellHarness);
+		expect(screen.getAllByTestId('ds-rail-collapse')).toHaveLength(1);
+	});
+
+	it('withdraws the collapse control when an app genuinely refuses it', () => {
+		render(ShellHarness, { props: { collapsible: false } });
 		expect(screen.queryByTestId('ds-rail-collapse')).not.toBeInTheDocument();
 	});
 
@@ -376,8 +384,8 @@ describe('AppShell — rail collapse', () => {
 		}
 	});
 
-	it('offers no [ shortcut when the app did not ask for a collapse control', async () => {
-		render(ShellHarness);
+	it('offers no [ shortcut when an app genuinely refuses the collapse control', async () => {
+		render(ShellHarness, { props: { collapsible: false } });
 		await fireEvent.keyDown(window, { key: '[' });
 		// Nothing to toggle: the harness stays expanded and no toggle exists.
 		expect(screen.getByTestId('probe-collapsed')).toHaveTextContent('expanded');

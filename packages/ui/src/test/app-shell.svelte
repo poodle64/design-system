@@ -11,7 +11,7 @@
 
 	let {
 		currentPath = $bindable('/overview'),
-		collapsible = false,
+		collapsible,
 		navLabel,
 		measure,
 		texture,
@@ -19,6 +19,8 @@
 		searchPlacement
 	}: {
 		currentPath?: string;
+		/** Undefined by default, so the harness drives the package's own default
+		    rather than a value the harness chose — same contract as measure/texture. */
 		collapsible?: boolean;
 		navLabel?: string;
 		/** Left undefined by default, so the additivity gate drives the shell
