@@ -95,6 +95,15 @@
 		{/if}
 	</div>
 	{#if actions}
-		<div class="flex flex-wrap items-center justify-end gap-2">{@render actions()}</div>
+		<!--
+			`min-w-0` is load-bearing, not tidying. This row is a flex ITEM of the
+			header, so it inherits `min-width: auto` — a floor at its own min-content
+			width, which its `flex-wrap` cannot get below because wrapping shrinks a
+			flex CONTAINER, never its item floor. Measured 2026-08-20 at 360px: an
+			actions row rendered 408px inside a 328px parent and pushed 64px of
+			sideways scroll into the shell content region, on every consumer using
+			PageHeader with actions.
+		-->
+		<div class="flex min-w-0 flex-wrap items-center justify-end gap-2">{@render actions()}</div>
 	{/if}
 </div>

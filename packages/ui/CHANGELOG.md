@@ -2,6 +2,21 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.8.10] - 2026-08-20
+
+### Fixed
+
+- **`PageHeader`'s actions row no longer overflows a narrow viewport.** The row
+  is a flex ITEM of the header, so it carried `min-width: auto` — a floor at its
+  own min-content width. Its `flex-wrap` could not get below that floor, because
+  wrapping shrinks a flex CONTAINER and never its item floor. Measured at 360px
+  on a consumer's index: the row rendered 408px inside a 328px parent and pushed
+  64px of sideways scroll into the shell's content region.
+
+  `min-w-0` lets it shrink so the wrap actually engages. This affected every
+  consumer rendering `PageHeader` with actions, and was invisible to each app's
+  own review because the offending markup is the package's.
+
 ## [2026.8.9] - 2026-08-20
 
 ### Changed
