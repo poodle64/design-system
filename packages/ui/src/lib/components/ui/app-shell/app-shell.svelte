@@ -384,7 +384,22 @@
 				</span>
 			{/if}
 			{#if brandTitle && !railCollapsed}
-				<span class="font-display text-body font-semibold tracking-tight">{brandTitle}</span>
+				<!--
+					The wordmark stands down below sm, leaving the mark alone. On a phone
+					the rail is gone, so this same lockup is what the top bar carries — and
+					that bar also holds the menu button, the search affordance, the theme
+					toggle and the identity surface. With the wordmark beside them, search
+					truncated to a word (and in one app to a single letter) at 390px.
+
+					This is a package default because three apps each discovered it
+					independently and each wrote its own `brand` override to get it, with
+					three near-identical comments. An app that overrides the whole brand
+					slot to re-earn a behaviour the shell could give everyone is the shell
+					failing to ship something good.
+				-->
+				<span class="font-display text-body hidden font-semibold tracking-tight sm:inline"
+					>{brandTitle}</span
+				>
 			{/if}
 		{/if}
 	</a>

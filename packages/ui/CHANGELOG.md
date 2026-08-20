@@ -2,6 +2,29 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.8.9] - 2026-08-20
+
+### Changed
+
+- **`AppShell`'s `brandTitle` now stands down below `sm`, leaving the mark
+  alone.** On a phone the rail is gone, so the brand lockup is what the top bar
+  carries — beside the menu button, the search affordance, the theme toggle and
+  the identity surface. With the wordmark among them, search truncated to a
+  single word at 390px, and in one app to a single letter.
+
+  Shipped as a default because three apps had each already discovered it and
+  each had written its own full `brand` override to get it, with three
+  near-identical comments explaining the same 390px measurement. Two of those
+  overrides additionally re-implemented the shell's own mark chrome verbatim —
+  the same `size-8 place-items-center rounded-md border` span the `brandMark`
+  branch already renders — so the override bought nothing but the responsive
+  behaviour the shell would not give them. An app overriding a slot to re-earn
+  something good is the package failing to ship it.
+
+  Consumers using `brandMark` + `brandTitle` get this for free. The `brand`
+  snippet still takes full control for a genuine lockup, but it is no longer
+  the way to obtain a responsive wordmark.
+
 ## [2026.8.8] - 2026-08-20
 
 ### Changed
