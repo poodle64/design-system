@@ -2122,11 +2122,11 @@ window.__probe = { composite, stack, contrast, inkRatio, fillRatio };
 		await context.close();
 	}
 
-	// ── Additivity, in the browser ───────────────────────────────────────────
-	// The operator's hard constraint, the same shape `measure` is held to:
-	// `surface=shell` names no texture — it is the shell every existing consumer
-	// already has — so it must carry no class, no attribute and no background, at
-	// every width.
+	// ── The default, in the browser ──────────────────────────────────────────
+	// `surface=shell` names no texture, and since 2026.8.8 that is the shell every
+	// consumer gets: the house floor arrives without an app asking for it, at every
+	// width. It shipped opt-in and the estate answered by drifting — three apps
+	// hand-rolled the same picture in their own app.css — so the default moved.
 	for (const width of [2560, 1440, 360]) {
 		const { context, page } = await open('surface=shell', { width, height: 900 });
 		await page.waitForSelector('#ds-main');
@@ -2134,18 +2134,18 @@ window.__probe = { composite, stack, contrast, inkRatio, fillRatio };
 		await context.close();
 
 		check(
-			`texture @${width}px: a shell that never names texture paints none`,
-			!bare.hasClass &&
-				bare.attribute === null &&
-				bare.backgroundImage === 'none' &&
+			`texture @${width}px: a shell that never names texture still paints the house floor`,
+			bare.hasClass &&
+				bare.attribute === 'grid' &&
+				bare.backgroundImage.includes('radial-gradient') &&
 				bare.children === 1,
 			`class ${bare.hasClass}, attribute ${bare.attribute}, background-image ${bare.backgroundImage}, ${bare.children} child`
 		);
 	}
 
-	// `none` passed explicitly has to land exactly where omitting it lands, or an
-	// app adopting the texture and then deciding one layout wants none of it gets
-	// something subtly different from where it started.
+	// `none` is the opt-out, and it has to be complete: an app that turns the floor
+	// off must land on the region as it was before the feature existed, not on a
+	// class with a neutered rule behind it.
 	{
 		const { context, page } = await open('surface=texture&texture=none');
 		await page.waitForSelector('#ds-main');
@@ -2153,7 +2153,7 @@ window.__probe = { composite, stack, contrast, inkRatio, fillRatio };
 		await context.close();
 
 		check(
-			'texture: texture="none" paints where omitting it paints',
+			'texture: texture="none" leaves a genuinely bare region',
 			explicit.backgroundImage === 'none' &&
 				explicit.attribute === null &&
 				!explicit.hasClass &&
