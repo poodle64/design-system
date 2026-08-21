@@ -40,6 +40,7 @@
     }
   },
   "dependencies": {
+    "@jsonforms/core": "^3.8.0",
     "@lucide/svelte": "^1.25.0",
     "@tanstack/table-core": "^8.21.3",
     "clsx": "^2.1.1",

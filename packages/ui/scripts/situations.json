@@ -125,6 +125,18 @@
 			]
 		},
 		{
+			"key": "server-described-form",
+			"title": "A form the server described",
+			"description": "A config object whose shape arrives at runtime as a JSON Schema plus a JSON Forms UI Schema — the renderer walks both and dispatches to this package's widgets. Anything it cannot dispatch renders flagged, never blank.",
+			"components": [
+				{
+					"name": "SchemaForm",
+					"props": "schema, value, onChange, uischema?, disabled?, idPrefix?",
+					"insteadOf": "a hand-written renderer over a home-grown hint vocabulary, which is how a field goes missing in silence"
+				}
+			]
+		},
+		{
 			"key": "page-frame",
 			"title": "The frame every route shares",
 			"description": "The standing chrome — the app shell and its nav, the one page-title treatment, the persistent right-hand context column.",
@@ -227,5 +239,7 @@
 			"tooltip"
 		]
 	},
-	"typeOnly": ["status"]
+	"typeOnly": [
+		"status"
+	]
 }
