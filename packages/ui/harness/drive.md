@@ -647,6 +647,32 @@ completeness but carry no scripted check of their own.
 | StatusBadge's new `primary` chip/dot resolve to a real colour, distinct from every shared five-state chip's                           | same — and `primary` is not in the shared `Status` type, so nothing else proves it paints at all | `--ds-color-primary`'s resolved colour, different from success/warning/error/info/neutral |
 | BarRow's fill genuinely covers the percentage of its track `pct` asked for                                                            | jsdom has no layout, so "42% wide" and "0% wide with a `width: 42%` string" measure identically  | fill/track `getBoundingClientRect()` ratio within 2% of 42%                               |
 
+## The loud-unknown rule, painted (`?surface=schema-form`)
+
+`<SchemaForm>` over a pair of documents that is part-broken on purpose: a
+Control carrying an unregistered `dropdown` hint, an `Accordion` element outside
+the vocabulary, and a `retention` group no Control addresses. All three are the
+live defect shapes from the renderers this component retires, where each one
+made a field vanish in silence.
+
+`src/test/schema-form-loud-unknown.test.ts` proves the flagged block is in the
+markup. That is a weaker claim than "renders loudly": a fallback with no height,
+or a border whose colour resolved to nothing, or a tint identical to the page
+behind it would satisfy every jsdom assertion and reproduce the original defect
+exactly — a field present in principle and absent on screen. jsdom cannot tell
+those apart, since it returns the unresolved `var(--...)` literal and a zero rect
+either way. So what is scripted here is paint and layout.
+
+| Claim                                                                                    | Why jsdom cannot make it                                                                       | Observed                                                     |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Each flagged block occupies real space                                                   | jsdom has no layout; every rect is zero whether the block is styled or not                     | three blocks, each wider than 100px and taller than 40px     |
+| Each flagged block paints a resolved, visible dashed warning border                      | jsdom returns `var(--ds-color-status-warning)` unresolved and calls it a pass                   | `dashed`, a resolved `oklab(...)`, contrast >= 1.3:1 against everything behind it |
+| Both SHOW rules put their field on the page, and revoking one takes its whole Group away | this one CAN be made in jsdom and is, in `src/test/`; it is repeated here as a cheap regression | `tuning.depth` and `tuning.endpoint` present, then `depth` gone after the toggle |
+
+Driven by hand: change the value a rule reads and watch the Group animate in and
+out; type into the flagged block's raw editor and confirm the value round-trips;
+switch to dark and confirm the amber flag still separates from the surface.
+
 ## Nested navigation (`?surface=nested`)
 
 A parent with fifteen children, labels deliberately longer than the rail is

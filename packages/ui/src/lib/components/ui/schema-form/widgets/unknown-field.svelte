@@ -98,7 +98,7 @@
 	</div>
 
 	<p class="text-muted-foreground text-xs">
-		{detail}. Rendered raw and unstyled so the value is not lost —
+		{detail}. Rendered raw and unstyled so the value is not lost, at
 		<code class="font-mono">{scope}</code>
 	</p>
 
@@ -117,7 +117,7 @@
 			class="bg-surface-1 border-border text-muted-foreground max-h-48 overflow-auto rounded-md border p-2 font-mono text-xs">{raw ||
 				'(no value)'}</pre>
 		<p class="text-muted-foreground text-xs">
-			Structured value — shown, not edited, so nothing is silently rewritten.
+			Structured value: shown, not edited, so nothing is silently rewritten.
 		</p>
 	{/if}
 </div>

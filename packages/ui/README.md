@@ -97,6 +97,7 @@ rather than rebuilding it:
 | `empty-state` / `error-state` / `loading-state` | The shared blank, error and loading surfaces. Never hand-roll one.                                                                                                                                                                                                                                                                                       |
 | `info-tip`                                      | One tooltip pattern: a small info trigger, or wrap an existing affordance as children.                                                                                                                                                                                                                                                                   |
 | `data-table-toolbar`                            | Search field plus filter-chip groups for a TanStack table. Owns no state; fires callbacks.                                                                                                                                                                                                                                                               |
+| `schema-form`                                   | The renderer for a config object the server described: a JSON Schema plus a JSON Forms UI Schema in, a form out. Anything it cannot dispatch renders flagged, never blank; see [Server-described forms](#server-described-forms) below.                                                                                                                    |
 | `data-table-tanstack`                           | The TanStack-backed table: global search, column filters, master-detail row select, opt-in bulk selection, responsive column hiding, a first-class empty branch.                                                                                                                                                                                         |
 
 **The application shell** (`app-shell`, `command-palette`). Page chrome is not
@@ -502,6 +503,145 @@ but the same class on the `<th>` collapses the heading over its neighbour:
 ```ts
 { accessorKey: 'filename', header: 'Document', meta: { class: 'w-full', cellClass: 'max-w-0' } }
 ```
+
+## Server-described forms
+
+`<SchemaForm>` renders a config object whose shape arrives at runtime. It is the
+estate's one mechanism for that, and this README is where its contract lives.
+
+Two standard documents go in. A **JSON Schema** says what the value is; a **JSON
+Forms UI Schema** says how it is laid out — a tree of layouts, Controls
+addressed by JSON Pointer `scope`, and declarative `rule: { effect, condition }`
+for conditional visibility. Both are published standards, which is the point:
+the renderer is replaceable without a server changing anything.
+
+```svelte
+<script lang="ts">
+	import SchemaForm from '@poodle64/ui/schema-form';
+
+	let { schema, uischema } = $props(); // fetched by the app, not by this package
+	let value = $state({});
+</script>
+
+<SchemaForm {schema} {uischema} {value} onChange={(next) => (value = next)} />
+```
+
+| Prop       | Purpose                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------ |
+| `schema`   | The JSON Schema. Scopes resolve against it, `$ref` included, and it drives validation.                       |
+| `uischema` | The JSON Forms UI Schema. Omit it and one is generated from the schema, the only mode in which no field can be missing from the layout. |
+| `value`    | The current value. The component is controlled and never mutates what it is given.                          |
+| `onChange` | `(next, { path, value })`. `next` is a fresh object with every untouched branch structurally intact.         |
+| `disabled` | Disables every control.                                                                                      |
+| `idPrefix` | Prefix for generated element ids, when two forms share a page.                                               |
+
+### It knows nothing about any app
+
+No HTTP client, no `fetch`, no endpoint string, no service name, no
+app-specific type. Consumers fetch the two documents and map the result
+themselves. That invariant is load-bearing: it is what lets the engine behind
+the schema be swapped later without touching a consumer, and what stopped three
+apps' renderers from being three different components.
+
+### An unrecognised control renders LOUDLY
+
+**This is the non-negotiable rule.** The three hand-rolled renderers this
+replaces failed silently: a `widget: "dropdown"` hint rendered no input at all,
+three whole top-level config groups never rendered because their names were
+absent from a hardcoded `GROUP_ORDER`, and nested hints were inert. Every one
+of those made a field VANISH, and a form with a field missing looks exactly like
+a form. They shipped that way for months.
+
+So nothing here renders as nothing. Eight failure shapes each produce a
+visibly-flagged block carrying `data-schema-form-unknown` and a
+`data-unknown-reason`, which names what could not be done, quotes the pointer so
+the fix is a copy-paste, shows the value that would otherwise have been lost,
+and keeps it editable wherever a text box cannot destroy structure:
+
+| `data-unknown-reason` | Raised when                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `unknown-widget`      | `options.format` / `options.widget` names a widget this package does not ship.     |
+| `unknown-element`     | A UI schema element `type` outside the vocabulary below.                           |
+| `unresolved-scope`    | A Control's `scope` resolves to nothing in the JSON Schema.                        |
+| `missing-scope`       | A Control carries no `scope` at all.                                               |
+| `no-options`          | A `select` or `radio` over a subschema that declares no `enum` or `oneOf`.          |
+| `object-control`      | A Control points at an object, which needs a layout rather than one control.       |
+| `unsupported-array`   | An array whose items are not primitives, so `tags` cannot represent it.            |
+| `not-in-layout`       | The JSON Schema describes a property no Control anywhere in the layout addresses.  |
+
+A primitive value stays editable; an object or an array is shown read-only,
+because a text box over structured data is a data-loss affordance rather than a
+fallback. An unrecognised hint is never quietly swapped for the widget it
+probably meant — `dropdown` almost certainly meant `select`, and guessing would
+restore the field while hiding the fact that the two documents disagree.
+
+`not-in-layout` is reported once per unaddressed subtree, at the subtree, so a
+forgotten group is one loud entry rather than forty. There is no prop to silence
+any of this. The way to stop a field being flagged is to put a Control for it in
+the UI schema.
+
+`src/test/schema-form-loud-unknown.test.ts` pins all eight reasons, and
+`harness/drive.mjs` proves in a real engine that each flag has real size and a
+resolved, visible warning border. "Renders loudly" is a claim about paint, and
+a fallback styled into invisibility would satisfy every jsdom assertion while
+reproducing the original defect exactly.
+
+### The widget dispatch table
+
+An explicit hint wins; otherwise the widget is derived from the subschema.
+`options.format` is the JSON Forms spelling and `options.widget` is accepted
+alongside it, so a server migrating off a home-grown hint vocabulary does not
+have to change both documents at once. Any hint outside this table is
+`unknown-widget`.
+
+| Widget     | Chosen when                                                          | Rendered by                       |
+| ---------- | -------------------------------------------------------------------- | --------------------------------- |
+| `text`     | `string` (the default)                                               | `input`                           |
+| `textarea` | `options.multi: true`, or the hint                                   | `textarea`                        |
+| `password` | `format: "password"`, or the hint                                    | `input[type=password]`            |
+| `date`     | `format: "date"`                                                     | `input[type=date]`                |
+| `time`     | `format: "time"`                                                     | `input[type=time]`                |
+| `datetime` | `format: "date-time"`                                                | `input[type=datetime-local]`      |
+| `number`   | `number` / `integer`                                                 | `input[type=number]`              |
+| `slider`   | `options.slider: true` on a number, or the hint                      | composed here (native `range`)    |
+| `select`   | `enum`, or `oneOf: [{ const, title }]`                               | `select`                          |
+| `radio`    | the hint, on the same closed value sets                              | composed here (native `radio`)    |
+| `switch`   | `boolean` (the default)                                              | `switch`                          |
+| `checkbox` | the hint, on a boolean                                               | `checkbox`                        |
+| `tags`     | `array` of `string` / `number` / `integer`                           | composed here (`badge` + `input`) |
+
+Three of those — `slider`, `radio` and `tags` — had no primitive in this package
+and are composed inside `schema-form/widgets/`. They are deliberately not
+top-level exports: their only caller is the renderer, and a widget promoted to
+the catalogue before a second consumer wants it is a shape nobody agreed to.
+
+### The layout vocabulary
+
+`VerticalLayout`, `HorizontalLayout`, `Group` (a `Panel`), `Categorization` /
+`Category` (a `Tabs` set), `Control` and `Label`. Anything else is
+`unknown-element`.
+
+`rule` is evaluated on every element, not only on Controls, so a rule on a Group
+takes the whole group with it — which is what an author writing one means.
+`SHOW` / `HIDE` decide whether the element renders at all; `ENABLE` / `DISABLE`
+and `options.readonly` disable the control instead.
+
+### The engine
+
+`@jsonforms/core` is used **headless**: JSON Pointer scope resolution, rule
+evaluation and the Ajv instance, nothing else. The renderers are this package's
+own and dispatch to this package's own widgets. There is no official Svelte
+renderer for JSON Forms and the community one carries no external validation, so
+neither is used.
+
+JSON Forms was chosen over RJSF and `@sjsf/form` on one deciding fact: the
+upstream config models carry 36 conditional-visibility rules, and JSON Forms'
+`rule` model maps onto them 1:1, while RJSF has no standard conditional-
+visibility directive. `@jsonforms/core@3.8.0` was verified working headless
+under Svelte 5 in this package before it was adopted, on 21/08/2026 — scope
+resolution through `$ref`, `SHOW`/`HIDE`/`DISABLE` evaluation, and
+`Generate.uiSchema` all exercised live. It is the package's only runtime
+dependency beyond what was already here.
 
 ## Consuming the package
 

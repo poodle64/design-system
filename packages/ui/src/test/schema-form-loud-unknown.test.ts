@@ -13,6 +13,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import Harness from './schema-form.svelte';
+import type { UISchemaElement } from '$lib/components/ui/schema-form';
 
 const flagged = (container: HTMLElement) =>
 	Array.from(container.querySelectorAll('[data-schema-form-unknown]'));
@@ -87,17 +88,35 @@ describe('an unrecognised widget hint renders loudly', () => {
 	});
 });
 
+describe('a chooser with nothing to choose from renders loudly', () => {
+	it('flags a select whose subschema declares no values, rather than an empty box', () => {
+		const { container } = render(Harness, {
+			schema: { type: 'object', properties: { region: { type: 'string', title: 'Region' } } },
+			uischema: {
+				type: 'VerticalLayout',
+				elements: [{ type: 'Control', scope: '#/properties/region', options: { format: 'select' } }]
+			},
+			initial: { region: 'ap-southeast-2' }
+		});
+
+		expect(reasons(container)).toEqual(['no-options']);
+		expect(screen.getByLabelText('Raw value')).toHaveValue('ap-southeast-2');
+	});
+});
+
 describe('an unrecognised UI schema element renders loudly', () => {
 	it('flags an element type the vocabulary does not contain', () => {
 		const { container } = render(Harness, {
 			schema: { type: 'object', properties: { name: { type: 'string' } } },
+			// Cast because that is the point: `Accordion` is outside the vocabulary,
+			// so a server that sends it is exactly what this test is about.
 			uischema: {
 				type: 'VerticalLayout',
 				elements: [
 					{ type: 'Control', scope: '#/properties/name' },
 					{ type: 'Accordion', label: 'Advanced', elements: [] }
 				]
-			},
+			} as unknown as UISchemaElement,
 			initial: { name: 'x' }
 		});
 

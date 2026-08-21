@@ -70,13 +70,13 @@
 		<ul class="flex flex-wrap gap-1.5" aria-label="Current values">
 			{#each items as item, index (`${String(item)}-${index}`)}
 				<li>
-					<Badge variant="secondary" class="gap-1 pr-1">
+					<Badge variant="secondary" class="h-6 gap-1 pr-1">
 						<span class="font-mono">{String(item)}</span>
 						<button
 							type="button"
 							{disabled}
 							aria-label="Remove {String(item)}"
-							class="hover:text-foreground text-muted-foreground focus-visible:ring-ring/50 rounded-full outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
+							class="hover:bg-muted hover:text-foreground text-muted-foreground focus-visible:ring-ring/50 flex size-5 items-center justify-center rounded-full outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
 							onclick={() => removeAt(index)}
 						>
 							<X class="size-3" aria-hidden="true" />

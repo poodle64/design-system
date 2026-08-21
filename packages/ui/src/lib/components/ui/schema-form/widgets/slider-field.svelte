@@ -45,7 +45,7 @@
 		class="accent-primary focus-visible:ring-ring/50 h-8 w-full cursor-pointer rounded-lg outline-none focus-visible:ring-3 disabled:cursor-not-allowed disabled:opacity-50"
 		oninput={(event) => onchange(Number((event.currentTarget as HTMLInputElement).value))}
 	/>
-	<output for={id} class="ds-tabular text-muted-foreground w-12 shrink-0 text-right text-xs"
+	<output for={id} class="ds-tabular text-muted-foreground w-10 shrink-0 text-right text-xs"
 		>{current}</output
 	>
 </div>

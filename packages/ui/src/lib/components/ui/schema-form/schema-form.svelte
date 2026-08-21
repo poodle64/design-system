@@ -119,11 +119,15 @@
 		-->
 		<Panel
 			title="Not in the layout"
-			subtitle="The schema describes {unmapped.length} field{unmapped.length === 1
-				? ''
-				: 's'} the UI schema never addresses. Add a Control for each, or they are edited raw here."
+			subtitle="{unmapped.length} field{unmapped.length === 1 ? '' : 's'} no Control addresses"
 			data-schema-form-unmapped=""
 		>
+			<p class="text-muted-foreground mb-3 text-xs">
+				The JSON Schema describes {unmapped.length === 1 ? 'this field' : 'these fields'} but the UI
+				schema never {unmapped.length === 1 ? 'mentions it' : 'mentions them'}. Add a Control for
+				each; until then {unmapped.length === 1 ? 'it is' : 'they are'} edited raw here rather than
+				disappearing.
+			</p>
 			<div class="grid gap-3">
 				{#each unmapped as field (field.path)}
 					<UnknownField

@@ -2162,6 +2162,101 @@ window.__probe = { composite, stack, contrast, inkRatio, fillRatio };
 	}
 }
 
+// ── The loud-unknown rule, PAINTED ──────────────────────────────────────────
+// `src/test/schema-form-loud-unknown.test.ts` proves the flagged fallback is in
+// the markup. That is not the same claim as "renders loudly": a block styled
+// into invisibility — zero height, a border colour that resolved to nothing,
+// tinted with the page's own background — would satisfy every jsdom assertion
+// and reproduce the exact defect the component exists to end, which is a field
+// that is present in principle and absent on screen. jsdom cannot tell those
+// apart: it returns the unresolved `var(--…)` literal and a zero rect for
+// everything. So the claim made here is about paint and layout.
+{
+	const { context, page, errors } = await open('surface=schema-form');
+	await page.waitForSelector('[data-probe="schema-form"]');
+	await page.addStyleTag({ content: SETTLE });
+	await page.addScriptTag({ content: PROBE });
+
+	const flagged = await page.evaluate(() => {
+		const nodes = [...document.querySelectorAll('[data-schema-form-unknown]')];
+		return nodes.map((node) => {
+			const style = getComputedStyle(node);
+			const box = node.getBoundingClientRect();
+			return {
+				reason: node.getAttribute('data-unknown-reason'),
+				width: Math.round(box.width),
+				height: Math.round(box.height),
+				borderColor: style.borderTopColor,
+				borderStyle: style.borderTopStyle,
+				background: style.backgroundColor,
+				// Contrast of the flag's own border against everything behind it: a
+				// border the same colour as the page is a border nobody sees.
+				borderContrast: window.__probe.contrast(
+					window.__probe.composite([...window.__probe.stack(node, false), style.borderTopColor]),
+					window.__probe.composite(window.__probe.stack(node, false))
+				)
+			};
+		});
+	});
+
+	// The three live defect shapes are all on this surface, on purpose.
+	const reasons = flagged.map((entry) => entry.reason).sort();
+	check(
+		'schema-form: every unrenderable control is flagged in the DOM',
+		reasons.join(',') === 'not-in-layout,unknown-element,unknown-widget',
+		`reasons ${reasons.join(', ') || '(none)'}`
+	);
+
+	check(
+		'schema-form: each flag occupies real space on the page',
+		flagged.length > 0 && flagged.every((entry) => entry.width > 100 && entry.height > 40),
+		flagged.map((entry) => `${entry.reason} ${entry.width}x${entry.height}`).join('; ')
+	);
+
+	check(
+		'schema-form: each flag paints a resolved, visible warning border',
+		flagged.length > 0 &&
+			flagged.every(
+				(entry) =>
+					entry.borderStyle === 'dashed' &&
+					!entry.borderColor.includes('var(') &&
+					entry.borderContrast >= 1.3
+			),
+		flagged
+			.map((entry) => `${entry.reason} ${entry.borderStyle} ${entry.borderColor} @${entry.borderContrast}:1`)
+			.join('; ')
+	);
+
+	// A rule that evaluates but changes nothing on screen would make the whole
+	// choice of JSON Forms pointless — the 36 conditional-visibility rules in the
+	// upstream config models are the reason it was chosen over RJSF.
+	const ruled = await page.evaluate(() => ({
+		// enabled=true and engine=bedrock, so both SHOW rules hold.
+		depth: !!document.querySelector('[data-schema-form-field="tuning.depth"]'),
+		endpoint: !!document.querySelector('[data-schema-form-field="tuning.endpoint"]')
+	}));
+	check(
+		'schema-form: both SHOW rules put their fields on the page',
+		ruled.depth && ruled.endpoint,
+		`depth ${ruled.depth}, endpoint ${ruled.endpoint}`
+	);
+
+	// Toggling the value a rule reads must take the whole Group with it.
+	await page.getByRole('switch', { name: /Enabled/ }).click();
+	await page.waitForTimeout(50);
+	const afterToggle = await page.evaluate(
+		() => !!document.querySelector('[data-schema-form-field="tuning.depth"]')
+	);
+	check(
+		'schema-form: a Group whose rule stops holding leaves the page',
+		afterToggle === false,
+		`depth field present after toggle: ${afterToggle}`
+	);
+
+	check('schema-form: renders with no page errors', errors.length === 0, errors.join(' | ') || 'none');
+	await context.close();
+}
+
 await browser.close();
 server.close();
 

@@ -53,6 +53,7 @@
 	import Checkbox from '../dist/components/ui/checkbox/checkbox.svelte';
 	import Switch from '../dist/components/ui/switch/switch.svelte';
 	import Skeleton from '../dist/components/ui/skeleton/skeleton.svelte';
+	import SchemaForm from '../dist/components/ui/schema-form/schema-form.svelte';
 	import Separator from '../dist/components/ui/separator/separator.svelte';
 	import { Alert, AlertTitle, AlertDescription } from '../dist/components/ui/alert/index.js';
 	import { DS_PALETTES } from '@poodle64/design-tokens/palettes';
@@ -205,6 +206,98 @@
 	// only for visual completeness.
 	const ARC_TONES = ['success', 'warning', 'error'] as const;
 	const BADGE_STATUSES = ['success', 'warning', 'error', 'info', 'neutral', 'primary'] as const;
+
+	// `?surface=schema-form` drives <SchemaForm> over a deliberately part-broken
+	// pair of documents. Two of its claims need an engine and cannot be made in
+	// jsdom: that the flagged fallback is actually PAINTED — a warning border
+	// and tint resolved out of --ds-color-status-warning, not a `var()` literal
+	// — and that it has real height and width on the page. "Renders loudly" is a
+	// visual claim, and a jsdom test can only prove the markup exists; a
+	// fallback styled into invisibility would pass every check in src/test/ and
+	// reproduce the exact defect this component was built to end.
+	const SCHEMA_FORM_SCHEMA = {
+		type: 'object',
+		required: ['name'],
+		properties: {
+			name: { type: 'string', title: 'Display name', description: 'Shown in the console.' },
+			enabled: { type: 'boolean', title: 'Enabled' },
+			engine: { type: 'string', title: 'Engine', enum: ['ollama', 'bedrock'] },
+			mode: { type: 'string', title: 'Mode', enum: ['fast', 'deep'] },
+			notes: { type: 'string', title: 'Notes' },
+			tags: { type: 'array', title: 'Tags', items: { type: 'string' } },
+			legacy: { type: 'string', title: 'Legacy field' },
+			retention: {
+				type: 'object',
+				title: 'Retention',
+				properties: { days: { type: 'integer', title: 'Days' } }
+			},
+			tuning: {
+				type: 'object',
+				title: 'Tuning',
+				properties: {
+					depth: { type: 'integer', title: 'Depth', minimum: 1, maximum: 10 },
+					temperature: { type: 'number', title: 'Temperature', minimum: 0, maximum: 2 },
+					endpoint: { type: 'string', title: 'Endpoint' }
+				}
+			}
+		}
+	};
+	const SCHEMA_FORM_UI = {
+		type: 'VerticalLayout',
+		elements: [
+			{ type: 'Control', scope: '#/properties/name' },
+			{ type: 'Control', scope: '#/properties/enabled' },
+			{ type: 'Control', scope: '#/properties/engine' },
+			{ type: 'Control', scope: '#/properties/mode', options: { format: 'radio' } },
+			{ type: 'Control', scope: '#/properties/notes', options: { multi: true } },
+			{ type: 'Control', scope: '#/properties/tags' },
+			// The live defect, reproduced on purpose: a hint nothing registers.
+			{ type: 'Control', scope: '#/properties/legacy', options: { widget: 'dropdown' } },
+			{
+				type: 'Group',
+				label: 'Tuning',
+				rule: {
+					effect: 'SHOW',
+					condition: { scope: '#/properties/enabled', schema: { const: true } }
+				},
+				elements: [
+					{
+						type: 'HorizontalLayout',
+						elements: [
+							{
+								type: 'Control',
+								scope: '#/properties/tuning/properties/depth',
+								options: { slider: true }
+							},
+							{ type: 'Control', scope: '#/properties/tuning/properties/temperature' }
+						]
+					},
+					{
+						type: 'Control',
+						scope: '#/properties/tuning/properties/endpoint',
+						rule: {
+							effect: 'SHOW',
+							condition: { scope: '#/properties/engine', schema: { const: 'bedrock' } }
+						}
+					}
+				]
+			},
+			// An element type outside the vocabulary.
+			{ type: 'Accordion', label: 'Advanced' }
+			// `retention` is addressed by nothing at all — the GROUP_ORDER defect.
+		]
+	};
+	let schemaFormValue = $state<Record<string, unknown>>({
+		name: 'Console',
+		enabled: true,
+		engine: 'bedrock',
+		mode: 'deep',
+		notes: 'A note.',
+		tags: ['alpha', 'beta'],
+		legacy: 'kept',
+		retention: { days: 30 },
+		tuning: { depth: 4, temperature: 0.7, endpoint: 'https://example.invalid' }
+	});
 
 	// `?surface=palette&palette=<name>` (design-system#25) is the gallery the
 	// master project's standalone shadcn showcase used to be: every component
@@ -530,6 +623,19 @@
 				height={40}
 			/>
 		</div>
+	</div>
+{:else if surface === 'schema-form'}
+	<!-- Two documents, one of them deliberately part-broken: an unregistered
+	     `dropdown` hint, an `Accordion` element nothing knows, and a `retention`
+	     group no Control addresses. All three must be the loudest things on the
+	     page, and that is a claim about paint, not about markup. -->
+	<div class="mx-auto max-w-2xl p-8" data-probe="schema-form">
+		<SchemaForm
+			schema={SCHEMA_FORM_SCHEMA}
+			uischema={SCHEMA_FORM_UI}
+			value={schemaFormValue}
+			onChange={(next) => (schemaFormValue = next)}
+		/>
 	</div>
 {:else if surface === 'palette'}
 	<!-- The palette gallery (design-system#25), inside the shell rather than on a

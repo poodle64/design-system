@@ -44,6 +44,8 @@ export type UnknownReason =
 	| 'unsupported-type'
 	/** A Control addressing an object — an object needs a layout, not a control. */
 	| 'object-control'
+	/** A hint asked for a closed value set, but the subschema declares none. */
+	| 'no-options'
 	/** An array whose items are not primitives; `tags` cannot represent it. */
 	| 'unsupported-array'
 	/** The JSON Schema describes this field but the UI schema never mentions it. */

@@ -73,6 +73,14 @@ describe('pickWidget — every failure is named, none is silent', () => {
 		expect(pickWidget({}).reason).toBe('unsupported-type');
 	});
 
+	it('flags a chooser with nothing to choose from', () => {
+		// One level below an unrecognised hint: a `select` over a schema that
+		// declares no values renders an empty box, which is the same vanishing act.
+		expect(pickWidget({ type: 'string' }, { format: 'select' }).reason).toBe('no-options');
+		expect(pickWidget({ type: 'string' }, { format: 'radio' }).reason).toBe('no-options');
+		expect(pickWidget({ type: 'string', enum: [] }).reason).toBe('no-options');
+	});
+
 	it('flags a non-string hint instead of ignoring it', () => {
 		expect(pickWidget({ type: 'string' }, { widget: 7 }).reason).toBe('unknown-widget');
 	});

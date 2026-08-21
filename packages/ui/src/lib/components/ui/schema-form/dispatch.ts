@@ -85,7 +85,19 @@ export function pickWidget(
 	//    not have to change both documents at once.
 	const hint = options.format ?? options.widget;
 	if (typeof hint === 'string') {
-		if (KNOWN.has(hint)) return { widget: hint as WidgetKind };
+		if (KNOWN.has(hint)) {
+			// A select or a radio group over nothing renders as an empty box — which
+			// is the vanishing act this whole component exists to stop, one level
+			// down from an unrecognised hint.
+			if ((hint === 'select' || hint === 'radio') && !enumOptions(schema)?.length) {
+				return {
+					widget: 'unknown',
+					reason: 'no-options',
+					detail: `the "${hint}" widget needs a closed value set, and this subschema declares no enum or oneOf`
+				};
+			}
+			return { widget: hint as WidgetKind };
+		}
 		return {
 			widget: 'unknown',
 			reason: 'unknown-widget',
@@ -106,7 +118,17 @@ export function pickWidget(
 	if (options.slider === true && (type === 'number' || type === 'integer')) return { widget: 'slider' };
 
 	// 4. Derive from the schema.
-	if (enumOptions(schema)) return { widget: 'select' };
+	const closedSet = enumOptions(schema);
+	if (closedSet) {
+		if (!closedSet.length) {
+			return {
+				widget: 'unknown',
+				reason: 'no-options',
+				detail: 'the subschema declares an empty enum, so there is nothing to choose from'
+			};
+		}
+		return { widget: 'select' };
+	}
 
 	switch (type) {
 		case 'boolean':
