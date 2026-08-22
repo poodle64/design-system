@@ -2,6 +2,17 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.8.13] - 2026-08-22
+
+### Fixed
+
+- **`SearchResults`' `results` prop no longer collides with the legacy HTML
+  `results` attribute.** svelte/elements declares `results?: number` on every
+  element, and 2026.8.12's published prop type intersected with it into
+  `number & LibrarySearchResult[]` — a type no caller can satisfy, so any
+  consumer running svelte-check went red at the call site. The inherited key
+  is now omitted from the spread attributes.
+
 ## [2026.8.12] - 2026-08-22
 
 ### Added
