@@ -158,7 +158,9 @@
 
 							{#if result.badges?.length}
 								<div class="mt-1.5 flex flex-wrap gap-1">
-									{#each result.badges as badge (badge.label + badge.status)}
+									<!-- Keyed by index: LibraryBadge carries no id, and two states
+									     can legitimately share a label. -->
+									{#each result.badges as badge, i (i)}
 										<StatusBadge status={badge.status} label={badge.label} />
 									{/each}
 								</div>

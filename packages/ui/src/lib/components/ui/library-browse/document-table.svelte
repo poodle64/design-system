@@ -49,7 +49,7 @@
 		</TableHeader>
 		<TableBody>
 			{#each documents as doc (doc.id)}
-				<TableRow class="hover:bg-muted/50">
+				<TableRow>
 					<TableCell>
 						{#if documentHref}
 							<a
@@ -84,7 +84,9 @@
 					{#if hasBadges}
 						<TableCell class="text-center">
 							<div class="flex flex-wrap justify-center gap-1">
-								{#each doc.badges ?? [] as badge (badge.label + badge.status)}
+								<!-- Keyed by index: LibraryBadge carries no id, and two memberships
+								     can legitimately map to the same label+status. -->
+								{#each doc.badges ?? [] as badge, i (i)}
 									<StatusBadge status={badge.status} label={badge.label} />
 								{:else}
 									<span class="text-muted-foreground text-xs">—</span>

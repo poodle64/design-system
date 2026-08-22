@@ -78,8 +78,10 @@
 	} = $props();
 
 	const shownTotal = $derived(documentsTotal ?? documents.length);
-	const pageCount = $derived(Math.max(1, Math.ceil(shownTotal / limit)));
-	const page = $derived(Math.floor(offset / limit) + 1);
+	// Floored at 1 so a consumer's limit: 0 cannot put Infinity in the pager.
+	const pageSize = $derived(Math.max(1, limit));
+	const pageCount = $derived(Math.max(1, Math.ceil(shownTotal / pageSize)));
+	const page = $derived(Math.floor(offset / pageSize) + 1);
 </script>
 
 <div bind:this={ref} class={cn('flex flex-col gap-4', className)} {...restProps}>
@@ -135,13 +137,13 @@
 			<Panel title="Documents" subtitle="{shownTotal} document{shownTotal === 1 ? '' : 's'}">
 				<div class="flex flex-col gap-3">
 					<DocumentTable {documents} {documentHref} onOpen={onOpenDocument} />
-					{#if onPageChange && shownTotal > limit}
+					{#if onPageChange && shownTotal > pageSize}
 						<div class="flex flex-wrap items-center justify-end gap-2">
 							<Button
 								variant="outline"
 								size="sm"
 								disabled={offset === 0}
-								onclick={() => onPageChange(Math.max(0, offset - limit))}
+								onclick={() => onPageChange(Math.max(0, offset - pageSize))}
 							>
 								Previous
 							</Button>
@@ -149,8 +151,8 @@
 							<Button
 								variant="outline"
 								size="sm"
-								disabled={offset + limit >= shownTotal}
-								onclick={() => onPageChange(offset + limit)}
+								disabled={offset + pageSize >= shownTotal}
+								onclick={() => onPageChange(offset + pageSize)}
 							>
 								Next
 							</Button>
