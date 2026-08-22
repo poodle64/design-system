@@ -40,7 +40,11 @@
 		ref = $bindable(null),
 		class: className,
 		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLDivElement>> & {
+	}: WithElementRef<Omit<HTMLAttributes<HTMLDivElement>, 'results'>> & {
+		/** `Omit` above: svelte/elements declares a legacy `results` HTML
+		 *  attribute (number) on every element, and without the omission this
+		 *  prop's type silently intersects with it — callers then cannot pass
+		 *  an array at all. Caught by CI's svelte-check on the test call sites. */
 		results: LibrarySearchResult[];
 		/** The term the page searched for; shown in the count line and empty copy. */
 		query?: string;
