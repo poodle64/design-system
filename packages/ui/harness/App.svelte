@@ -54,6 +54,17 @@
 	import Switch from '../dist/components/ui/switch/switch.svelte';
 	import Skeleton from '../dist/components/ui/skeleton/skeleton.svelte';
 	import SchemaForm from '../dist/components/ui/schema-form/schema-form.svelte';
+	import LibraryBrowse from '../dist/components/ui/library-browse/library-browse.svelte';
+	import CollectionDetail from '../dist/components/ui/collection-detail/collection-detail.svelte';
+	import DocumentDetail from '../dist/components/ui/document-detail/document-detail.svelte';
+	import SearchResults from '../dist/components/ui/search-results/search-results.svelte';
+	import type {
+		LibraryCollection,
+		LibraryDocument,
+		LibraryDocumentDetail,
+		LibraryFacet,
+		LibrarySearchResult
+	} from '../dist/components/ui/library-browse/index.js';
 	import Separator from '../dist/components/ui/separator/separator.svelte';
 	import { Alert, AlertTitle, AlertDescription } from '../dist/components/ui/alert/index.js';
 	import { DS_PALETTES } from '@poodle64/design-tokens/palettes';
@@ -298,6 +309,119 @@
 		retention: { days: 30 },
 		tuning: { depth: 4, temperature: 0.7, endpoint: 'https://example.invalid' }
 	});
+
+	// `?surface=library` (#30) drives the four library components as ONE
+	// consumer-shaped flow: browse → document → collection. This page plays the
+	// consuming app — it owns the query, the facet selections and the
+	// "routing" (a state swap), exactly as the fixed-prop contract demands, so
+	// the driver proves the browse-to-detail interaction over plain props with
+	// no fetch anywhere. What only an engine can claim here: the row click
+	// actually lands a detail surface with real paint (jsdom can fire the
+	// handler, but not show that anything legible appears), the detail's title
+	// and machine values resolve their real families, and at 375px the
+	// catalogue table scrolls inside its own container instead of pushing
+	// sideways scroll into the shell (#5's blindness, one component up).
+	let libraryView = $state<'browse' | 'document' | 'collection'>('browse');
+	let libraryQuery = $state('');
+	let librarySelections = $state<Record<string, string[]>>({ tag: [], year: [] });
+
+	const LIBRARY_DOCUMENTS: LibraryDocument[] = [
+		{
+			id: 'doc-1',
+			title: 'Trust deed — Rivers Family Trust, deed of variation',
+			tags: ['legal', 'trust'],
+			collections: ['household-legal'],
+			badges: [{ status: 'success', label: 'Indexed' }]
+		},
+		{
+			id: 'doc-2',
+			title: 'Rates notice 2026, principal residence',
+			tags: ['property'],
+			collections: ['property'],
+			badges: [{ status: 'info', label: 'Pending' }]
+		},
+		{
+			id: 'doc-3',
+			title: 'Insurance policy schedule, contents and building',
+			tags: ['insurance'],
+			collections: ['property'],
+			badges: [{ status: 'warning', label: 'Missing' }]
+		}
+	];
+	const libraryFacets: LibraryFacet[] = $derived([
+		{
+			key: 'tag',
+			label: 'Tags',
+			multiple: true,
+			selected: librarySelections.tag,
+			options: [
+				{ value: 'legal', count: 4 },
+				{ value: 'property', count: 2 },
+				{ value: 'insurance', count: 1 }
+			]
+		},
+		{
+			key: 'year',
+			label: 'Year',
+			selected: librarySelections.year,
+			options: [{ value: '2026', count: 6 }]
+		}
+	]);
+	const LIBRARY_DOC_DETAIL: LibraryDocumentDetail = {
+		id: 'doc-1',
+		title: 'Trust deed — Rivers Family Trust, deed of variation',
+		fields: [
+			{ label: 'Content hash', value: 'a3f81c92d4e5b60718aa', mono: true },
+			{ label: 'Type', value: 'deed' },
+			{ label: 'Catalogued', value: '14/02/2026' }
+		],
+		tags: ['legal', 'trust'],
+		locations: [
+			{ path: '/vault/legal/trust-deed.pdf', primary: true },
+			{ path: '/archive/2019/trust-deed.pdf', badge: { status: 'warning', label: 'Missing' } }
+		],
+		memberships: [
+			{ id: 'col-7', name: 'household-legal', badge: { status: 'success', label: 'Indexed' } }
+		]
+	};
+	const LIBRARY_COLLECTION: LibraryCollection = {
+		id: 'col-7',
+		name: 'household-legal',
+		subtitle: 'estate · text · active',
+		description: 'Deeds, agreements and notices for the household entities.',
+		badge: { status: 'success', label: 'Healthy' }
+	};
+
+	// `?surface=search-results` (#30) drives the one designed-not-extracted
+	// component. The claims that need an engine: the highlight <mark> paints a
+	// real tint with real size (a highlight styled into invisibility is the
+	// same defect class as SchemaForm's silent fallback), the tint FOLLOWS the
+	// consumer's own accent when `--ds-color-primary` is overridden (the
+	// sanctioned per-app knob — this is "renders under a consumer's own
+	// tokens" measured rather than asserted), and the relevance figure
+	// resolves the mono face with tabular numerals.
+	const SEARCH_HITS: LibrarySearchResult[] = [
+		{
+			id: 'hit-1',
+			title: 'Trust deed — Rivers Family Trust',
+			snippet: [
+				{ text: 'The trustee may amend the ' },
+				{ text: 'vesting date', highlight: true },
+				{ text: ' with the consent of the appointor.' }
+			],
+			score: 0.92,
+			source: 'household-legal',
+			meta: 'deed · 2019',
+			badges: [{ status: 'success', label: 'Indexed' }]
+		},
+		{
+			id: 'hit-2',
+			title: 'Estate planning notes',
+			snippet: 'Plain-text passage with no highlight segments at all.',
+			score: 0.4,
+			source: 'estate-planning'
+		}
+	];
 
 	// `?surface=palette&palette=<name>` (design-system#25) is the gallery the
 	// master project's standalone shadcn showcase used to be: every component
@@ -636,6 +760,48 @@
 			value={schemaFormValue}
 			onChange={(next) => (schemaFormValue = next)}
 		/>
+	</div>
+{:else if surface === 'library'}
+	<!-- #30: the consumer-shaped flow. The shell is here because a real
+	     consumer renders these inside it, and the 375px overflow claim is
+	     meaningless against a bare page. -->
+	<AppShell {nav} currentPath="#/overview" brandTitle="Harness">
+		{#if libraryView === 'browse'}
+			<div data-probe="library-browse">
+				<LibraryBrowse
+					documents={LIBRARY_DOCUMENTS}
+					facets={libraryFacets}
+					query={libraryQuery}
+					total={LIBRARY_DOCUMENTS.length}
+					onQueryChange={(q) => (libraryQuery = q)}
+					onFacetChange={(key, selected) =>
+						(librarySelections = { ...librarySelections, [key]: selected })}
+					onOpenDocument={() => (libraryView = 'document')}
+				/>
+			</div>
+		{:else if libraryView === 'document'}
+			<div data-probe="library-document">
+				<DocumentDetail
+					document={LIBRARY_DOC_DETAIL}
+					onOpenCollection={() => (libraryView = 'collection')}
+				/>
+			</div>
+		{:else}
+			<div data-probe="library-collection">
+				<CollectionDetail
+					collection={LIBRARY_COLLECTION}
+					stats={[
+						{ label: 'Documents', value: 3 },
+						{ label: 'Failed', value: 0, status: 'error', muted: true }
+					]}
+					documents={LIBRARY_DOCUMENTS}
+				/>
+			</div>
+		{/if}
+	</AppShell>
+{:else if surface === 'search-results'}
+	<div class="mx-auto max-w-2xl p-8" data-probe="search-results">
+		<SearchResults results={SEARCH_HITS} query="vesting date" total={12} onOpen={() => {}} />
 	</div>
 {:else if surface === 'palette'}
 	<!-- The palette gallery (design-system#25), inside the shell rather than on a

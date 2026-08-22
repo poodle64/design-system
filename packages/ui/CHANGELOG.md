@@ -2,6 +2,44 @@
 
 All notable changes to this package are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/); versioning is CalVer (`YYYY.M.x`).
 
+## [2026.8.12] - 2026-08-22
+
+### Added
+
+- **The four fixed-prop library components: `LibraryBrowse`, `CollectionDetail`,
+  `DocumentDetail`, `SearchResults` (#30).** The other half of the shared
+  library UI, beside `SchemaForm`'s schema-driven half. The split rule is
+  settled: configuration is schema-driven because its shape changes; library
+  data is fixed components because its shape is stable.
+
+  All four render plain props the app maps its own API responses into
+  (`LibraryDocument`, `LibraryFacet`, `LibraryCollection`,
+  `LibraryDocumentDetail`, `LibrarySearchResult`, exported from
+  `@poodle64/ui/library-browse` and re-exported beside each component). The
+  package holds no HTTP client, no endpoint string, and no knowledge of any
+  backend or consuming app; links are the app's own via `documentHref` /
+  `collectionHref` / `resultHref`, the same reasoning that has `AppShell` take
+  `currentPath` as a prop. That is what lets the backend be replaced without
+  touching a consumer, and it is not negotiable for convenience.
+
+  Three are generalised from the library app's Console views; `SearchResults`
+  is designed, not extracted — a ranked retrieval answer with the matched
+  passage highlighted in a tint of the consumer's own accent, a source chip,
+  mapped state, and a mono tabular relevance figure. Everything composes from
+  what already ships: `detail-panel`, `panel`, `stat-list`, `empty-state`,
+  `error-state`, `loading-state`, `status-badge`, `badge`, `button`, `input`
+  and the `table` primitives; the one internal addition is the shared
+  catalogue table `LibraryBrowse` and `CollectionDetail` both render, so the
+  two surfaces cannot drift apart.
+
+  Verified the way `SchemaForm` is: jsdom suites for prop handling and the
+  empty/loading/error states, and a driven-browser pass
+  (`?surface=library`, `?surface=search-results`) that clicks browse →
+  document → collection, measures the resolved type faces, proves the 375px
+  catalogue table scrolls inside its own container rather than widening the
+  shell, and turns `--ds-color-primary` to show the highlight follows the
+  consumer's accent.
+
 ## [2026.8.11] - 2026-08-21
 
 ### Removed

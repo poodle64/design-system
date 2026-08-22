@@ -2257,6 +2257,204 @@ window.__probe = { composite, stack, contrast, inkRatio, fillRatio };
 	await context.close();
 }
 
+// ── The library surfaces (#30) ──────────────────────────────────────────────
+// browse → document → collection, driven the way a user drives it. jsdom can
+// fire every one of these handlers; what it cannot do is show that a legible
+// detail surface actually LANDS — real paint, resolved type faces, a facet
+// press whose chip visibly appears — and it has no layout with which to answer
+// whether the catalogue table pushes sideways scroll into the shell at 375px.
+{
+	const { context, page, errors } = await open('surface=library');
+	await page.waitForSelector('[data-probe="library-browse"] table');
+
+	const rows = await page.evaluate(
+		() => document.querySelectorAll('[data-probe="library-browse"] tbody tr').length
+	);
+	check('library: the catalogue renders a row per document', rows === 3, `${rows} rows`);
+
+	// A facet press is only a callback; the page re-rendering with the
+	// selection — pressed option, visible chip — is the proof the loop closed.
+	await page.getByRole('button', { name: 'property 2' }).click();
+	let chipVisible = true;
+	try {
+		await page.getByText('tags: property', { exact: true }).waitFor({ state: 'visible', timeout: 4000 });
+	} catch {
+		chipVisible = false;
+	}
+	check('library: a facet press comes back as a visible filter chip', chipVisible, chipVisible ? 'chip visible' : 'never appeared');
+	const pressed = await page.evaluate(() => {
+		const buttons = [...document.querySelectorAll('[aria-pressed="true"]')];
+		return buttons.map((b) => b.textContent.trim().replace(/\s+/g, ' '));
+	});
+	check(
+		'library: the pressed option is marked pressed',
+		pressed.some((t) => t.startsWith('property')),
+		JSON.stringify(pressed)
+	);
+
+	// Browse to detail — the interaction #30 requires driven, not rendered.
+	await page.getByRole('button', { name: 'Trust deed — Rivers Family Trust, deed of variation' }).click();
+	await page.waitForSelector('[data-probe="library-document"]');
+	const docMeasured = await page.evaluate(() => {
+		const root = document.querySelector('[data-probe="library-document"]');
+		const title = root.querySelector('h2');
+		const hash = [...root.querySelectorAll('dd')].find((dd) =>
+			dd.textContent.includes('a3f81c92d4e5b60718aa')
+		);
+		const box = root.getBoundingClientRect();
+		return {
+			title: title?.textContent.trim(),
+			titleFont: title ? getComputedStyle(title).fontFamily : null,
+			hashFont: hash ? getComputedStyle(hash).fontFamily : null,
+			width: Math.round(box.width),
+			height: Math.round(box.height)
+		};
+	});
+	check(
+		'library: clicking a catalogue row lands the document detail, painted',
+		docMeasured.title === 'Trust deed — Rivers Family Trust, deed of variation' &&
+			docMeasured.width > 300 &&
+			docMeasured.height > 100,
+		`"${docMeasured.title}" at ${docMeasured.width}x${docMeasured.height}`
+	);
+	// The name-shaped title resolves the display face, and the machine value
+	// the code face — resolved families, not class names (#9's lesson).
+	check(
+		'library: the document title resolves the display family',
+		docMeasured.titleFont?.includes('Fraunces'),
+		docMeasured.titleFont
+	);
+	check(
+		'library: the content hash resolves the mono family',
+		docMeasured.hashFont?.includes('JetBrains Mono'),
+		docMeasured.hashFont
+	);
+
+	// One hop further: a membership press lands the collection detail.
+	await page.getByRole('button', { name: /household-legal/ }).click();
+	await page.waitForSelector('[data-probe="library-collection"]');
+	const colMeasured = await page.evaluate(() => {
+		const root = document.querySelector('[data-probe="library-collection"]');
+		return {
+			title: root.querySelector('h2')?.textContent.trim(),
+			rows: root.querySelectorAll('tbody tr').length,
+			statValue: [...root.querySelectorAll('dd')].some((dd) => dd.textContent.trim() === '3')
+		};
+	});
+	check(
+		'library: a membership press lands the collection detail with its documents',
+		colMeasured.title === 'household-legal' && colMeasured.rows === 3 && colMeasured.statValue,
+		JSON.stringify(colMeasured)
+	);
+
+	check('library: no page error across the whole flow', errors.length === 0, JSON.stringify(errors));
+	await context.close();
+}
+
+// The catalogue at phone width: the table must scroll inside its own
+// container, never widen the shell's content region — #5's exact blindness,
+// measured on this surface because the browse grid's min-w-0 is the only
+// thing standing between the two.
+{
+	const { context, page } = await open('surface=library', { width: 375, height: 800 });
+	await page.waitForSelector('[data-probe="library-browse"] table');
+	const measured = await page.evaluate(() => {
+		const main = document.querySelector('#ds-main');
+		const scroller = document.querySelector('[data-slot="table-container"]');
+		return {
+			mainScroll: main.scrollWidth,
+			mainClient: main.clientWidth,
+			tableScroll: scroller?.scrollWidth ?? 0,
+			tableClient: scroller?.clientWidth ?? 0
+		};
+	});
+	check(
+		'library @ 375px: the content region does not scroll sideways',
+		measured.mainScroll <= measured.mainClient,
+		`main scrollWidth ${measured.mainScroll} vs clientWidth ${measured.mainClient} (+${measured.mainScroll - measured.mainClient}px)`
+	);
+	// Recorded, not gated: whether the fixture table is wider than a phone is a
+	// fixture fact, but when it is, the excess must be inside the scroller.
+	checks.push({
+		name: 'library @ 375px: the table scroller (recorded)',
+		ok: true,
+		detail: `table scrollWidth ${measured.tableScroll} vs clientWidth ${measured.tableClient}`
+	});
+	await context.close();
+}
+
+// ── SearchResults, designed not extracted (#30) ─────────────────────────────
+// The highlight is the component's whole reason to exist, and "renders a
+// tint" is a paint claim: a <mark> whose colour resolved to nothing, or to
+// the page's own background, satisfies every jsdom assertion and highlights
+// nothing — SchemaForm's silent-fallback defect wearing a different mask. And
+// the acceptance's "under a consumer's own tokens" is measured here: the
+// sanctioned accent knob is turned, and the painted pixel must move.
+{
+	const { context, page, errors } = await open('surface=search-results');
+	await page.waitForSelector('[data-probe="search-results"] mark');
+	await page.addStyleTag({ content: SETTLE });
+	await page.addScriptTag({ content: PROBE });
+
+	const before = await page.evaluate(() => {
+		const { composite, stack } = window.__probe;
+		const mark = document.querySelector('mark');
+		const box = mark.getBoundingClientRect();
+		const style = getComputedStyle(mark);
+		const behind = composite(stack(mark, false));
+		const painted = composite([...stack(mark, false), style.backgroundColor]);
+		const score = [...document.querySelectorAll('[data-probe="search-results"] span')].find(
+			(el) => el.textContent.trim() === '92%'
+		);
+		return {
+			width: Math.round(box.width),
+			height: Math.round(box.height),
+			background: style.backgroundColor,
+			moved: JSON.stringify(painted) !== JSON.stringify(behind),
+			painted: painted.map((c) => Math.round(c * 255)),
+			scoreFont: score ? getComputedStyle(score).fontFamily : null,
+			scoreNumeric: score ? getComputedStyle(score).fontVariantNumeric : null
+		};
+	});
+	check(
+		'search-results: the highlight occupies real space',
+		before.width > 10 && before.height > 10,
+		`${before.width}x${before.height}`
+	);
+	check(
+		'search-results: the highlight paints a resolved tint distinct from its ground',
+		!before.background.includes('var(') && before.moved,
+		`background ${before.background}, painted rgb(${before.painted.join(' ')})`
+	);
+	check(
+		'search-results: the relevance figure resolves mono with tabular numerals',
+		Boolean(before.scoreFont?.includes('JetBrains Mono')) &&
+			Boolean(before.scoreNumeric?.includes('tabular-nums')),
+		`${before.scoreFont} / ${before.scoreNumeric}`
+	);
+
+	// The consumer's one sanctioned personality knob, turned the way an app
+	// turns it. The highlight must follow it — proof no colour is baked in.
+	await page.addStyleTag({
+		content: ':root { --ds-color-primary: oklch(0.62 0.18 250); }'
+	});
+	const after = await page.evaluate(() => {
+		const { composite, stack } = window.__probe;
+		const mark = document.querySelector('mark');
+		return composite([...stack(mark, false), getComputedStyle(mark).backgroundColor]).map((c) =>
+			Math.round(c * 255)
+		);
+	});
+	check(
+		"search-results: the highlight follows the consumer's own accent",
+		JSON.stringify(after) !== JSON.stringify(before.painted),
+		`rgb(${before.painted.join(' ')}) -> rgb(${after.join(' ')})`
+	);
+
+	check('search-results: no page error', errors.length === 0, JSON.stringify(errors));
+	await context.close();
+}
+
 await browser.close();
 server.close();
 

@@ -433,16 +433,16 @@ never failed (6.05–8.21:1 before) and is now 12.45–13.13:1. The nav badge wa
 worst of the three, at 1.73:1 under the amber palette and 3.72:1 on the package
 default; it is now 9.09–12.63:1.
 
-| Claim                                                     | Why jsdom cannot make it                 | Gated at                                                         |
-| --------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
-| The fixture palette clears AA as a FILL                   | unresolved `var(--…)`                    | ≥4.5:1 — if this fails the FIXTURE is wrong, not the shell       |
-| The active nav label clears AA on its chrome              | no stylesheet, no `color-mix` resolution | ≥4.5:1                                                           |
-| The nav badge count clears AA on its tint                 | as above, over two stacked tints         | ≥4.5:1                                                           |
-| The active state does not rest on the indicator alone     | no cascade, no computed weight           | `aria-current="page"` **and** weight 400→500 **and** ink differs |
-| The brand indicator against the chrome                    | —                                        | recorded, not gated (see below)                                  |
-| An inverted chrome moves the nav ink                      | a cascade fact — needs an engine         | ink ≠ the page's own, and ≥4.5:1 on the inverted chrome          |
-| …and does NOT drag an in-page nav with it (`?pagenav=1`)   | as above                                 | a nav in the page body stays exactly on the page's own ink       |
-| The resting nav label clears AA                           | unresolved `var(--…)`                    | ≥4.5:1                                                           |
+| Claim                                                    | Why jsdom cannot make it                 | Gated at                                                         |
+| -------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------- |
+| The fixture palette clears AA as a FILL                  | unresolved `var(--…)`                    | ≥4.5:1 — if this fails the FIXTURE is wrong, not the shell       |
+| The active nav label clears AA on its chrome             | no stylesheet, no `color-mix` resolution | ≥4.5:1                                                           |
+| The nav badge count clears AA on its tint                | as above, over two stacked tints         | ≥4.5:1                                                           |
+| The active state does not rest on the indicator alone    | no cascade, no computed weight           | `aria-current="page"` **and** weight 400→500 **and** ink differs |
+| The brand indicator against the chrome                   | —                                        | recorded, not gated (see below)                                  |
+| An inverted chrome moves the nav ink                     | a cascade fact — needs an engine         | ink ≠ the page's own, and ≥4.5:1 on the inverted chrome          |
+| …and does NOT drag an in-page nav with it (`?pagenav=1`) | as above                                 | a nav in the page body stays exactly on the page's own ink       |
+| The resting nav label clears AA                          | unresolved `var(--…)`                    | ≥4.5:1                                                           |
 
 **Why the indicator bar is recorded and not gated.** WCAG 1.4.11 holds a state
 indicator to 3:1 only when the state is not conveyed some other way. Here it is
@@ -663,15 +663,50 @@ exactly — a field present in principle and absent on screen. jsdom cannot tell
 those apart, since it returns the unresolved `var(--...)` literal and a zero rect
 either way. So what is scripted here is paint and layout.
 
-| Claim                                                                                    | Why jsdom cannot make it                                                                       | Observed                                                     |
-| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Each flagged block occupies real space                                                   | jsdom has no layout; every rect is zero whether the block is styled or not                     | three blocks, each wider than 100px and taller than 40px     |
+| Claim                                                                                    | Why jsdom cannot make it                                                                        | Observed                                                                          |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Each flagged block occupies real space                                                   | jsdom has no layout; every rect is zero whether the block is styled or not                      | three blocks, each wider than 100px and taller than 40px                          |
 | Each flagged block paints a resolved, visible dashed warning border                      | jsdom returns `var(--ds-color-status-warning)` unresolved and calls it a pass                   | `dashed`, a resolved `oklab(...)`, contrast >= 1.3:1 against everything behind it |
-| Both SHOW rules put their field on the page, and revoking one takes its whole Group away | this one CAN be made in jsdom and is, in `src/test/`; it is repeated here as a cheap regression | `tuning.depth` and `tuning.endpoint` present, then `depth` gone after the toggle |
+| Both SHOW rules put their field on the page, and revoking one takes its whole Group away | this one CAN be made in jsdom and is, in `src/test/`; it is repeated here as a cheap regression | `tuning.depth` and `tuning.endpoint` present, then `depth` gone after the toggle  |
 
 Driven by hand: change the value a rule reads and watch the Group animate in and
 out; type into the flagged block's raw editor and confirm the value round-trips;
 switch to dark and confirm the amber flag still separates from the surface.
+
+## The library surfaces (`?surface=library`) — #30
+
+The four fixed-prop library components driven as ONE consumer-shaped flow:
+`LibraryBrowse` → a row click → `DocumentDetail` → a membership press →
+`CollectionDetail`. The harness page plays the consuming app — it owns the
+query, the facet selections and the "routing" (a state swap), exactly as the
+no-fetch/no-router contract demands. The whole flow runs inside `AppShell`
+because that is where every consumer renders these, and the 375px claim is
+meaningless against a bare page.
+
+| Claim                                                           | Why jsdom cannot make it                                                                              | Observed                                                                    |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| A row click lands a PAINTED document detail                     | jsdom fires the handler but has no layout to show anything legible appeared                           | the detail surface at real width and height, carrying the clicked title     |
+| The detail's title and hash resolve their real families         | jsdom returns the unresolved class-name story; a dead `font-display`/`font-mono` utility passes there | Fraunces on the name-shaped title, JetBrains Mono on the content hash       |
+| A facet press comes back as a visible chip and a pressed option | the re-render loop through the page's own state is real DOM paint, not a callback assertion           | `tags: property` chip visible, the option `aria-pressed`                    |
+| At 375px the catalogue table scrolls inside its own container   | #5's blindness: jsdom reports scrollWidth 0 either way                                                | table 602px inside a 341px scroller; the content region gains +0px sideways |
+
+## SearchResults (`?surface=search-results`) — #30
+
+The one designed-not-extracted component. The highlight is its whole reason to
+exist, and "renders a tint" is a paint claim: a `<mark>` whose colour resolved
+to nothing — or to the page's own background — satisfies every jsdom assertion
+and highlights nothing, which is `<SchemaForm>`'s silent-fallback defect
+wearing a different mask. The acceptance's "renders under a consumer's own
+tokens" is also measured here rather than asserted: the driver turns the one
+sanctioned accent knob (`--ds-color-primary`) the way an app turns it, and the
+painted pixel behind the highlight must move.
+
+| Claim                                                    | Observed                                                           |
+| -------------------------------------------------------- | ------------------------------------------------------------------ |
+| The highlight occupies real space                        | a real rect, tens of pixels each way                               |
+| It paints a resolved tint distinct from its ground       | a resolved `oklab(...)`, composited pixel differs from the stack   |
+| It follows the consumer's own accent                     | the composited pixel moves when `--ds-color-primary` is overridden |
+| The relevance figure resolves mono with tabular numerals | JetBrains Mono, `font-variant-numeric: tabular-nums`               |
 
 ## Nested navigation (`?surface=nested`)
 

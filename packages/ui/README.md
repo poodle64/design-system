@@ -74,31 +74,35 @@ the one-owner-per-key note below). It becomes a candidate the day two apps want
 the same chart palette; until then a shared chart component would be a shared
 disagreement.
 
-**Composed components** (20). Primitives are not what makes an app look like an
+**Composed components** (24). Primitives are not what makes an app look like an
 app — the page chrome is. These are the cross-cutting surfaces every route
 composes from, so a household app gets its layout language from the package
 rather than rebuilding it:
 
-| Import                                          | What it is                                                                                                                                                                                                                                                                                                                                               |
-| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `page-header`                                   | The only page-title pattern: optional `breadcrumbs` snippet, eyebrow, an optional title, one clamped subtitle, an `info` tooltip, an `actions` slot. Omit `title` for a header that is a breadcrumb bar.                                                                                                                                                 |
-| `panel`                                         | The generic titled card: optional icon, subtitle and trailing actions over a body that can opt out of padding.                                                                                                                                                                                                                                           |
-| `detail-panel`                                  | The entity-detail surface: header with icon/eyebrow/title/`StatusBadge`/close, scrollable body, footer of actions.                                                                                                                                                                                                                                       |
-| `context-column`                                | The persistent right-hand column: a standing `StatList` plus an optional detail that flows in on select.                                                                                                                                                                                                                                                 |
-| `app-dialog`                                    | The dialogue frame: titled header, scrollable body, footer action bar, five sizes (`xs`…`xl`), and an `onOpenChange` for the dismissals the caller did not drive.                                                                                                                                                                                        |
-| `dialog-section`                                | One section of a dialogue body; adjacent sections are divided automatically.                                                                                                                                                                                                                                                                             |
-| `stat-card`                                     | A single metric that earns its space (label, value, unit, sub, status dot, and `valueTone` to colour the figure itself).                                                                                                                                                                                                                                 |
-| `stat-list`                                     | A route's low-context integers as a label→value list. Zero-aware: `muted` keeps a healthy zero quiet.                                                                                                                                                                                                                                                    |
-| `arc-gauge`                                     | A radial capacity/percentage ring for a single 0–100 metric, in a footprint too compact for a `stat-card`.                                                                                                                                                                                                                                               |
-| `bar-row`                                       | A labelled horizontal bar with a trailing tabular value, for a ranked list (usage, rank, token burn).                                                                                                                                                                                                                                                    |
-| `scorecard`                                     | A compact 0/1/2 dot-row health strip for several independent checks read at a glance.                                                                                                                                                                                                                                                                    |
-| `sparkline`                                     | An inline multi-series area+line trend for a row or card with room for a trend but not a full chart.                                                                                                                                                                                                                                                     |
-| `status` / `status-badge`                       | The fixed five-state vocabulary (`success \| warning \| error \| info \| neutral`) and the one state chip, with `pulse` for a state still in motion and `class` for placement. `status-badge` alone also accepts `'primary'`, a brand-emphasis extension outside the shared vocabulary — `stat-card`, `stat-list` and `data-table-toolbar` never see it. |
-| `empty-state` / `error-state` / `loading-state` | The shared blank, error and loading surfaces. Never hand-roll one.                                                                                                                                                                                                                                                                                       |
-| `info-tip`                                      | One tooltip pattern: a small info trigger, or wrap an existing affordance as children.                                                                                                                                                                                                                                                                   |
-| `data-table-toolbar`                            | Search field plus filter-chip groups for a TanStack table. Owns no state; fires callbacks.                                                                                                                                                                                                                                                               |
-| `schema-form`                                   | The renderer for a config object the server described: a JSON Schema plus a JSON Forms UI Schema in, a form out. Anything it cannot dispatch renders flagged, never blank; see [Server-described forms](#server-described-forms) below.                                                                                                                    |
-| `data-table-tanstack`                           | The TanStack-backed table: global search, column filters, master-detail row select, opt-in bulk selection, responsive column hiding, a first-class empty branch.                                                                                                                                                                                         |
+| Import                                          | What it is                                                                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `page-header`                                   | The only page-title pattern: optional `breadcrumbs` snippet, eyebrow, an optional title, one clamped subtitle, an `info` tooltip, an `actions` slot. Omit `title` for a header that is a breadcrumb bar.                                                                                                                                                    |
+| `panel`                                         | The generic titled card: optional icon, subtitle and trailing actions over a body that can opt out of padding.                                                                                                                                                                                                                                              |
+| `detail-panel`                                  | The entity-detail surface: header with icon/eyebrow/title/`StatusBadge`/close, scrollable body, footer of actions.                                                                                                                                                                                                                                          |
+| `context-column`                                | The persistent right-hand column: a standing `StatList` plus an optional detail that flows in on select.                                                                                                                                                                                                                                                    |
+| `app-dialog`                                    | The dialogue frame: titled header, scrollable body, footer action bar, five sizes (`xs`…`xl`), and an `onOpenChange` for the dismissals the caller did not drive.                                                                                                                                                                                           |
+| `dialog-section`                                | One section of a dialogue body; adjacent sections are divided automatically.                                                                                                                                                                                                                                                                                |
+| `stat-card`                                     | A single metric that earns its space (label, value, unit, sub, status dot, and `valueTone` to colour the figure itself).                                                                                                                                                                                                                                    |
+| `stat-list`                                     | A route's low-context integers as a label→value list. Zero-aware: `muted` keeps a healthy zero quiet.                                                                                                                                                                                                                                                       |
+| `arc-gauge`                                     | A radial capacity/percentage ring for a single 0–100 metric, in a footprint too compact for a `stat-card`.                                                                                                                                                                                                                                                  |
+| `bar-row`                                       | A labelled horizontal bar with a trailing tabular value, for a ranked list (usage, rank, token burn).                                                                                                                                                                                                                                                       |
+| `scorecard`                                     | A compact 0/1/2 dot-row health strip for several independent checks read at a glance.                                                                                                                                                                                                                                                                       |
+| `sparkline`                                     | An inline multi-series area+line trend for a row or card with room for a trend but not a full chart.                                                                                                                                                                                                                                                        |
+| `status` / `status-badge`                       | The fixed five-state vocabulary (`success \| warning \| error \| info \| neutral`) and the one state chip, with `pulse` for a state still in motion and `class` for placement. `status-badge` alone also accepts `'primary'`, a brand-emphasis extension outside the shared vocabulary — `stat-card`, `stat-list` and `data-table-toolbar` never see it.    |
+| `empty-state` / `error-state` / `loading-state` | The shared blank, error and loading surfaces. Never hand-roll one.                                                                                                                                                                                                                                                                                          |
+| `info-tip`                                      | One tooltip pattern: a small info trigger, or wrap an existing affordance as children.                                                                                                                                                                                                                                                                      |
+| `data-table-toolbar`                            | Search field plus filter-chip groups for a TanStack table. Owns no state; fires callbacks.                                                                                                                                                                                                                                                                  |
+| `schema-form`                                   | The renderer for a config object the server described: a JSON Schema plus a JSON Forms UI Schema in, a form out. Anything it cannot dispatch renders flagged, never blank; see [Server-described forms](#server-described-forms) below.                                                                                                                     |
+| `data-table-tanstack`                           | The TanStack-backed table: global search, column filters, master-detail row select, opt-in bulk selection, responsive column hiding, a first-class empty branch.                                                                                                                                                                                            |
+| `library-browse`                                | The faceted catalogue index: search, facet rail, active filter chips, the document table and a pager, all over plain props (`LibraryDocument[]`, `LibraryFacet[]`). The page fetches, maps and routes; the component renders. Library data is fixed components because its shape is stable; configuration is `schema-form` because its shape changes (#30). |
+| `collection-detail`                             | One collection's surface: identity (`detail-panel`), an at-a-glance `stat-list`, and the documents it holds, with `actions` and `children` slots for the app-specific rest.                                                                                                                                                                                 |
+| `document-detail`                               | One document's surface: identity fields, locations, tags and collection memberships, each section present exactly when its data is. Membership links are the app's own via `collectionHref`.                                                                                                                                                                |
+| `search-results`                                | A ranked retrieval answer: title, the matched passage with accent-tinted highlights, source chip, mapped state and a mono relevance figure per hit; plus the before-any-search and matched-nothing empties.                                                                                                                                                 |
 
 **The application shell** (`app-shell`, `command-palette`). Page chrome is not
 what makes an app feel like an app either — the shell is. Five household
@@ -526,14 +530,14 @@ the renderer is replaceable without a server changing anything.
 <SchemaForm {schema} {uischema} {value} onChange={(next) => (value = next)} />
 ```
 
-| Prop       | Purpose                                                                                                      |
-| ---------- | ------------------------------------------------------------------------------------------------------------ |
-| `schema`   | The JSON Schema. Scopes resolve against it, `$ref` included, and it drives validation.                       |
+| Prop       | Purpose                                                                                                                                 |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `schema`   | The JSON Schema. Scopes resolve against it, `$ref` included, and it drives validation.                                                  |
 | `uischema` | The JSON Forms UI Schema. Omit it and one is generated from the schema, the only mode in which no field can be missing from the layout. |
-| `value`    | The current value. The component is controlled and never mutates what it is given.                          |
-| `onChange` | `(next, { path, value })`. `next` is a fresh object with every untouched branch structurally intact.         |
-| `disabled` | Disables every control.                                                                                      |
-| `idPrefix` | Prefix for generated element ids, when two forms share a page.                                               |
+| `value`    | The current value. The component is controlled and never mutates what it is given.                                                      |
+| `onChange` | `(next, { path, value })`. `next` is a fresh object with every untouched branch structurally intact.                                    |
+| `disabled` | Disables every control.                                                                                                                 |
+| `idPrefix` | Prefix for generated element ids, when two forms share a page.                                                                          |
 
 ### It knows nothing about any app
 
@@ -558,16 +562,16 @@ visibly-flagged block carrying `data-schema-form-unknown` and a
 the fix is a copy-paste, shows the value that would otherwise have been lost,
 and keeps it editable wherever a text box cannot destroy structure:
 
-| `data-unknown-reason` | Raised when                                                                        |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| `unknown-widget`      | `options.format` / `options.widget` names a widget this package does not ship.     |
-| `unknown-element`     | A UI schema element `type` outside the vocabulary below.                           |
-| `unresolved-scope`    | A Control's `scope` resolves to nothing in the JSON Schema.                        |
-| `missing-scope`       | A Control carries no `scope` at all.                                               |
-| `no-options`          | A `select` or `radio` over a subschema that declares no `enum` or `oneOf`.          |
-| `object-control`      | A Control points at an object, which needs a layout rather than one control.       |
-| `unsupported-array`   | An array whose items are not primitives, so `tags` cannot represent it.            |
-| `not-in-layout`       | The JSON Schema describes a property no Control anywhere in the layout addresses.  |
+| `data-unknown-reason` | Raised when                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `unknown-widget`      | `options.format` / `options.widget` names a widget this package does not ship.    |
+| `unknown-element`     | A UI schema element `type` outside the vocabulary below.                          |
+| `unresolved-scope`    | A Control's `scope` resolves to nothing in the JSON Schema.                       |
+| `missing-scope`       | A Control carries no `scope` at all.                                              |
+| `no-options`          | A `select` or `radio` over a subschema that declares no `enum` or `oneOf`.        |
+| `object-control`      | A Control points at an object, which needs a layout rather than one control.      |
+| `unsupported-array`   | An array whose items are not primitives, so `tags` cannot represent it.           |
+| `not-in-layout`       | The JSON Schema describes a property no Control anywhere in the layout addresses. |
 
 A primitive value stays editable; an object or an array is shown read-only,
 because a text box over structured data is a data-loss affordance rather than a
@@ -594,21 +598,21 @@ alongside it, so a server migrating off a home-grown hint vocabulary does not
 have to change both documents at once. Any hint outside this table is
 `unknown-widget`.
 
-| Widget     | Chosen when                                                          | Rendered by                       |
-| ---------- | -------------------------------------------------------------------- | --------------------------------- |
-| `text`     | `string` (the default)                                               | `input`                           |
-| `textarea` | `options.multi: true`, or the hint                                   | `textarea`                        |
-| `password` | `format: "password"`, or the hint                                    | `input[type=password]`            |
-| `date`     | `format: "date"`                                                     | `input[type=date]`                |
-| `time`     | `format: "time"`                                                     | `input[type=time]`                |
-| `datetime` | `format: "date-time"`                                                | `input[type=datetime-local]`      |
-| `number`   | `number` / `integer`                                                 | `input[type=number]`              |
-| `slider`   | `options.slider: true` on a number, or the hint                      | composed here (native `range`)    |
-| `select`   | `enum`, or `oneOf: [{ const, title }]`                               | `select`                          |
-| `radio`    | the hint, on the same closed value sets                              | composed here (native `radio`)    |
-| `switch`   | `boolean` (the default)                                              | `switch`                          |
-| `checkbox` | the hint, on a boolean                                               | `checkbox`                        |
-| `tags`     | `array` of `string` / `number` / `integer`                           | composed here (`badge` + `input`) |
+| Widget     | Chosen when                                     | Rendered by                       |
+| ---------- | ----------------------------------------------- | --------------------------------- |
+| `text`     | `string` (the default)                          | `input`                           |
+| `textarea` | `options.multi: true`, or the hint              | `textarea`                        |
+| `password` | `format: "password"`, or the hint               | `input[type=password]`            |
+| `date`     | `format: "date"`                                | `input[type=date]`                |
+| `time`     | `format: "time"`                                | `input[type=time]`                |
+| `datetime` | `format: "date-time"`                           | `input[type=datetime-local]`      |
+| `number`   | `number` / `integer`                            | `input[type=number]`              |
+| `slider`   | `options.slider: true` on a number, or the hint | composed here (native `range`)    |
+| `select`   | `enum`, or `oneOf: [{ const, title }]`          | `select`                          |
+| `radio`    | the hint, on the same closed value sets         | composed here (native `radio`)    |
+| `switch`   | `boolean` (the default)                         | `switch`                          |
+| `checkbox` | the hint, on a boolean                          | `checkbox`                        |
+| `tags`     | `array` of `string` / `number` / `integer`      | composed here (`badge` + `input`) |
 
 Three of those — `slider`, `radio` and `tags` — had no primitive in this package
 and are composed inside `schema-form/widgets/`. They are deliberately not
